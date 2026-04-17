@@ -31,7 +31,7 @@
 Run:
 
 ```bash
-bun add next-auth@beta @auth/drizzle-adapter @auth/core drizzle-orm @libsql/client date-fns date-fns-tz zod lucide-react ulid
+bun add next-auth@beta @auth/drizzle-adapter drizzle-orm @libsql/client date-fns date-fns-tz zod lucide-react ulid
 ```
 
 Expected: new entries appear under `dependencies` in `package.json`.
