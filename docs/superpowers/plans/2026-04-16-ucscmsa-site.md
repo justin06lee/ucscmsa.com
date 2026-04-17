@@ -205,7 +205,7 @@ export default function RootLayout({
 
 - [ ] **Step 3: Remove the template homepage**
 
-Open `app/page.tsx` and replace its entire contents with a placeholder; Task 18 will replace this with the real landing page:
+Open `app/page.tsx` and replace its entire contents with a placeholder; Task 17 will replace this with the real landing page:
 
 ```tsx
 export default function Home() {
