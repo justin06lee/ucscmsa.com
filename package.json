@@ -16,7 +16,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@auth/core": "^0.34.3",
     "@auth/drizzle-adapter": "^1.11.2",
     "@libsql/client": "^0.17.2",
     "date-fns": "^4.1.0",
