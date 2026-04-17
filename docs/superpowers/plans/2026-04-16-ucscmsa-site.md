@@ -96,7 +96,7 @@ AGENTS.md demands reading `node_modules/next/dist/docs/` for Next 16 changes bef
 Run:
 
 ```bash
-cat node_modules/next/dist/docs/01-app/03-file-conventions/proxy.md
+cat node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md
 ```
 
 Notes to internalize:
@@ -117,7 +117,7 @@ sed -n '620,690p' node_modules/next/dist/docs/01-app/02-guides/upgrading/version
 Run:
 
 ```bash
-ls node_modules/next/dist/docs/01-app/03-file-conventions/ && cat node_modules/next/dist/docs/01-app/03-file-conventions/route.md
+ls node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/ && cat node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md
 ```
 
 No commit for this task — it is a knowledge checkpoint.
