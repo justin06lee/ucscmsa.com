@@ -38,3 +38,63 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+.day-grid {
+  --hour-h: 56px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.day-grid__hour {
+  height: var(--hour-h);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+  padding: 4px 8px;
+  color: var(--color-dim);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-grid__body {
+  position: relative;
+  height: 100%;
+  border-left: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+}
+
+.day-grid__prayer-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-burgundy);
+  pointer-events: none;
+}
+
+.day-grid__prayer-label {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: var(--color-burgundy);
+  background: var(--color-paper);
+  padding: 0 4px;
+  pointer-events: none;
+}
+
+.day-grid__event {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-paper) 70%, var(--color-burgundy-soft));
+  color: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--color-burgundy) 30%, transparent);
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.day-grid__event:hover {
+  border-color: var(--color-burgundy);
+}
