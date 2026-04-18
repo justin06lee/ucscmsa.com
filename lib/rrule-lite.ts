@@ -1,5 +1,5 @@
-import { addDays, addYears, getDay } from "date-fns";
-import { toLocalYmd } from "./time";
+import { getDay } from "date-fns";
+import { SITE_TZ, toLocalYmd, toZonedTime } from "./time";
 
 export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -36,14 +36,30 @@ const WEEKDAY_MAP: Record<string, number> = {
   SA: 6,
 };
 
-function occursOnAllowedWeekday(d: Date, allowed: number[]): boolean {
-  return allowed.includes(getDay(d));
+function addDaysUtc(d: Date, n: number): Date {
+  const out = new Date(d.getTime());
+  out.setUTCDate(out.getUTCDate() + n);
+  return out;
 }
 
-function addMonthsClamped(start: Date, months: number, sourceDom: number): Date {
+function addYearsUtc(d: Date, n: number): Date {
+  const out = new Date(d.getTime());
+  const dom = out.getUTCDate();
+  out.setUTCFullYear(out.getUTCFullYear() + n);
+  // Clamp Feb 29 -> Feb 28 when target year is not a leap year.
+  if (out.getUTCDate() !== dom) out.setUTCDate(0);
+  return out;
+}
+
+function occursOnAllowedWeekday(d: Date, allowed: number[]): boolean {
+  return allowed.includes(getDay(toZonedTime(d, SITE_TZ)));
+}
+
+function addMonthsClamped(start: Date, months: number): Date {
   // Use UTC math explicitly so we don't accidentally shift by an hour across a
   // DST boundary. date-fns `addMonths` operates in local time, which causes
   // e.g. Jan 31 19:00Z (11:00 PST) to become Mar 31 18:00Z (11:00 PDT).
+  const sourceDom = start.getUTCDate();
   const year = start.getUTCFullYear();
   const month = start.getUTCMonth();
   const targetYear = year + Math.floor((month + months) / 12);
@@ -98,7 +114,7 @@ export function expandEvents(
       let cursor = ev.startTime;
       while (cursor < hardStop) {
         emit(cursor);
-        cursor = addDays(cursor, interval);
+        cursor = addDaysUtc(cursor, interval);
       }
     } else if (ev.recurrenceFreq === "weekly") {
       const allowed = ev.recurrenceByWeekday
@@ -107,23 +123,22 @@ export function expandEvents(
             .map((s) => s.trim().toUpperCase())
             .filter((s) => s in WEEKDAY_MAP)
             .map((s) => WEEKDAY_MAP[s])
-        : [getDay(ev.startTime)];
+        : [getDay(toZonedTime(ev.startTime, SITE_TZ))];
 
       let weekCursor = ev.startTime;
       while (weekCursor < hardStop) {
         for (let i = 0; i < 7; i++) {
-          const day = addDays(weekCursor, i);
+          const day = addDaysUtc(weekCursor, i);
           if (day < ev.startTime) continue;
           if (day >= hardStop) break;
           if (occursOnAllowedWeekday(day, allowed)) emit(day);
         }
-        weekCursor = addDays(weekCursor, 7 * interval);
+        weekCursor = addDaysUtc(weekCursor, 7 * interval);
       }
     } else if (ev.recurrenceFreq === "monthly") {
-      const sourceDom = ev.startTime.getUTCDate();
       let i = 0;
       while (true) {
-        const candidate = addMonthsClamped(ev.startTime, i * interval, sourceDom);
+        const candidate = addMonthsClamped(ev.startTime, i * interval);
         if (candidate >= hardStop) break;
         emit(candidate);
         i++;
@@ -131,7 +146,7 @@ export function expandEvents(
     } else if (ev.recurrenceFreq === "yearly") {
       let i = 0;
       while (true) {
-        const candidate = addYears(ev.startTime, i * interval);
+        const candidate = addYearsUtc(ev.startTime, i * interval);
         if (candidate >= hardStop) break;
         emit(candidate);
         i++;

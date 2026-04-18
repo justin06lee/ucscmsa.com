@@ -156,4 +156,83 @@ describe("expandEvents", () => {
     );
     expect(out).toHaveLength(3);
   });
+
+  it("daily recurrence keeps the same UTC timestamp across DST fall-back (Nov 1 2026)", () => {
+    const daily: EventInput = {
+      ...baseOneOff,
+      id: "dst1",
+      startTime: new Date("2026-10-31T19:00:00.000Z"), // Sat 12:00 PDT
+      endTime: new Date("2026-10-31T20:00:00.000Z"),
+      recurrenceFreq: "daily",
+    };
+    const out = expandEvents(
+      [daily],
+      new Date("2026-10-31T00:00:00.000Z"),
+      new Date("2026-11-04T00:00:00.000Z") // 4 days: 10/31, 11/1, 11/2, 11/3
+    );
+    expect(out.map((o) => o.occurrenceStart.toISOString())).toEqual([
+      "2026-10-31T19:00:00.000Z",
+      "2026-11-01T19:00:00.000Z",
+      "2026-11-02T19:00:00.000Z",
+      "2026-11-03T19:00:00.000Z",
+    ]);
+  });
+
+  it("weekly byWeekday uses Santa Cruz local day-of-week even when UTC day differs", () => {
+    // 2026-04-13T06:00:00.000Z is Monday 06:00 UTC, but 2026-04-12 23:00 PDT (Sunday).
+    // If the helper uses SITE_TZ correctly, MO will NOT include this occurrence.
+    const weekly: EventInput = {
+      ...baseOneOff,
+      id: "wtz1",
+      startTime: new Date("2026-04-13T06:00:00.000Z"), // Sunday in PDT
+      endTime: new Date("2026-04-13T07:00:00.000Z"),
+      recurrenceFreq: "weekly",
+      recurrenceByWeekday: "SU",
+    };
+    const out = expandEvents(
+      [weekly],
+      new Date("2026-04-13T00:00:00.000Z"),
+      new Date("2026-04-14T00:00:00.000Z")
+    );
+    expect(out).toHaveLength(1);
+  });
+
+  it("weekly without byWeekday recurs on the start-time's local weekday", () => {
+    // 2026-04-15T19:00:00.000Z is Wednesday 12:00 PDT.
+    const weekly: EventInput = {
+      ...baseOneOff,
+      id: "wfb1",
+      startTime: new Date("2026-04-15T19:00:00.000Z"),
+      endTime: new Date("2026-04-15T20:00:00.000Z"),
+      recurrenceFreq: "weekly",
+      recurrenceByWeekday: null,
+    };
+    const out = expandEvents(
+      [weekly],
+      new Date("2026-04-15T00:00:00.000Z"),
+      new Date("2026-04-30T00:00:00.000Z")
+    );
+    // 4/15, 4/22, 4/29 — three Wednesdays
+    expect(out.map((o) => o.occurrenceStart.toISOString())).toEqual([
+      "2026-04-15T19:00:00.000Z",
+      "2026-04-22T19:00:00.000Z",
+      "2026-04-29T19:00:00.000Z",
+    ]);
+  });
+
+  it("daily recurrenceInterval > 1 skips days", () => {
+    const daily: EventInput = {
+      ...baseOneOff,
+      id: "di1",
+      recurrenceFreq: "daily",
+      recurrenceInterval: 2,
+    };
+    const out = expandEvents(
+      [daily],
+      new Date("2026-04-16T00:00:00.000Z"),
+      new Date("2026-04-23T00:00:00.000Z")
+    );
+    // 4/16, 4/18, 4/20, 4/22 — four occurrences at interval 2
+    expect(out).toHaveLength(4);
+  });
 });
