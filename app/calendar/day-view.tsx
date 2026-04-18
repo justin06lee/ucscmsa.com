@@ -64,6 +64,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
                 key={`pm-${p.label}`}
                 className="day-grid__prayer-line"
                 style={{ top }}
+                aria-hidden="true"
               >
                 <span className="day-grid__prayer-label" style={{ top: 0 }}>
                   {p.label} {p.hm}
@@ -78,6 +79,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
           ) : (
             occurrences.map((o) => {
               const s = localHourAndMinute(o.occurrenceStart);
+              if (s.h < gridStart || s.h >= gridEnd) return null;
               const durMin =
                 (o.occurrenceEnd.getTime() - o.occurrenceStart.getTime()) /
                 60000;
@@ -88,7 +90,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
                   key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
                   href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                   className="day-grid__event"
-                  style={{ top, height: Math.max(24, height) }}
+                  style={{ top, height: Math.max(24, Math.min(height, bodyHeight - top)) }}
                 >
                   <div className="font-medium">{o.title}</div>
                   <div className="text-xs text-dim">
