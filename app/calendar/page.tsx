@@ -51,7 +51,7 @@ export default async function CalendarPage({
     const start = startOfLocalMonthUtc(ymd);
     const end = endOfLocalMonthUtc(ymd);
     const occurrences = await getOccurrencesInRange(start, end);
-    content = <MonthView date={date} occurrences={occurrences} />;
+    content = <MonthView ymd={ymd} occurrences={occurrences} />;
   } else {
     const start = startOfLocalYearUtc(ymd);
     const end = endOfLocalYearUtc(ymd);

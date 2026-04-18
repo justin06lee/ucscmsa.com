@@ -66,4 +66,23 @@ export function formatLocal(utc: Date, fmt: string): string {
   return formatInTimeZone(utc, SITE_TZ, fmt);
 }
 
+export function monthGridDays(ymd: string): Array<{ ymd: string; inMonth: boolean }> {
+  const [y, m] = ymd.split("-").map(Number);
+  // JS Date used purely as calendar arithmetic: ymd components are SITE_TZ-local dates
+  // and we walk them numerically. No TZ conversion needed.
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const dayOfWeek = first.getUTCDay(); // Sunday=0
+  const gridStart = new Date(Date.UTC(y, m - 1, 1 - dayOfWeek));
+  const out: Array<{ ymd: string; inMonth: boolean }> = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart);
+    d.setUTCDate(d.getUTCDate() + i);
+    const yy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    out.push({ ymd: `${yy}-${mm}-${dd}`, inMonth: d.getUTCMonth() === m - 1 });
+  }
+  return out;
+}
+
 export { toZonedTime };

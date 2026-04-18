@@ -11,6 +11,7 @@ import {
   endOfLocalMonthUtc,
   startOfLocalYearUtc,
   endOfLocalYearUtc,
+  monthGridDays,
 } from "./time";
 
 describe("time helpers", () => {
@@ -77,5 +78,21 @@ describe("time helpers", () => {
   it("endOfLocalYearUtc returns UTC for next-year-start - 1ms", () => {
     const d = endOfLocalYearUtc("2026-04-16");
     expect(d.toISOString()).toBe("2027-01-01T07:59:59.999Z");
+  });
+
+  it("monthGridDays returns 42 SITE_TZ-safe YMDs with inMonth flags for April 2026", () => {
+    const grid = monthGridDays("2026-04-16");
+    expect(grid).toHaveLength(42);
+    // April 2026: Apr 1 is a Wednesday, so the grid starts Sun Mar 29 and ends Sat May 9.
+    expect(grid[0].ymd).toBe("2026-03-29");
+    expect(grid[0].inMonth).toBe(false);
+    expect(grid[3].ymd).toBe("2026-04-01");
+    expect(grid[3].inMonth).toBe(true);
+    // April has 30 days; index 3 + 29 = 32 is April 30.
+    expect(grid[32].ymd).toBe("2026-04-30");
+    expect(grid[32].inMonth).toBe(true);
+    expect(grid[33].ymd).toBe("2026-05-01");
+    expect(grid[33].inMonth).toBe(false);
+    expect(grid[41].ymd).toBe("2026-05-09");
   });
 });
