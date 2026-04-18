@@ -31,17 +31,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!email.endsWith("@ucsc.edu")) return false;
 
       if (seedEmails.includes(email) && user.id) {
-        const existing = await db
-          .select()
-          .from(admins)
-          .where(eq(admins.userId, user.id))
-          .limit(1);
-        if (existing.length === 0) {
-          await db.insert(admins).values({
-            userId: user.id,
-            promotedByNominationId: null,
-          });
-        }
+        await db
+          .insert(admins)
+          .values({ userId: user.id, promotedByNominationId: null })
+          .onConflictDoNothing();
       }
       return true;
     },
