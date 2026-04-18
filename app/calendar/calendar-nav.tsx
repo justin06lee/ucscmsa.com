@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -30,7 +29,9 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable)) return;
       if (e.key === "ArrowLeft") go(stepDate(date, view, -1), view);
       if (e.key === "ArrowRight") go(stepDate(date, view, 1), view);
       if (e.key.toLowerCase() === "t") go(new Date(), view);

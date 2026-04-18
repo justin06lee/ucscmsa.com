@@ -7,6 +7,10 @@ import {
   ceilLocalHour,
   startOfLocalDayUtc,
   endOfLocalDayUtc,
+  startOfLocalMonthUtc,
+  endOfLocalMonthUtc,
+  startOfLocalYearUtc,
+  endOfLocalYearUtc,
 } from "./time";
 
 describe("time helpers", () => {
@@ -53,5 +57,25 @@ describe("time helpers", () => {
   it("endOfLocalDayUtc returns UTC for local 23:59:59.999", () => {
     const d = endOfLocalDayUtc("2026-04-16");
     expect(d.toISOString()).toBe("2026-04-17T06:59:59.999Z");
+  });
+
+  it("startOfLocalMonthUtc returns UTC for local month start (April 2026 is PDT)", () => {
+    const d = startOfLocalMonthUtc("2026-04-16");
+    expect(d.toISOString()).toBe("2026-04-01T07:00:00.000Z");
+  });
+
+  it("endOfLocalMonthUtc returns UTC for next-month-start - 1ms (April 2026 is PDT)", () => {
+    const d = endOfLocalMonthUtc("2026-04-16");
+    expect(d.toISOString()).toBe("2026-05-01T06:59:59.999Z");
+  });
+
+  it("startOfLocalYearUtc returns UTC for local Jan 1 (January is PST)", () => {
+    const d = startOfLocalYearUtc("2026-04-16");
+    expect(d.toISOString()).toBe("2026-01-01T08:00:00.000Z");
+  });
+
+  it("endOfLocalYearUtc returns UTC for next-year-start - 1ms", () => {
+    const d = endOfLocalYearUtc("2026-04-16");
+    expect(d.toISOString()).toBe("2027-01-01T07:59:59.999Z");
   });
 });

@@ -1,4 +1,12 @@
-import { startOfLocalDayUtc, endOfLocalDayUtc, SITE_TZ } from "@/lib/time";
+import {
+  startOfLocalDayUtc,
+  endOfLocalDayUtc,
+  startOfLocalMonthUtc,
+  endOfLocalMonthUtc,
+  startOfLocalYearUtc,
+  endOfLocalYearUtc,
+  SITE_TZ,
+} from "@/lib/time";
 import { formatInTimeZone } from "date-fns-tz";
 import { getOccurrencesInRange } from "@/lib/db/queries";
 import { getPrayerTimes } from "@/lib/aladhan";
@@ -7,7 +15,6 @@ import { CalendarNav } from "./calendar-nav";
 import { DayView } from "./day-view";
 import { MonthView } from "./month-view";
 import { YearView } from "./year-view";
-import { startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 
 type SP = { view?: string; date?: string };
 
@@ -41,13 +48,13 @@ export default async function CalendarPage({
     ]);
     content = <DayView ymd={ymd} occurrences={occurrences} prayer={prayer} />;
   } else if (view === "month") {
-    const start = startOfMonth(date);
-    const end = endOfMonth(date);
+    const start = startOfLocalMonthUtc(ymd);
+    const end = endOfLocalMonthUtc(ymd);
     const occurrences = await getOccurrencesInRange(start, end);
     content = <MonthView date={date} occurrences={occurrences} />;
   } else {
-    const start = startOfYear(date);
-    const end = endOfYear(date);
+    const start = startOfLocalYearUtc(ymd);
+    const end = endOfLocalYearUtc(ymd);
     const occurrences = await getOccurrencesInRange(start, end);
     content = <YearView date={date} occurrences={occurrences} />;
   }

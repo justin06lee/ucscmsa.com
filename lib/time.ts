@@ -29,6 +29,31 @@ export function endOfLocalDayUtc(ymd: string): Date {
   return fromZonedTime(`${ymd}T23:59:59.999`, SITE_TZ);
 }
 
+export function startOfLocalMonthUtc(ymd: string): Date {
+  const [y, m] = ymd.split("-");
+  return fromZonedTime(`${y}-${m}-01T00:00:00.000`, SITE_TZ);
+}
+
+export function endOfLocalMonthUtc(ymd: string): Date {
+  const [y, m] = ymd.split("-").map(Number);
+  const nextMonth = m === 12 ? 1 : m + 1;
+  const nextYear = m === 12 ? y + 1 : y;
+  const mm = String(nextMonth).padStart(2, "0");
+  const next = fromZonedTime(`${nextYear}-${mm}-01T00:00:00.000`, SITE_TZ);
+  return new Date(next.getTime() - 1);
+}
+
+export function startOfLocalYearUtc(ymd: string): Date {
+  const [y] = ymd.split("-");
+  return fromZonedTime(`${y}-01-01T00:00:00.000`, SITE_TZ);
+}
+
+export function endOfLocalYearUtc(ymd: string): Date {
+  const [y] = ymd.split("-").map(Number);
+  const next = fromZonedTime(`${y + 1}-01-01T00:00:00.000`, SITE_TZ);
+  return new Date(next.getTime() - 1);
+}
+
 export function localHourLabel(hour: number): string {
   const h = ((hour % 24) + 24) % 24;
   if (h === 0) return "12 AM";
