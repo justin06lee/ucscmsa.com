@@ -3,7 +3,17 @@ import { getUpcomingOccurrences } from "@/lib/db/queries";
 import { formatLocal } from "@/lib/time";
 
 export async function UpcomingEvents({ limit = 3 }: { limit?: number }) {
-  const items = await getUpcomingOccurrences(limit);
+  let items;
+  try {
+    items = await getUpcomingOccurrences(limit);
+  } catch (err) {
+    console.error("UpcomingEvents: failed to load occurrences", err);
+    return (
+      <p className="text-dim italic">
+        Events are temporarily unavailable. Please refresh in a moment.
+      </p>
+    );
+  }
 
   if (items.length === 0) {
     return (
