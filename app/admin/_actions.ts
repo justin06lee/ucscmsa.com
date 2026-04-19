@@ -8,6 +8,7 @@ import { eq, count } from "drizzle-orm";
 import { requireAdminId } from "@/lib/auth";
 import { eventInputSchema, nominateSchema } from "./_schemas";
 import { parseHMInLocal } from "@/lib/time";
+import { applyIfQuorum } from "./_apply-nomination";
 
 function formToObject(fd: FormData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -139,49 +140,14 @@ export async function approveNomination(nominationId: string) {
         return { ok: false as const, error: "already_approved" };
       }
 
-      const approvals = await tx.select().from(adminApprovals)
-        .where(eq(adminApprovals.nominationId, nominationId));
-      const approverIds = approvals.map((a) => a.approverAdminId);
-      const distinctFromNominator = approverIds.filter(
-        (id) => id !== nom.nominatedByAdminId
-      );
-
-      if (distinctFromNominator.length < 2) {
-        return { ok: true as const, applied: false };
+      const result = await applyIfQuorum(tx, nominationId);
+      if (result.applied) {
+        revalidatePath("/admin");
+        revalidatePath("/admin/admins");
+        revalidatePath("/admin/nominations");
+        return { ok: true as const, applied: true };
       }
-
-      if (nom.action === "promote") {
-        if (!nom.nomineeEmail) throw new Error("promote nomination missing email");
-        const { users } = await import("@/lib/db/schema");
-        const [u] = await tx.select().from(users)
-          .where(eq(users.email, nom.nomineeEmail)).limit(1);
-        if (!u) {
-          return { ok: false as const, error: "nominee_must_sign_in_first" };
-        }
-        await tx.insert(admins)
-          .values({ userId: u.id, promotedByNominationId: nominationId })
-          .onConflictDoNothing();
-      } else {
-        if (!nom.targetAdminId) throw new Error("demote nomination missing target");
-        const [{ total }] = await tx.select({ total: count() }).from(admins);
-        if (total <= 1) {
-          return { ok: false as const, error: "would_remove_last_admin" };
-        }
-        await tx.delete(admins).where(eq(admins.id, nom.targetAdminId));
-        const [{ total: afterDelete }] = await tx.select({ total: count() }).from(admins);
-        if (afterDelete === 0) {
-          throw new Error("last_admin_race");
-        }
-      }
-
-      await tx.update(adminNominations)
-        .set({ status: "approved" })
-        .where(eq(adminNominations.id, nominationId));
-
-      revalidatePath("/admin");
-      revalidatePath("/admin/admins");
-      revalidatePath("/admin/nominations");
-      return { ok: true as const, applied: true };
+      return { ok: true as const, applied: false };
     });
   } catch (err) {
     if (err instanceof Error && err.message === "last_admin_race") {
