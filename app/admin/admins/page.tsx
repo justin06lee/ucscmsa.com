@@ -1,20 +1,24 @@
 import { db } from "@/lib/db/client";
 import { admins, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { DemoteForm } from "./demote-form";
 import { formatLocal } from "@/lib/time";
+import { getSession } from "@/lib/auth";
 
 export default async function AdminsList() {
+  const session = await getSession();
   const rows = await db
     .select({
       id: admins.id,
+      userId: admins.userId,
       email: users.email,
       name: users.name,
       promotedAt: admins.promotedAt,
       promotedByNominationId: admins.promotedByNominationId,
     })
     .from(admins)
-    .leftJoin(users, eq(admins.userId, users.id));
+    .leftJoin(users, eq(admins.userId, users.id))
+    .orderBy(desc(admins.promotedAt));
 
   return (
     <div>
@@ -41,7 +45,9 @@ export default async function AdminsList() {
                 {r.promotedByNominationId ? `nomination ${r.promotedByNominationId.slice(0, 8)}` : "bootstrap"}
               </td>
               <td className="py-2 text-right">
-                <DemoteForm targetAdminId={r.id} email={r.email ?? ""} />
+                {r.userId !== session?.user?.id && (
+                  <DemoteForm targetAdminId={r.id} email={r.email ?? ""} />
+                )}
               </td>
             </tr>
           ))}

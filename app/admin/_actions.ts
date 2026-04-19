@@ -96,6 +96,9 @@ export async function nominateAdmin(fd: FormData) {
     if (!nomineeEmail) return { ok: false as const, error: "email required" };
   } else {
     if (!targetAdminId) return { ok: false as const, error: "target admin required" };
+    if (targetAdminId === adminId) {
+      return { ok: false as const, error: "cannot_nominate_self" };
+    }
     const [{ total }] = await db.select({ total: count() }).from(admins);
     if (total <= 1) {
       return { ok: false as const, error: "cannot demote the last admin" };
