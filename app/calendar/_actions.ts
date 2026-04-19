@@ -5,7 +5,6 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { eventRsvps } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth";
-import { and, eq } from "drizzle-orm";
 
 const rsvpSchema = z.object({
   eventId: z.string(),
@@ -30,37 +29,18 @@ export async function rsvp(formData: FormData) {
   const start = new Date(occurrenceStart);
   const userId = session.user.id;
 
-  const existing = await db
-    .select()
-    .from(eventRsvps)
-    .where(
-      and(
-        eq(eventRsvps.eventId, eventId),
-        eq(eventRsvps.occurrenceStart, start),
-        eq(eventRsvps.userId, userId)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    await db
-      .update(eventRsvps)
-      .set({ status })
-      .where(
-        and(
-          eq(eventRsvps.eventId, eventId),
-          eq(eventRsvps.occurrenceStart, start),
-          eq(eventRsvps.userId, userId)
-        )
-      );
-  } else {
-    await db.insert(eventRsvps).values({
+  await db
+    .insert(eventRsvps)
+    .values({
       eventId,
       occurrenceStart: start,
       userId,
       status,
+    })
+    .onConflictDoUpdate({
+      target: [eventRsvps.eventId, eventRsvps.occurrenceStart, eventRsvps.userId],
+      set: { status },
     });
-  }
 
   revalidatePath(`/calendar/events/${eventId}`);
   return { ok: true as const };
