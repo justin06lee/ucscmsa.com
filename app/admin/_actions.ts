@@ -147,6 +147,12 @@ export async function approveNomination(nominationId: string) {
         revalidatePath("/admin/nominations");
         return { ok: true as const, applied: true };
       }
+      if (result.reason === "user_not_found") {
+        return { ok: false as const, error: "nominee_must_sign_in_first" };
+      }
+      if (result.reason === "would_remove_last_admin") {
+        return { ok: false as const, error: "would_remove_last_admin" };
+      }
       return { ok: true as const, applied: false };
     });
   } catch (err) {

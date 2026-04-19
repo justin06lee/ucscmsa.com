@@ -21,7 +21,7 @@ async function seedAdmins(db: Awaited<ReturnType<typeof createTestDb>>["db"], em
 describe("applyIfQuorum", () => {
   it("does not apply with fewer than 2 distinct approvers", async () => {
     const { db, client } = await createTestDb();
-    const [a1, a2, a3] = await seedAdmins(db, ["a@ucsc.edu", "b@ucsc.edu", "c@ucsc.edu"]);
+    const [a1, a2] = await seedAdmins(db, ["a@ucsc.edu", "b@ucsc.edu"]);
     const nomId = ulid();
     await db.insert(adminNominations).values({
       id: nomId,
@@ -35,9 +35,12 @@ describe("applyIfQuorum", () => {
     client.close();
   });
 
-  it("does not apply when one approver is the nominator", async () => {
+  it("does not count the nominator when tallying distinct approvers", async () => {
     const { db, client } = await createTestDb();
-    const [a1, a2] = await seedAdmins(db, ["a@ucsc.edu", "b@ucsc.edu"]);
+    const [a1, a2, a3] = await seedAdmins(db, ["a@ucsc.edu", "b@ucsc.edu", "c@ucsc.edu"]);
+    const nomineeUserId = crypto.randomUUID();
+    await db.insert(users).values({ id: nomineeUserId, email: "new@ucsc.edu" });
+
     const nomId = ulid();
     await db.insert(adminNominations).values({
       id: nomId,
@@ -45,10 +48,16 @@ describe("applyIfQuorum", () => {
       nomineeEmail: "new@ucsc.edu",
       nominatedByAdminId: a1,
     });
+    // Three approvals, one of which is the nominator -> distinct non-nominator approvers = 2.
     await db.insert(adminApprovals).values({ nominationId: nomId, approverAdminId: a2 });
+    await db.insert(adminApprovals).values({ nominationId: nomId, approverAdminId: a3 });
     await db.insert(adminApprovals).values({ nominationId: nomId, approverAdminId: a1 });
+
     const r = await db.transaction(async (tx) => applyIfQuorum(tx, nomId));
-    expect(r.applied).toBe(false);
+    expect(r.applied).toBe(true);
+
+    const all = await db.select().from(admins);
+    expect(all.some((a) => a.userId === nomineeUserId)).toBe(true);
     client.close();
   });
 
