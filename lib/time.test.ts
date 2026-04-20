@@ -39,10 +39,9 @@ describe("time helpers", () => {
   });
 
   it("ceilLocalHour rounds up when minutes > 0", () => {
-    const d = new Date("2026-04-16T03:47:00.000Z"); // 20:47 PDT previous day? no: UTC-7 = 20:47 PDT on 4/15
-    // Use a clearer example: 20:47 PDT on 2026-04-16 = 03:47 UTC 2026-04-17
-    const d2 = new Date("2026-04-17T03:47:00.000Z");
-    expect(ceilLocalHour(d2)).toBe(21);
+    // 20:47 PDT on 2026-04-16 = 03:47 UTC 2026-04-17
+    const d = new Date("2026-04-17T03:47:00.000Z");
+    expect(ceilLocalHour(d)).toBe(21);
   });
 
   it("ceilLocalHour returns the exact hour when minutes == 0", () => {

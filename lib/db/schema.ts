@@ -4,7 +4,6 @@ import {
   primaryKey,
   sqliteTable,
   text,
-  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 // ---------- Auth.js (Drizzle adapter) ----------

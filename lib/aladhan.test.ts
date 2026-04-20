@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTestDb } from "@/test/db";
-import { getPrayerTimes, DEFAULT_PRAYER_TIMES, type PrayerTimes } from "./aladhan";
+import { getPrayerTimes, DEFAULT_PRAYER_TIMES } from "./aladhan";
 import { prayerTimesCache } from "@/lib/db/schema";
 
 describe("getPrayerTimes", () => {
@@ -24,7 +24,7 @@ describe("getPrayerTimes", () => {
     });
 
     const fetchSpy = vi.fn();
-    globalThis.fetch = fetchSpy as any;
+    globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
     const result = await getPrayerTimes("2026-04-16", db);
 
@@ -52,7 +52,7 @@ describe("getPrayerTimes", () => {
         }),
         { status: 200 }
       )
-    ) as any;
+    ) as unknown as typeof globalThis.fetch;
 
     const result = await getPrayerTimes("2026-04-16", db);
     expect(result.fajr).toBe("05:18");
@@ -67,7 +67,7 @@ describe("getPrayerTimes", () => {
     const { db, client } = await createTestDb();
     globalThis.fetch = vi.fn(async () => {
       throw new Error("network down");
-    }) as any;
+    }) as unknown as typeof globalThis.fetch;
 
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const result = await getPrayerTimes("2026-04-16", db);
