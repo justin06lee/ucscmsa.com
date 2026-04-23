@@ -6,6 +6,7 @@ import type { PrayerTimes } from "@/lib/aladhan";
 import { formatLocal, parseHMInLocal, floorLocalHour, ceilLocalHour, localHourLabel } from "@/lib/time";
 
 const HOUR_H = 56;
+const LABEL_MIN_GAP = 22;
 
 type Props = { ymd: string; occurrences: Occurrence[]; prayer: PrayerTimes };
 
@@ -22,25 +23,37 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
   const hours = Array.from({ length: gridEnd - gridStart }, (_, i) => gridStart + i);
   const bodyHeight = hours.length * HOUR_H;
 
-  const prayerMarkers: Array<{ label: string; hm: string }> = [
+  const prayerMarkers = [
     { label: "Fajr", hm: prayer.fajr },
     { label: "Sunrise", hm: prayer.sunrise },
     { label: "Dhuhr", hm: prayer.dhuhr },
     { label: "Asr", hm: prayer.asr },
     { label: "Maghrib", hm: prayer.maghrib },
     { label: "Isha", hm: prayer.isha },
-  ];
+  ].map((p) => {
+    const { h, m } = localHourAndMinute(parseHMInLocal(ymd, p.hm));
+    return { ...p, lineTop: (h - gridStart) * HOUR_H + (m / 60) * HOUR_H };
+  });
+
+  const sortedByTop = [...prayerMarkers].sort((a, b) => a.lineTop - b.lineTop);
+  const labelTopByKey = new Map<string, number>();
+  let lastLabelTop = -Infinity;
+  for (const p of sortedByTop) {
+    const top = Math.max(p.lineTop, lastLabelTop + LABEL_MIN_GAP);
+    labelTopByKey.set(p.label, top);
+    lastLabelTop = top;
+  }
 
   return (
     <div>
-      <header className="mb-4 flex flex-wrap gap-x-6 gap-y-2 items-baseline">
-        <h1 className="text-2xl font-medium">
+      <header className="mb-6 flex flex-wrap gap-x-6 gap-y-3 items-baseline">
+        <h1 className="text-3xl">
           {formatLocal(parseHMInLocal(ymd, "12:00"), "EEEE, MMMM d, yyyy")}
         </h1>
-        <div className="flex flex-wrap gap-x-4 text-sm text-burgundy">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-burgundy">
           {prayerMarkers.map((p) => (
             <span key={p.label} className="tabular-nums">
-              {p.label} {p.hm}
+              <span className="font-medium">{p.label}</span> {p.hm}
             </span>
           ))}
         </div>
@@ -54,28 +67,29 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
             {localHourLabel(h)}
           </div>
         ))}
-        <div className="day-grid__body" style={{ gridRow: `1 / span ${hours.length}`, height: bodyHeight }}>
-          {prayerMarkers.map((p) => {
-            const utc = parseHMInLocal(ymd, p.hm);
-            const { h, m } = localHourAndMinute(utc);
-            const top = (h - gridStart) * HOUR_H + (m / 60) * HOUR_H;
-            return (
-              <div
-                key={`pm-${p.label}`}
-                className="day-grid__prayer-line"
-                style={{ top }}
-                aria-hidden="true"
-              >
-                <span className="day-grid__prayer-label" style={{ top: 0 }}>
-                  {p.label} {p.hm}
-                </span>
-              </div>
-            );
-          })}
+        <div
+          className="day-grid__body"
+          style={{ gridRow: `1 / span ${hours.length}`, height: bodyHeight }}
+        >
+          {prayerMarkers.map((p) => (
+            <div
+              key={`line-${p.label}`}
+              className="day-grid__prayer-line"
+              style={{ top: p.lineTop }}
+              aria-hidden="true"
+            />
+          ))}
+          {prayerMarkers.map((p) => (
+            <span
+              key={`label-${p.label}`}
+              className="day-grid__prayer-label"
+              style={{ top: labelTopByKey.get(p.label) }}
+            >
+              {p.label} {p.hm}
+            </span>
+          ))}
           {occurrences.length === 0 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-dim">
-              No events scheduled
-            </div>
+            <div className="day-grid__empty">No events scheduled</div>
           ) : (
             occurrences.map((o) => {
               const s = localHourAndMinute(o.occurrenceStart);

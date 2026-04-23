@@ -1,5 +1,20 @@
 import type { Metadata } from "next";
+import { Amiri, Inter } from "next/font/google";
 import "./globals.css";
+
+const amiri = Amiri({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-amiri",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "MSA at UCSC",
@@ -12,7 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html
+      lang="en"
+      className={`${amiri.variable} ${inter.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col bg-paper text-ink">{children}</body>
     </html>
   );

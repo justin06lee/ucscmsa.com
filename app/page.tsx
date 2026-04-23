@@ -6,7 +6,7 @@ import { UpcomingEvents } from "@/components/upcoming-events";
 
 export default function Home() {
   return (
-    <BoilTickerProvider>
+    <BoilTickerProvider intervalMs={750}>
       <main className="flex flex-1 flex-col items-center px-6 py-16 md:py-24 gap-12 max-w-5xl mx-auto w-full">
         <div className="flex flex-col items-center gap-4">
           <WiggleIcon size={120} alt="" />
