@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, addMonths, addYears, formatISO } from "date-fns";
-import { toLocalYmd } from "@/lib/time";
+import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 
 type View = "day" | "month" | "year";
 
@@ -14,17 +14,24 @@ function stepDate(date: Date, view: View, delta: 1 | -1): Date {
   return addYears(date, delta);
 }
 
-function nowButtonLabel(view: View): string {
-  if (view === "day") return "Today";
-  if (view === "month") return "This month";
-  return "This year";
-}
-
 function matchesNow(viewYmd: string, view: View): boolean {
   const now = toLocalYmd(new Date());
   if (view === "day") return viewYmd === now;
   if (view === "month") return viewYmd.slice(0, 7) === now.slice(0, 7);
   return viewYmd.slice(0, 4) === now.slice(0, 4);
+}
+
+function positionLabel(view: View, viewYmd: string, isCurrent: boolean): string {
+  if (isCurrent) {
+    if (view === "day") return "Today";
+    if (view === "month") return "This month";
+    return "This year";
+  }
+  if (view === "year") return viewYmd.slice(0, 4);
+  const noon = parseHMInLocal(viewYmd, "12:00");
+  return view === "day"
+    ? formatLocal(noon, "MMM d")
+    : formatLocal(noon, "MMM yyyy");
 }
 
 export function CalendarNav({ view, date }: { view: View; date: Date }) {
@@ -33,6 +40,10 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
 
   const viewYmd = useMemo(() => toLocalYmd(date), [date]);
   const isCurrent = useMemo(() => matchesNow(viewYmd, view), [viewYmd, view]);
+  const buttonLabel = useMemo(
+    () => positionLabel(view, viewYmd, isCurrent),
+    [view, viewYmd, isCurrent]
+  );
 
   const go = useCallback(
     (next: Date, nextView: View) => {
@@ -73,9 +84,9 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
         <button
           onClick={() => go(new Date(), view)}
           disabled={isCurrent}
-          className="px-4 py-1.5 rounded-full border border-ink/15 text-sm font-medium hover:bg-ink/5 transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
+          className="px-4 py-1.5 rounded-full border border-ink/15 text-sm font-medium tabular-nums hover:bg-ink/5 transition-colors disabled:cursor-default disabled:hover:bg-transparent"
         >
-          {nowButtonLabel(view)}
+          {buttonLabel}
         </button>
         <button
           onClick={() => go(stepDate(date, view, 1), view)}

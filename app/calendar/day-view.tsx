@@ -79,14 +79,14 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
 
   return (
     <FadeIn>
-      <header className="mb-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+      <header className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <div className="flex items-baseline gap-3">
           <h1 className="text-4xl leading-none">{headerTitle}</h1>
           {headerSubtitle ? (
             <span className="text-sm text-dim">{headerSubtitle}</span>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-burgundy">
+        <div className="ml-auto flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm text-burgundy">
           {prayerMarkers.map((p) => (
             <span key={p.label} className="tabular-nums">
               <span className="font-medium">{p.label}</span> {p.hm}

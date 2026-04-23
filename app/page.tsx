@@ -8,14 +8,10 @@ export default function Home() {
   return (
     <BoilTickerProvider intervalMs={750}>
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-14 px-6 py-20 md:py-28">
-        <div className="flex flex-col items-center gap-5">
-          <WiggleIcon size={128} alt="" />
+        <div className="flex flex-col items-center gap-6">
+          <WiggleIcon size={200} alt="" />
           <WiggleLetters />
         </div>
-        <p className="max-w-prose text-center text-lg leading-relaxed text-ink/80">
-          Welcome to the Muslim Student Association at UC Santa Cruz. Community,
-          prayer, and every week, something to bring us together.
-        </p>
         <section className="w-full">
           <div className="mb-5 flex items-baseline justify-between gap-4">
             <h2 className="text-2xl">Upcoming</h2>
