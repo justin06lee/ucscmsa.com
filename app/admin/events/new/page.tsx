@@ -8,7 +8,7 @@ export default function NewEventPage() {
   }
   return (
     <div>
-      <h2 className="text-lg font-medium mb-4">New event</h2>
+      <h1 className="mb-6 text-3xl">New event</h1>
       <EventForm submitLabel="Create event" onSubmit={submit} />
     </div>
   );

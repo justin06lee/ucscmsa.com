@@ -8,11 +8,11 @@ export default async function AdminEvents() {
   const rows = await db.select().from(events).orderBy(desc(events.startTime));
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-medium">Events</h2>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl">Events</h1>
         <Link
           href="/admin/events/new"
-          className="px-4 py-2 rounded-full bg-ink text-paper hover:bg-burgundy"
+          className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-paper transition-colors hover:bg-burgundy"
         >
           New event
         </Link>

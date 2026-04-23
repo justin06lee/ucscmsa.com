@@ -1,9 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import type { PrayerTimes } from "@/lib/aladhan";
-import { formatLocal, parseHMInLocal, floorLocalHour, ceilLocalHour, localHourLabel } from "@/lib/time";
+import {
+  formatLocal,
+  parseHMInLocal,
+  floorLocalHour,
+  ceilLocalHour,
+  localHourLabel,
+  toLocalYmd,
+} from "@/lib/time";
+import { FadeIn } from "@/components/fade-in";
 
 const HOUR_H = 56;
 const LABEL_MIN_GAP = 22;
@@ -44,12 +53,39 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
     lastLabelTop = top;
   }
 
+  const [nowTop, setNowTop] = useState<number | null>(null);
+  useEffect(() => {
+    function update() {
+      const now = new Date();
+      if (toLocalYmd(now) !== ymd) {
+        setNowTop(null);
+        return;
+      }
+      const { h, m } = localHourAndMinute(now);
+      const top = (h - gridStart) * HOUR_H + (m / 60) * HOUR_H;
+      setNowTop(top >= 0 && top <= bodyHeight ? top : null);
+    }
+    update();
+    const id = window.setInterval(update, 60_000);
+    return () => window.clearInterval(id);
+  }, [ymd, gridStart, bodyHeight]);
+
+  const isToday = ymd === toLocalYmd(new Date());
+  const titleDate = parseHMInLocal(ymd, "12:00");
+  const headerTitle = isToday
+    ? "Today"
+    : formatLocal(titleDate, "EEEE, MMMM d, yyyy");
+  const headerSubtitle = isToday ? formatLocal(titleDate, "EEEE, MMMM d") : null;
+
   return (
-    <div>
-      <header className="mb-6 flex flex-wrap gap-x-6 gap-y-3 items-baseline">
-        <h1 className="text-3xl">
-          {formatLocal(parseHMInLocal(ymd, "12:00"), "EEEE, MMMM d, yyyy")}
-        </h1>
+    <FadeIn>
+      <header className="mb-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-4xl leading-none">{headerTitle}</h1>
+          {headerSubtitle ? (
+            <span className="text-sm text-dim">{headerSubtitle}</span>
+          ) : null}
+        </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-burgundy">
           {prayerMarkers.map((p) => (
             <span key={p.label} className="tabular-nums">
@@ -88,6 +124,15 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
               {p.label} {p.hm}
             </span>
           ))}
+          {nowTop != null && (
+            <div
+              className="day-grid__now"
+              style={{ top: nowTop }}
+              aria-label="Current time"
+            >
+              <span className="day-grid__now-dot" />
+            </div>
+          )}
           {occurrences.length === 0 ? (
             <div className="day-grid__empty">No events scheduled</div>
           ) : (
@@ -117,6 +162,6 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </FadeIn>
   );
 }

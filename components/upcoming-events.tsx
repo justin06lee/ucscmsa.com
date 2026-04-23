@@ -2,7 +2,13 @@ import Link from "next/link";
 import { getUpcomingOccurrences } from "@/lib/db/queries";
 import { formatLocal } from "@/lib/time";
 
-export async function UpcomingEvents({ limit = 3 }: { limit?: number }) {
+export async function UpcomingEvents({
+  limit = 3,
+  className,
+}: {
+  limit?: number;
+  className?: string;
+}) {
   let items;
   try {
     items = await getUpcomingOccurrences(limit);
@@ -21,12 +27,16 @@ export async function UpcomingEvents({ limit = 3 }: { limit?: number }) {
     );
   }
 
+  const listClass = ["flex flex-col gap-4 md:flex-row md:gap-6", className]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <ul className="flex flex-col gap-4 md:flex-row md:gap-6">
+    <ul className={listClass}>
       {items.map((o) => (
         <li
           key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
-          className="flex-1 rounded-lg border border-ink/10 bg-paper p-4 shadow-sm"
+          className="flex-1 rounded-xl border border-ink/10 bg-paper p-5 shadow-sm transition-all hover:border-ink/25 hover:shadow-md"
         >
           <Link
             href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(
@@ -34,12 +44,12 @@ export async function UpcomingEvents({ limit = 3 }: { limit?: number }) {
             )}`}
             className="block"
           >
-            <div className="text-sm text-dim">
+            <div className="text-xs uppercase tracking-wide text-dim">
               {formatLocal(o.occurrenceStart, "EEE, MMM d · h:mm a")}
             </div>
-            <div className="text-lg font-medium text-ink">{o.title}</div>
+            <div className="mt-1 text-lg font-medium text-ink">{o.title}</div>
             {o.location ? (
-              <div className="text-sm text-dim">{o.location}</div>
+              <div className="mt-1 text-sm text-dim">{o.location}</div>
             ) : null}
           </Link>
         </li>

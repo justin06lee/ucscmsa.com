@@ -53,12 +53,13 @@ export default async function NominationsPage() {
 
   return (
     <div>
+      <h1 className="mb-6 text-3xl">Nominations</h1>
       <section className="mb-10">
-        <h2 className="text-lg font-medium mb-2">Nominate a new admin</h2>
+        <h2 className="mb-2 text-lg font-medium">Nominate a new admin</h2>
         <NominateForm />
       </section>
       <section>
-        <h2 className="text-lg font-medium mb-4">Pending nominations</h2>
+        <h2 className="mb-4 text-lg font-medium">Pending nominations</h2>
         <ul className="flex flex-col gap-3">
           {noms
             .filter((n) => n.status === "pending")

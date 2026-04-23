@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { monthGridDays, toLocalYmd, formatLocal, parseHMInLocal } from "@/lib/time";
+import { FadeIn } from "@/components/fade-in";
 
 type Props = { ymd: string; occurrences: Occurrence[] };
 
@@ -21,12 +22,18 @@ export function MonthView({ ymd, occurrences }: Props) {
 
   const todayYmd = toLocalYmd(new Date());
   const titleDate = parseHMInLocal(ymd, "12:00");
+  const isThisMonth = ymd.slice(0, 7) === todayYmd.slice(0, 7);
+  const headerTitle = isThisMonth ? "This month" : formatLocal(titleDate, "MMMM yyyy");
+  const headerSubtitle = isThisMonth ? formatLocal(titleDate, "MMMM yyyy") : null;
 
   return (
-    <div>
-      <h1 className="text-3xl mb-5">
-        {formatLocal(titleDate, "MMMM yyyy")}
-      </h1>
+    <FadeIn>
+      <header className="mb-6 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <h1 className="text-4xl leading-none">{headerTitle}</h1>
+        {headerSubtitle ? (
+          <span className="text-sm text-dim">{headerSubtitle}</span>
+        ) : null}
+      </header>
       <div className="grid grid-cols-7 text-xs uppercase tracking-wide text-dim mb-2">
         {WEEKDAYS.map((d) => (
           <div key={d} className="px-3 py-2 font-medium">{d}</div>
@@ -81,6 +88,6 @@ export function MonthView({ ymd, occurrences }: Props) {
           );
         })}
       </div>
-    </div>
+    </FadeIn>
   );
 }

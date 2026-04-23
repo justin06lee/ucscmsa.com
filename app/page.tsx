@@ -7,22 +7,30 @@ import { UpcomingEvents } from "@/components/upcoming-events";
 export default function Home() {
   return (
     <BoilTickerProvider intervalMs={750}>
-      <main className="flex flex-1 flex-col items-center px-6 py-16 md:py-24 gap-12 max-w-5xl mx-auto w-full">
-        <div className="flex flex-col items-center gap-4">
-          <WiggleIcon size={120} alt="" />
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-14 px-6 py-20 md:py-28">
+        <div className="flex flex-col items-center gap-5">
+          <WiggleIcon size={128} alt="" />
           <WiggleLetters />
         </div>
-        <p className="text-ink text-lg max-w-prose text-center">
+        <p className="max-w-prose text-center text-lg leading-relaxed text-ink/80">
           Welcome to the Muslim Student Association at UC Santa Cruz. Community,
           prayer, and every week, something to bring us together.
         </p>
         <section className="w-full">
-          <h2 className="text-2xl font-medium mb-4">Upcoming</h2>
-          <UpcomingEvents limit={3} />
+          <div className="mb-5 flex items-baseline justify-between gap-4">
+            <h2 className="text-2xl">Upcoming</h2>
+            <Link
+              href="/calendar"
+              className="text-sm text-dim hover:text-ink transition-colors"
+            >
+              See all →
+            </Link>
+          </div>
+          <UpcomingEvents limit={3} className="stagger" />
         </section>
         <Link
           href="/calendar"
-          className="inline-flex items-center rounded-full border border-ink px-6 py-3 text-ink hover:bg-ink hover:text-paper transition-colors"
+          className="inline-flex items-center rounded-full border border-ink px-7 py-3 font-medium transition-colors hover:bg-ink hover:text-paper"
         >
           See the full calendar
         </Link>

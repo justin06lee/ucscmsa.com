@@ -25,7 +25,7 @@ export default async function EditEventPage({ params }: Props) {
 
   return (
     <div>
-      <h2 className="text-lg font-medium mb-4">Edit event</h2>
+      <h1 className="mb-6 text-3xl">Edit event</h1>
       <EventForm
         submitLabel="Save"
         onSubmit={submit}

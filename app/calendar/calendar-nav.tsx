@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, addMonths, addYears, formatISO } from "date-fns";
+import { toLocalYmd } from "@/lib/time";
 
 type View = "day" | "month" | "year";
 
@@ -13,9 +14,25 @@ function stepDate(date: Date, view: View, delta: 1 | -1): Date {
   return addYears(date, delta);
 }
 
+function nowButtonLabel(view: View): string {
+  if (view === "day") return "Today";
+  if (view === "month") return "This month";
+  return "This year";
+}
+
+function matchesNow(viewYmd: string, view: View): boolean {
+  const now = toLocalYmd(new Date());
+  if (view === "day") return viewYmd === now;
+  if (view === "month") return viewYmd.slice(0, 7) === now.slice(0, 7);
+  return viewYmd.slice(0, 4) === now.slice(0, 4);
+}
+
 export function CalendarNav({ view, date }: { view: View; date: Date }) {
   const router = useRouter();
   const params = useSearchParams();
+
+  const viewYmd = useMemo(() => toLocalYmd(date), [date]);
+  const isCurrent = useMemo(() => matchesNow(viewYmd, view), [viewYmd, view]);
 
   const go = useCallback(
     (next: Date, nextView: View) => {
@@ -44,36 +61,37 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
   }, [view, date, go]);
 
   return (
-    <div className="flex items-center justify-between gap-4 mb-6">
-      <div className="flex items-center gap-2">
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-1">
         <button
           onClick={() => go(stepDate(date, view, -1), view)}
           aria-label="Previous"
-          className="p-2 rounded-full hover:bg-ink/5"
+          className="p-2 rounded-full text-ink/70 hover:text-ink hover:bg-ink/5 transition-colors"
         >
           <ChevronLeft size={18} />
         </button>
         <button
           onClick={() => go(new Date(), view)}
-          className="px-3 py-1 rounded-full border border-ink/20 hover:bg-ink/5"
+          disabled={isCurrent}
+          className="px-4 py-1.5 rounded-full border border-ink/15 text-sm font-medium hover:bg-ink/5 transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
         >
-          Today
+          {nowButtonLabel(view)}
         </button>
         <button
           onClick={() => go(stepDate(date, view, 1), view)}
           aria-label="Next"
-          className="p-2 rounded-full hover:bg-ink/5"
+          className="p-2 rounded-full text-ink/70 hover:text-ink hover:bg-ink/5 transition-colors"
         >
           <ChevronRight size={18} />
         </button>
       </div>
-      <div className="flex items-center rounded-full border border-ink/20 overflow-hidden">
+      <div className="flex items-center rounded-full border border-ink/15 overflow-hidden text-sm">
         {(["day", "month", "year"] as const).map((v) => (
           <button
             key={v}
             onClick={() => go(date, v)}
-            className={`px-4 py-1 capitalize ${
-              v === view ? "bg-ink text-paper" : "hover:bg-ink/5"
+            className={`px-4 py-1.5 capitalize transition-colors ${
+              v === view ? "bg-ink text-paper" : "text-ink/70 hover:text-ink hover:bg-ink/5"
             }`}
           >
             {v}
