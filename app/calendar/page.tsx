@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   startOfLocalDayUtc,
   endOfLocalDayUtc,
@@ -24,6 +25,28 @@ function parseView(v?: string): "day" | "month" | "year" {
 function parseDate(d?: string): Date {
   if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) return new Date(`${d}T12:00:00.000Z`);
   return new Date();
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SP>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const view = parseView(sp.view);
+  const date = parseDate(sp.date);
+  const label =
+    view === "day"
+      ? formatInTimeZone(date, SITE_TZ, "EEEE, MMMM d, yyyy")
+      : view === "year"
+        ? formatInTimeZone(date, SITE_TZ, "yyyy")
+        : formatInTimeZone(date, SITE_TZ, "MMMM yyyy");
+  return {
+    title: `Calendar — ${label}`,
+    description:
+      "MSA at UCSC events calendar. Day view runs Fajr to Isha for the selected date in Santa Cruz.",
+    alternates: { canonical: "/calendar" },
+  };
 }
 
 export default async function CalendarPage({

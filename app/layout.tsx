@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Amiri, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { BoilTickerProvider } from "@/components/logo/boil-ticker";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const amiri = Amiri({
@@ -19,8 +20,40 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MSA at UCSC",
-  description: "The Muslim Student Association at the University of California, Santa Cruz.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "education",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_US",
+    url: "/",
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/icon.png", width: 1024, height: 1024, alt: SITE_NAME }],
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ["/icon.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
