@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { WiggleIcon } from "@/components/logo/wiggle-icon";
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  robots: { index: false, follow: false },
+};
 
 type SP = { callbackUrl?: string; error?: string };
 
