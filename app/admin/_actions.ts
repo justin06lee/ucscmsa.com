@@ -1,0 +1,196 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { ulid } from "ulid";
+import { db } from "@/lib/db/client";
+import { admins, adminApprovals, adminNominations, events } from "@/lib/db/schema";
+import { eq, count } from "drizzle-orm";
+import { requireAdminId } from "@/lib/auth";
+import { eventInputSchema, nominateSchema } from "./_schemas";
+import { parseHMInLocal, toLocalYmd } from "@/lib/time";
+import { applyIfQuorum } from "./_apply-nomination";
+
+function resolveDates(p: {
+  startDate: string;
+  endDate: string;
+  recurrenceFreq: "none" | "daily" | "weekly" | "monthly" | "yearly";
+}): { startDate: string; endDate: string } {
+  if (p.recurrenceFreq === "none") {
+    return { startDate: p.startDate, endDate: p.endDate };
+  }
+  const today = toLocalYmd(new Date());
+  const startDate = p.startDate || today;
+  const endDate = p.endDate || startDate;
+  return { startDate, endDate };
+}
+
+function formToObject(fd: FormData): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of fd.entries()) {
+    if (k === "recurrenceByWeekday") continue;
+    out[k] = v;
+  }
+  out.recurrenceByWeekday = fd.getAll("recurrenceByWeekday").join(",");
+  return out;
+}
+
+export async function createEvent(fd: FormData) {
+  const adminId = await requireAdminId();
+  const parsed = eventInputSchema.safeParse(formToObject(fd));
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+  const p = parsed.data;
+  const { startDate, endDate } = resolveDates(p);
+  const startTime = parseHMInLocal(startDate, p.startTime);
+  const endTime = parseHMInLocal(endDate, p.endTime);
+  const id = ulid();
+  await db.insert(events).values({
+    id,
+    title: p.title,
+    description: p.description,
+    location: p.location,
+    startTime,
+    endTime,
+    recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
+    recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
+    recurrenceInterval: p.recurrenceInterval,
+    recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
+    createdByAdminId: adminId,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/calendar");
+  return { ok: true as const, id };
+}
+
+export async function updateEvent(id: string, fd: FormData) {
+  await requireAdminId();
+  const parsed = eventInputSchema.safeParse(formToObject(fd));
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+  const p = parsed.data;
+  const { startDate, endDate } = resolveDates(p);
+  await db.update(events).set({
+    title: p.title,
+    description: p.description,
+    location: p.location,
+    startTime: parseHMInLocal(startDate, p.startTime),
+    endTime: parseHMInLocal(endDate, p.endTime),
+    recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
+    recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
+    recurrenceInterval: p.recurrenceInterval,
+    recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
+    updatedAt: new Date(),
+  }).where(eq(events.id, id));
+  revalidatePath("/admin");
+  revalidatePath(`/calendar/events/${id}`);
+  revalidatePath("/calendar");
+  return { ok: true as const };
+}
+
+export async function deleteEvent(id: string) {
+  await requireAdminId();
+  await db.delete(events).where(eq(events.id, id));
+  revalidatePath("/admin");
+  revalidatePath("/calendar");
+  return { ok: true as const };
+}
+
+export async function nominateAdmin(fd: FormData) {
+  const adminId = await requireAdminId();
+  const parsed = nominateSchema.safeParse({
+    action: fd.get("action"),
+    nomineeEmail: fd.get("nomineeEmail") || undefined,
+    targetAdminId: fd.get("targetAdminId") || undefined,
+  });
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+  const { action, nomineeEmail, targetAdminId } = parsed.data;
+
+  if (action === "promote") {
+    if (!nomineeEmail) return { ok: false as const, error: "email required" };
+  } else {
+    if (!targetAdminId) return { ok: false as const, error: "target admin required" };
+    if (targetAdminId === adminId) {
+      return { ok: false as const, error: "cannot_nominate_self" };
+    }
+    const [{ total }] = await db.select({ total: count() }).from(admins);
+    if (total <= 1) {
+      return { ok: false as const, error: "cannot demote the last admin" };
+    }
+  }
+
+  const id = ulid();
+  await db.insert(adminNominations).values({
+    id,
+    action,
+    nomineeEmail: action === "promote" ? nomineeEmail! : null,
+    targetAdminId: action === "demote" ? targetAdminId! : null,
+    nominatedByAdminId: adminId,
+  });
+  revalidatePath("/admin/nominations");
+  return { ok: true as const, id };
+}
+
+export async function approveNomination(nominationId: string) {
+  const approverId = await requireAdminId();
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [nom] = await tx.select().from(adminNominations)
+        .where(eq(adminNominations.id, nominationId)).limit(1);
+      if (!nom) return { ok: false as const, error: "not_found" };
+      if (nom.status !== "pending") return { ok: false as const, error: "not_pending" };
+      if (nom.nominatedByAdminId === approverId) {
+        return { ok: false as const, error: "nominator_cannot_approve" };
+      }
+
+      try {
+        await tx.insert(adminApprovals).values({
+          nominationId,
+          approverAdminId: approverId,
+        });
+      } catch {
+        return { ok: false as const, error: "already_approved" };
+      }
+
+      const result = await applyIfQuorum(tx, nominationId);
+      if (result.applied) {
+        revalidatePath("/admin");
+        revalidatePath("/admin/admins");
+        revalidatePath("/admin/nominations");
+        return { ok: true as const, applied: true };
+      }
+      if (result.reason === "user_not_found") {
+        return { ok: false as const, error: "nominee_must_sign_in_first" };
+      }
+      if (result.reason === "would_remove_last_admin") {
+        return { ok: false as const, error: "would_remove_last_admin" };
+      }
+      return { ok: true as const, applied: false };
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "last_admin_race") {
+      return { ok: false as const, error: "would_remove_last_admin" };
+    }
+    throw err;
+  }
+}
+
+export async function cancelNomination(nominationId: string) {
+  const adminId = await requireAdminId();
+  const [nom] = await db.select().from(adminNominations)
+    .where(eq(adminNominations.id, nominationId)).limit(1);
+  if (!nom) return { ok: false as const, error: "not_found" };
+  if (nom.nominatedByAdminId !== adminId) {
+    return { ok: false as const, error: "only_nominator_can_cancel" };
+  }
+  if (nom.status !== "pending") return { ok: false as const, error: "not_pending" };
+  await db.update(adminNominations)
+    .set({ status: "cancelled" })
+    .where(eq(adminNominations.id, nominationId));
+  revalidatePath("/admin/nominations");
+  return { ok: true as const };
+}

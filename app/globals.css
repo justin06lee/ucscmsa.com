@@ -1,26 +1,181 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: #f5efe2;
+  --color-ink: #151312;
+  --color-burgundy: #6b1f2a;
+  --color-burgundy-soft: #b96c75;
+  --color-dim: #7a6f63;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-amiri), "Iowan Old Style", Georgia, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-burgundy);
+  outline-offset: 2px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger > * {
+  opacity: 0;
+  animation: fadeInUp 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger > *:nth-child(1) { animation-delay: 40ms; }
+.stagger > *:nth-child(2) { animation-delay: 110ms; }
+.stagger > *:nth-child(3) { animation-delay: 180ms; }
+.stagger > *:nth-child(4) { animation-delay: 250ms; }
+.stagger > *:nth-child(5) { animation-delay: 320ms; }
+.stagger > *:nth-child(6) { animation-delay: 390ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .stagger > * {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+.day-grid {
+  --hour-h: 56px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.day-grid__hour {
+  grid-column: 1;
+  height: var(--hour-h);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 8%, transparent);
+  padding: 4px 12px 0 0;
+  text-align: right;
+  color: var(--color-dim);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-grid__body {
+  grid-column: 2;
+  position: relative;
+  height: 100%;
+  border-left: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+.day-grid__prayer-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--color-burgundy) 55%, transparent);
+  pointer-events: none;
+}
+
+.day-grid__prayer-label {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--color-burgundy);
+  background: var(--color-paper);
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-burgundy) 30%, transparent);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.day-grid__now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid var(--color-burgundy);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.day-grid__now-dot {
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-burgundy);
+  box-shadow: 0 0 0 2px var(--color-paper);
+}
+
+.day-grid__event {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-paper) 55%, var(--color-burgundy-soft));
+  color: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--color-burgundy) 30%, transparent);
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: border-color 120ms ease, transform 120ms ease;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.day-grid__event:hover {
+  border-color: var(--color-burgundy);
+  transform: translateY(-1px);
+}
+
+.day-grid__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-dim);
+  font-style: italic;
+  pointer-events: none;
 }

@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # next.js
 /.next/
@@ -39,3 +41,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local dev database
+local.db
+local.db-*
+
+# Env files
+# (covered by `.env*` above; listed explicitly for discoverability)
+.env
+.env.local
+.env.*.local
+!.env.local.example
