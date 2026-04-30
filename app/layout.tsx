@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Amiri, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { BoilTickerProvider } from "@/components/logo/boil-ticker";
 import "./globals.css";
 
@@ -34,6 +35,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <BoilTickerProvider intervalMs={1000}>{children}</BoilTickerProvider>
+        <Analytics />
       </body>
     </html>
   );
