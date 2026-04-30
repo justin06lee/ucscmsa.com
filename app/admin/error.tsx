@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function AdminError({
   error,
@@ -34,13 +35,7 @@ export default function AdminError({
           Back to site
         </Link>
         {!isUnauthorized && (
-          <button
-            type="button"
-            onClick={reset}
-            className="px-4 py-2 rounded-full bg-ink text-paper hover:bg-burgundy"
-          >
-            Try again
-          </button>
+          <Button onClick={reset}>Try again</Button>
         )}
       </div>
     </div>

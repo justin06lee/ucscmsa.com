@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { EventForm } from "@/app/admin/events/event-form";
 import { deleteEvent, updateEvent } from "@/app/admin/_actions";
 import { formatLocal } from "@/lib/time";
+import { Button } from "@/components/ui/button";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -48,10 +49,9 @@ export default async function EditEventPage({ params }: Props) {
         }}
       />
       <form action={del} className="mt-8">
-        <button type="submit"
-          className="px-4 py-2 rounded-full border border-burgundy text-burgundy hover:bg-burgundy hover:text-paper">
+        <Button type="submit" variant="danger-outline">
           Delete event
-        </button>
+        </Button>
       </form>
     </div>
   );

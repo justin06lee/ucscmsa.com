@@ -79,10 +79,11 @@ describe("time helpers", () => {
     expect(d.toISOString()).toBe("2027-01-01T07:59:59.999Z");
   });
 
-  it("monthGridDays returns 42 SITE_TZ-safe YMDs with inMonth flags for April 2026", () => {
+  it("monthGridDays trims trailing out-of-month weeks for April 2026 (30 days, Wed start)", () => {
     const grid = monthGridDays("2026-04-16");
-    expect(grid).toHaveLength(42);
-    // April 2026: Apr 1 is a Wednesday, so the grid starts Sun Mar 29 and ends Sat May 9.
+    // April 2026: Apr 1 is a Wednesday, so the grid starts Sun Mar 29. The last
+    // row of the standard 6-week grid would be all May, so it's dropped, leaving 35.
+    expect(grid).toHaveLength(35);
     expect(grid[0].ymd).toBe("2026-03-29");
     expect(grid[0].inMonth).toBe(false);
     expect(grid[3].ymd).toBe("2026-04-01");
@@ -92,6 +93,26 @@ describe("time helpers", () => {
     expect(grid[32].inMonth).toBe(true);
     expect(grid[33].ymd).toBe("2026-05-01");
     expect(grid[33].inMonth).toBe(false);
-    expect(grid[41].ymd).toBe("2026-05-09");
+    expect(grid[34].ymd).toBe("2026-05-02");
+  });
+
+  it("monthGridDays returns 42 cells when last week contains in-month days (May 2026)", () => {
+    const grid = monthGridDays("2026-05-16");
+    // May 2026: May 1 is Friday. Last week (index 35-41) is May 31 through Jun 6.
+    expect(grid).toHaveLength(42);
+    expect(grid[35].ymd).toBe("2026-05-31");
+    expect(grid[35].inMonth).toBe(true);
+    expect(grid[41].ymd).toBe("2026-06-06");
+    expect(grid[41].inMonth).toBe(false);
+  });
+
+  it("monthGridDays trims multiple trailing weeks (February 2026 starts Sunday, 28 days)", () => {
+    const grid = monthGridDays("2026-02-10");
+    // Feb 2026: Feb 1 is Sunday, 28 days → exactly 4 full weeks in month, no spillover needed.
+    expect(grid).toHaveLength(28);
+    expect(grid[0].ymd).toBe("2026-02-01");
+    expect(grid[0].inMonth).toBe(true);
+    expect(grid[27].ymd).toBe("2026-02-28");
+    expect(grid[27].inMonth).toBe(true);
   });
 });

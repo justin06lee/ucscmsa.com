@@ -28,15 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user }) {
       const email = (user.email ?? "").toLowerCase();
-      if (!email.endsWith("@ucsc.edu")) return false;
-
-      if (seedEmails.includes(email) && user.id) {
-        await db
-          .insert(admins)
-          .values({ userId: user.id, promotedByNominationId: null })
-          .onConflictDoNothing();
-      }
-      return true;
+      return email.endsWith("@ucsc.edu");
     },
     async session({ session, user }) {
       if (user?.id) {
@@ -52,7 +44,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
+  events: {
+    async signIn({ user }) {
+      if (!user.id) return;
+      const email = (user.email ?? "").toLowerCase();
+      if (!seedEmails.includes(email)) return;
+      await db
+        .insert(admins)
+        .values({ userId: user.id, promotedByNominationId: null })
+        .onConflictDoNothing();
+    },
+  },
   pages: {
-    error: "/auth/error",
+    signIn: "/login",
+    error: "/login",
   },
 });

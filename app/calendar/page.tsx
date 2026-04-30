@@ -1,10 +1,9 @@
 import {
   startOfLocalDayUtc,
   endOfLocalDayUtc,
-  startOfLocalMonthUtc,
-  endOfLocalMonthUtc,
   startOfLocalYearUtc,
   endOfLocalYearUtc,
+  monthGridDays,
   SITE_TZ,
 } from "@/lib/time";
 import { formatInTimeZone } from "date-fns-tz";
@@ -19,7 +18,7 @@ import { YearView } from "./year-view";
 type SP = { view?: string; date?: string };
 
 function parseView(v?: string): "day" | "month" | "year" {
-  return v === "month" || v === "year" ? v : "day";
+  return v === "day" || v === "year" ? v : "month";
 }
 
 function parseDate(d?: string): Date {
@@ -48,8 +47,9 @@ export default async function CalendarPage({
     ]);
     content = <DayView ymd={ymd} occurrences={occurrences} prayer={prayer} />;
   } else if (view === "month") {
-    const start = startOfLocalMonthUtc(ymd);
-    const end = endOfLocalMonthUtc(ymd);
+    const grid = monthGridDays(ymd);
+    const start = startOfLocalDayUtc(grid[0].ymd);
+    const end = endOfLocalDayUtc(grid[grid.length - 1].ymd);
     const occurrences = await getOccurrencesInRange(start, end);
     content = <MonthView ymd={ymd} occurrences={occurrences} />;
   } else {

@@ -70,30 +70,8 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
     return () => window.clearInterval(id);
   }, [ymd, gridStart, bodyHeight]);
 
-  const isToday = ymd === toLocalYmd(new Date());
-  const titleDate = parseHMInLocal(ymd, "12:00");
-  const headerTitle = isToday
-    ? "Today"
-    : formatLocal(titleDate, "EEEE, MMMM d, yyyy");
-  const headerSubtitle = isToday ? formatLocal(titleDate, "EEEE, MMMM d") : null;
-
   return (
     <FadeIn>
-      <header className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-4xl leading-none">{headerTitle}</h1>
-          {headerSubtitle ? (
-            <span className="text-sm text-dim">{headerSubtitle}</span>
-          ) : null}
-        </div>
-        <div className="ml-auto flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm text-burgundy">
-          {prayerMarkers.map((p) => (
-            <span key={p.label} className="tabular-nums">
-              <span className="font-medium">{p.label}</span> {p.hm}
-            </span>
-          ))}
-        </div>
-      </header>
       <div
         className="day-grid"
         style={{ gridTemplateRows: `repeat(${hours.length}, ${HOUR_H}px)` }}
@@ -143,19 +121,23 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
                 (o.occurrenceEnd.getTime() - o.occurrenceStart.getTime()) /
                 60000;
               const top = (s.h - gridStart) * HOUR_H + (s.m / 60) * HOUR_H;
-              const height = (durMin / 60) * HOUR_H;
+              const rawHeight = (durMin / 60) * HOUR_H;
+              const height = Math.max(24, Math.min(rawHeight, bodyHeight - top));
+              const showTime = height >= 48;
               return (
                 <Link
                   key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
                   href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                   className="day-grid__event"
-                  style={{ top, height: Math.max(24, Math.min(height, bodyHeight - top)) }}
+                  style={{ top, height }}
                 >
-                  <div className="font-medium">{o.title}</div>
-                  <div className="text-xs text-dim">
-                    {formatLocal(o.occurrenceStart, "h:mm a")} –{" "}
-                    {formatLocal(o.occurrenceEnd, "h:mm a")}
-                  </div>
+                  <div className="truncate font-medium leading-tight">{o.title}</div>
+                  {showTime && (
+                    <div className="truncate text-xs leading-tight text-ink/60">
+                      {formatLocal(o.occurrenceStart, "h:mm a")} –{" "}
+                      {formatLocal(o.occurrenceEnd, "h:mm a")}
+                    </div>
+                  )}
                 </Link>
               );
             })

@@ -7,8 +7,22 @@ import { admins, adminApprovals, adminNominations, events } from "@/lib/db/schem
 import { eq, count } from "drizzle-orm";
 import { requireAdminId } from "@/lib/auth";
 import { eventInputSchema, nominateSchema } from "./_schemas";
-import { parseHMInLocal } from "@/lib/time";
+import { parseHMInLocal, toLocalYmd } from "@/lib/time";
 import { applyIfQuorum } from "./_apply-nomination";
+
+function resolveDates(p: {
+  startDate: string;
+  endDate: string;
+  recurrenceFreq: "none" | "daily" | "weekly" | "monthly" | "yearly";
+}): { startDate: string; endDate: string } {
+  if (p.recurrenceFreq === "none") {
+    return { startDate: p.startDate, endDate: p.endDate };
+  }
+  const today = toLocalYmd(new Date());
+  const startDate = p.startDate || today;
+  const endDate = p.endDate || startDate;
+  return { startDate, endDate };
+}
 
 function formToObject(fd: FormData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -27,8 +41,9 @@ export async function createEvent(fd: FormData) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
   const p = parsed.data;
-  const startTime = parseHMInLocal(p.startDate, p.startTime);
-  const endTime = parseHMInLocal(p.endDate, p.endTime);
+  const { startDate, endDate } = resolveDates(p);
+  const startTime = parseHMInLocal(startDate, p.startTime);
+  const endTime = parseHMInLocal(endDate, p.endTime);
   const id = ulid();
   await db.insert(events).values({
     id,
@@ -55,12 +70,13 @@ export async function updateEvent(id: string, fd: FormData) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
   const p = parsed.data;
+  const { startDate, endDate } = resolveDates(p);
   await db.update(events).set({
     title: p.title,
     description: p.description,
     location: p.location,
-    startTime: parseHMInLocal(p.startDate, p.startTime),
-    endTime: parseHMInLocal(p.endDate, p.endTime),
+    startTime: parseHMInLocal(startDate, p.startTime),
+    endTime: parseHMInLocal(endDate, p.endTime),
     recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
     recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
     recurrenceInterval: p.recurrenceInterval,

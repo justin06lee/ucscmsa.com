@@ -1,13 +1,19 @@
 import { z } from "zod";
 
+const ymd = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
+  .or(z.literal(""))
+  .default("");
+
 export const eventInputSchema = z
   .object({
     title: z.string().min(1, "Title required"),
     description: z.string().default(""),
     location: z.string().default(""),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid start date"),
+    startDate: ymd,
     startTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid start time"),
-    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid end date"),
+    endDate: ymd,
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid end time"),
     recurrenceFreq: z
       .enum(["none", "daily", "weekly", "monthly", "yearly"])
@@ -21,8 +27,15 @@ export const eventInputSchema = z
       .default(""),
   })
   .refine(
-    (d) => `${d.endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`,
-    { message: "End must be after start", path: ["endDate"] }
+    (d) => d.recurrenceFreq !== "none" || (d.startDate && d.endDate),
+    { message: "Start and end dates are required for non-recurring events", path: ["startDate"] },
+  )
+  .refine(
+    (d) => {
+      if (!d.startDate || !d.endDate) return true;
+      return `${d.endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`;
+    },
+    { message: "End must be after start", path: ["endDate"] },
   );
 export type EventInputForm = z.infer<typeof eventInputSchema>;
 

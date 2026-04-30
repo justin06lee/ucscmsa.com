@@ -27,7 +27,7 @@ export function DemoteForm({
       <button
         type="submit"
         disabled={pending}
-        className="text-burgundy hover:underline disabled:opacity-50"
+        className="text-sm text-burgundy transition-opacity hover:underline disabled:opacity-50"
       >
         Nominate removal
       </button>

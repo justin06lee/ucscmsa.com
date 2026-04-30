@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { WiggleIcon } from "@/components/logo/wiggle-icon";
 
 type Variant = "public" | "admin";
 
@@ -11,16 +11,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
           href="/"
           className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
         >
-          <Image
-            src="/letters/icon-1.png"
-            alt=""
-            aria-hidden="true"
-            width={28}
-            height={28}
-            priority
-            className="select-none"
-            draggable={false}
-          />
+          <WiggleIcon size={28} alt="" />
           <span className="font-display text-base leading-none">
             MSA at UCSC
           </span>

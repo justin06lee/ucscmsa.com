@@ -2,6 +2,7 @@
 
 import { approveNomination, cancelNomination } from "@/app/admin/_actions";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 
 export function ActionsRow({
   nominationId,
@@ -17,7 +18,8 @@ export function ActionsRow({
   return (
     <div className="flex items-center gap-2">
       {!iAmNominator && (
-        <button
+        <Button
+          size="sm"
           disabled={pending || iApproved}
           onClick={() =>
             start(async () => {
@@ -25,13 +27,14 @@ export function ActionsRow({
               if (!r.ok) setErr(r.error ?? "failed");
             })
           }
-          className="px-3 py-1 rounded-full bg-ink text-paper hover:bg-burgundy disabled:opacity-50"
         >
           {iApproved ? "Approved" : "Approve"}
-        </button>
+        </Button>
       )}
       {iAmNominator && (
-        <button
+        <Button
+          size="sm"
+          variant="outline"
           disabled={pending}
           onClick={() =>
             start(async () => {
@@ -39,10 +42,9 @@ export function ActionsRow({
               if (!r.ok) setErr(r.error ?? "failed");
             })
           }
-          className="px-3 py-1 rounded-full border border-ink/30 hover:bg-ink/5"
         >
           Cancel
-        </button>
+        </Button>
       )}
       {err && <span className="text-xs text-burgundy">{err}</span>}
     </div>

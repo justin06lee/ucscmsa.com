@@ -42,7 +42,6 @@ function intensityClass(count: number): string {
 export function YearView({ ymd, occurrences }: Props) {
   const year = Number(ymd.split("-")[0]);
   const todayYmd = toLocalYmd(new Date());
-  const isThisYear = todayYmd.slice(0, 4) === String(year);
 
   const countByDay = new Map<string, number>();
   for (const o of occurrences) {
@@ -51,28 +50,9 @@ export function YearView({ ymd, occurrences }: Props) {
   }
 
   const months = Array.from({ length: 12 }, (_, i) => buildMonth(year, i));
-  const headerTitle = isThisYear ? "This year" : String(year);
-  const headerSubtitle = isThisYear ? String(year) : null;
 
   return (
     <FadeIn>
-      <header className="mb-8 flex flex-wrap items-baseline justify-between gap-4">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-4xl leading-none">{headerTitle}</h1>
-          {headerSubtitle ? (
-            <span className="text-sm text-dim">{headerSubtitle}</span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-2 text-xs text-dim">
-          <span>Fewer</span>
-          <span className="h-3.5 w-3.5 rounded-sm bg-ink/[0.06]" />
-          <span className="h-3.5 w-3.5 rounded-sm bg-burgundy/25" />
-          <span className="h-3.5 w-3.5 rounded-sm bg-burgundy/50" />
-          <span className="h-3.5 w-3.5 rounded-sm bg-burgundy/75" />
-          <span className="h-3.5 w-3.5 rounded-sm bg-burgundy" />
-          <span>More</span>
-        </div>
-      </header>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {months.map(({ monthName, firstYmd, offset, days }) => {
           const totalCells = offset + days.length;

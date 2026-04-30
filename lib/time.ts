@@ -82,6 +82,9 @@ export function monthGridDays(ymd: string): Array<{ ymd: string; inMonth: boolea
     const dd = String(d.getUTCDate()).padStart(2, "0");
     out.push({ ymd: `${yy}-${mm}-${dd}`, inMonth: d.getUTCMonth() === m - 1 });
   }
+  while (out.length > 7 && out.slice(-7).every((c) => !c.inMonth)) {
+    out.splice(-7);
+  }
   return out;
 }
 

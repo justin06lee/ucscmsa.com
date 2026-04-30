@@ -2,6 +2,8 @@
 
 import { nominateAdmin } from "@/app/admin/_actions";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function NominateForm() {
   const [pending, start] = useTransition();
@@ -19,27 +21,24 @@ export function NominateForm() {
           else setErr(r.error ?? "failed");
         });
       }}
-      className="flex items-end gap-2 flex-wrap"
+      className="flex flex-wrap items-end gap-4"
     >
       <label className="grid gap-1">
         <span className="text-sm text-dim">Nominee UCSC email</span>
-        <input
+        <Input
           name="nomineeEmail"
           type="email"
           required
           placeholder="student@ucsc.edu"
-          className="border border-ink/20 rounded px-3 py-2 bg-paper"
         />
       </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="px-4 py-2 rounded-full bg-ink text-paper hover:bg-burgundy disabled:opacity-50"
-      >
-        Create nomination
-      </button>
-      {err && <div className="text-burgundy text-sm">{err}</div>}
-      {ok && <div className="text-sm text-dim">Nomination created.</div>}
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          Create nomination
+        </Button>
+        {err && <span className="text-sm text-burgundy">{err}</span>}
+        {ok && <span className="text-sm text-dim">Nomination created.</span>}
+      </div>
     </form>
   );
 }

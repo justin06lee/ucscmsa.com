@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Amiri, Inter } from "next/font/google";
+import { BoilTickerProvider } from "@/components/logo/boil-ticker";
 import "./globals.css";
 
 const amiri = Amiri({
@@ -31,7 +32,9 @@ export default function RootLayout({
       lang="en"
       className={`${amiri.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-paper text-ink">{children}</body>
+      <body className="min-h-full flex flex-col bg-paper text-ink">
+        <BoilTickerProvider intervalMs={1000}>{children}</BoilTickerProvider>
+      </body>
     </html>
   );
 }

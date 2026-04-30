@@ -1,7 +1,8 @@
 "use client";
 
-import { rsvp } from "@/app/calendar/_actions";
+import { clearRsvp, rsvp } from "@/app/calendar/_actions";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   eventId: string;
@@ -17,7 +18,7 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
 
   return (
     <div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {choices.map((c) => (
           <form
             key={c}
@@ -31,19 +32,36 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
               });
             }}
           >
-            <button
+            <Button
               type="submit"
+              variant={current === c ? "primary" : "outline"}
               disabled={pending || disabled}
-              className={`px-4 py-2 rounded-full border text-sm capitalize ${
-                current === c
-                  ? "bg-ink text-paper border-ink"
-                  : "border-ink/30 hover:bg-ink/5"
-              } disabled:opacity-50`}
             >
               {c === "yes" ? "Going" : c === "maybe" ? "Maybe" : "Can't go"}
-            </button>
+            </Button>
           </form>
         ))}
+        {current && (
+          <form
+            action={(fd) => {
+              fd.set("eventId", eventId);
+              fd.set("occurrenceStart", occurrenceStart);
+              startTransition(async () => {
+                const res = await clearRsvp(fd);
+                setError(res.ok ? null : res.error);
+              });
+            }}
+          >
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              disabled={pending || disabled}
+            >
+              Clear
+            </Button>
+          </form>
+        )}
       </div>
       {error && (
         <p className="mt-2 text-sm text-burgundy">

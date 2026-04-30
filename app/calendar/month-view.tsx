@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Occurrence } from "@/lib/rrule-lite";
-import { monthGridDays, toLocalYmd, formatLocal, parseHMInLocal } from "@/lib/time";
+import { monthGridDays, toLocalYmd, formatLocal } from "@/lib/time";
 import { FadeIn } from "@/components/fade-in";
 
 type Props = { ymd: string; occurrences: Occurrence[] };
@@ -21,19 +21,10 @@ export function MonthView({ ymd, occurrences }: Props) {
   }
 
   const todayYmd = toLocalYmd(new Date());
-  const titleDate = parseHMInLocal(ymd, "12:00");
-  const isThisMonth = ymd.slice(0, 7) === todayYmd.slice(0, 7);
-  const headerTitle = isThisMonth ? "This month" : formatLocal(titleDate, "MMMM yyyy");
-  const headerSubtitle = isThisMonth ? formatLocal(titleDate, "MMMM yyyy") : null;
+  const totalRows = Math.ceil(grid.length / 7);
 
   return (
     <FadeIn>
-      <header className="mb-6 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h1 className="text-4xl leading-none">{headerTitle}</h1>
-        {headerSubtitle ? (
-          <span className="text-sm text-dim">{headerSubtitle}</span>
-        ) : null}
-      </header>
       <div className="grid grid-cols-7 text-xs uppercase tracking-wide text-dim mb-2">
         {WEEKDAYS.map((d) => (
           <div key={d} className="px-3 py-2 font-medium">{d}</div>
@@ -54,7 +45,7 @@ export function MonthView({ ymd, occurrences }: Props) {
                 group relative min-h-32 px-3 py-2 flex flex-col gap-1 transition-colors
                 ${inMonth ? "text-ink hover:bg-ink/[0.04]" : "text-ink/30 bg-ink/[0.015]"}
                 ${col < 6 ? "border-r border-ink/10" : ""}
-                ${row < 5 ? "border-b border-ink/10" : ""}
+                ${row < totalRows - 1 ? "border-b border-ink/10" : ""}
               `.replace(/\s+/g, " ").trim()}
             >
               <div className="flex items-center">
@@ -71,7 +62,11 @@ export function MonthView({ ymd, occurrences }: Props) {
               {dayEvents.slice(0, 3).map((o) => (
                 <div
                   key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
-                  className="text-xs truncate rounded-md px-1.5 py-0.5 bg-burgundy/10 text-burgundy border border-burgundy/15"
+                  className={`truncate rounded-md border px-1.5 py-0.5 text-xs transition-opacity ${
+                    inMonth
+                      ? "border-burgundy/15 bg-burgundy/10 text-burgundy"
+                      : "border-burgundy/10 bg-burgundy/5 text-burgundy/50"
+                  }`}
                 >
                   <span className="tabular-nums">
                     {formatLocal(o.occurrenceStart, "h:mm a")}
@@ -80,7 +75,7 @@ export function MonthView({ ymd, occurrences }: Props) {
                 </div>
               ))}
               {dayEvents.length > 3 && (
-                <div className="text-xs text-dim">
+                <div className={`text-xs ${inMonth ? "text-dim" : "text-dim/50"}`}>
                   +{dayEvents.length - 3} more
                 </div>
               )}
