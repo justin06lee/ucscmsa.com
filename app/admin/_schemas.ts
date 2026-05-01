@@ -43,6 +43,8 @@ export const nominateSchema = z.object({
   action: z.enum(["promote", "demote"]),
   nomineeEmail: z
     .string()
+    .trim()
+    .toLowerCase()
     .email()
     .endsWith("@ucsc.edu", "Must be a ucsc.edu email")
     .optional(),

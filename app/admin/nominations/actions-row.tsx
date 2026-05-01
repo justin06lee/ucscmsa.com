@@ -21,12 +21,13 @@ export function ActionsRow({
         <Button
           size="sm"
           disabled={pending || iApproved}
-          onClick={() =>
+          onClick={() => {
+            setErr(null);
             start(async () => {
               const r = await approveNomination(nominationId);
               if (!r.ok) setErr(r.error ?? "failed");
-            })
-          }
+            });
+          }}
         >
           {iApproved ? "Approved" : "Approve"}
         </Button>
@@ -36,17 +37,22 @@ export function ActionsRow({
           size="sm"
           variant="outline"
           disabled={pending}
-          onClick={() =>
+          onClick={() => {
+            setErr(null);
             start(async () => {
               const r = await cancelNomination(nominationId);
               if (!r.ok) setErr(r.error ?? "failed");
-            })
-          }
+            });
+          }}
         >
           Cancel
         </Button>
       )}
-      {err && <span className="text-xs text-burgundy">{err}</span>}
+      {err && (
+        <span role="alert" className="text-xs text-burgundy">
+          {err}
+        </span>
+      )}
     </div>
   );
 }

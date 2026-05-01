@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -71,6 +71,7 @@ function Field({
 
 export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
   const router = useRouter();
+  const [pending, start] = useTransition();
   const [freq, setFreq] = useState<NonNullable<Initial["recurrenceFreq"]>>(
     initial.recurrenceFreq ?? "none",
   );
@@ -80,11 +81,13 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
 
   return (
     <form
-      action={async (fd) => {
+      action={(fd) => {
         setErr(null);
-        const result = await onSubmit(fd);
-        if (result.ok) router.push("/admin");
-        else setErr(result.error ?? "Unknown error");
+        start(async () => {
+          const result = await onSubmit(fd);
+          if (result.ok) router.push("/admin");
+          else setErr(result.error ?? "Unknown error");
+        });
       }}
       className="grid max-w-xl gap-4"
     >
@@ -121,6 +124,11 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
       </div>
       <div className="grid gap-3 rounded-md border border-ink/20 p-4">
         <span className="text-sm text-dim">Recurrence</span>
+        <p className="text-xs text-dim/80">
+          Recurring events keep the same wall-clock UTC time, so an event may
+          appear an hour earlier or later in local time across DST transitions
+          (March and November).
+        </p>
         <Field label="Repeats">
           <Select
             name="recurrenceFreq"
@@ -164,8 +172,12 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
           </div>
         )}
       </div>
-      {err && <div className="text-sm text-burgundy">{err}</div>}
-      <Button type="submit" size="lg" className="justify-self-start">
+      {err && (
+        <div role="alert" className="text-sm text-burgundy">
+          {err}
+        </div>
+      )}
+      <Button type="submit" size="lg" disabled={pending} className="justify-self-start">
         {submitLabel}
       </Button>
     </form>

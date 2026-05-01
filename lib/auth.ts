@@ -4,11 +4,6 @@ export async function getSession() {
   return await auth();
 }
 
-export async function isAdmin(): Promise<boolean> {
-  const session = await auth();
-  return Boolean(session?.user?.isAdmin);
-}
-
 export async function requireAdmin() {
   const session = await auth();
   if (!session?.user?.isAdmin) {

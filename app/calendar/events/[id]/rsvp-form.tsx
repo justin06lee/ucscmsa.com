@@ -26,6 +26,7 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
               fd.set("eventId", eventId);
               fd.set("occurrenceStart", occurrenceStart);
               fd.set("status", c);
+              setError(null);
               startTransition(async () => {
                 const res = await rsvp(fd);
                 setError(res.ok ? null : res.error);
@@ -46,6 +47,7 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
             action={(fd) => {
               fd.set("eventId", eventId);
               fd.set("occurrenceStart", occurrenceStart);
+              setError(null);
               startTransition(async () => {
                 const res = await clearRsvp(fd);
                 setError(res.ok ? null : res.error);
@@ -64,7 +66,7 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
         )}
       </div>
       {error && (
-        <p className="mt-2 text-sm text-burgundy">
+        <p role="alert" className="mt-2 text-sm text-burgundy">
           {error === "login_required" ? "Please sign in first." : "Something went wrong."}
         </p>
       )}

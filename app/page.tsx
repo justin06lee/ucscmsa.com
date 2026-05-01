@@ -45,7 +45,11 @@ function ldJson(data: object) {
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-14 px-6 py-20 md:py-28">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-14 px-6 py-20 md:py-28"
+    >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: ldJson(orgLd) }}

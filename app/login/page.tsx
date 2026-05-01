@@ -12,6 +12,14 @@ export const metadata: Metadata = {
 
 type SP = { callbackUrl?: string; error?: string };
 
+function safeCallbackUrl(raw: string | undefined): string {
+  if (!raw) return "/";
+  // Same-origin paths only: must start with "/" but not "//" (protocol-relative)
+  // and must not contain "\" which some browsers normalize to "/" after the host.
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
+  return raw;
+}
+
 const errorMessages: Record<string, string> = {
   AccessDenied: "Only @ucsc.edu Google accounts can sign in.",
   Configuration: "Authentication is misconfigured. Try again later.",
@@ -27,7 +35,7 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const session = await auth();
-  const callbackUrl = sp.callbackUrl ?? "/";
+  const callbackUrl = safeCallbackUrl(sp.callbackUrl);
 
   if (session?.user) redirect(callbackUrl);
 
@@ -41,7 +49,11 @@ export default async function LoginPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-6 py-20">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-6 py-20"
+    >
       <WiggleIcon size={96} alt="" />
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="font-display text-4xl leading-none">Sign in</h1>

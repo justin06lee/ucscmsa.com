@@ -63,6 +63,9 @@ export async function createEvent(fd: FormData) {
   return { ok: true as const, id };
 }
 
+// Trust model: any admin may edit/delete any event. The admin council is small
+// and self-policing via the nomination flow, so per-event ownership would add
+// friction without security benefit. Update this if that assumption changes.
 export async function updateEvent(id: string, fd: FormData) {
   await requireAdminId();
   const parsed = eventInputSchema.safeParse(formToObject(fd));
@@ -116,22 +119,28 @@ export async function nominateAdmin(fd: FormData) {
     if (targetAdminId === adminId) {
       return { ok: false as const, error: "cannot_nominate_self" };
     }
-    const [{ total }] = await db.select({ total: count() }).from(admins);
-    if (total <= 1) {
-      return { ok: false as const, error: "cannot demote the last admin" };
-    }
   }
 
   const id = ulid();
-  await db.insert(adminNominations).values({
-    id,
-    action,
-    nomineeEmail: action === "promote" ? nomineeEmail! : null,
-    targetAdminId: action === "demote" ? targetAdminId! : null,
-    nominatedByAdminId: adminId,
+  const insertResult = await db.transaction(async (tx) => {
+    if (action === "demote") {
+      const [{ total }] = await tx.select({ total: count() }).from(admins);
+      if (total <= 1) {
+        return { ok: false as const, error: "cannot demote the last admin" };
+      }
+    }
+    await tx.insert(adminNominations).values({
+      id,
+      action,
+      nomineeEmail: action === "promote" ? nomineeEmail! : null,
+      targetAdminId: action === "demote" ? targetAdminId! : null,
+      nominatedByAdminId: adminId,
+    });
+    return { ok: true as const, id };
   });
+  if (!insertResult.ok) return insertResult;
   revalidatePath("/admin/nominations");
-  return { ok: true as const, id };
+  return insertResult;
 }
 
 export async function approveNomination(nominationId: string) {
@@ -181,16 +190,19 @@ export async function approveNomination(nominationId: string) {
 
 export async function cancelNomination(nominationId: string) {
   const adminId = await requireAdminId();
-  const [nom] = await db.select().from(adminNominations)
-    .where(eq(adminNominations.id, nominationId)).limit(1);
-  if (!nom) return { ok: false as const, error: "not_found" };
-  if (nom.nominatedByAdminId !== adminId) {
-    return { ok: false as const, error: "only_nominator_can_cancel" };
-  }
-  if (nom.status !== "pending") return { ok: false as const, error: "not_pending" };
-  await db.update(adminNominations)
-    .set({ status: "cancelled" })
-    .where(eq(adminNominations.id, nominationId));
-  revalidatePath("/admin/nominations");
-  return { ok: true as const };
+  const result = await db.transaction(async (tx) => {
+    const [nom] = await tx.select().from(adminNominations)
+      .where(eq(adminNominations.id, nominationId)).limit(1);
+    if (!nom) return { ok: false as const, error: "not_found" };
+    if (nom.nominatedByAdminId !== adminId) {
+      return { ok: false as const, error: "only_nominator_can_cancel" };
+    }
+    if (nom.status !== "pending") return { ok: false as const, error: "not_pending" };
+    await tx.update(adminNominations)
+      .set({ status: "cancelled" })
+      .where(eq(adminNominations.id, nominationId));
+    return { ok: true as const };
+  });
+  if (result.ok) revalidatePath("/admin/nominations");
+  return result;
 }

@@ -5,6 +5,9 @@ import { SITE_URL } from "@/lib/site";
 
 export const revalidate = 3600;
 
+// Stable per server boot — re-derived only when the sitemap is regenerated.
+const BUILD_DATE = new Date();
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const rows = await db
     .select({ id: events.id, updatedAt: events.updatedAt })
@@ -20,13 +23,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     {
       url: SITE_URL,
-      lastModified: new Date(),
+      lastModified: BUILD_DATE,
       changeFrequency: "weekly",
       priority: 1.0,
     },
     {
       url: `${SITE_URL}/calendar`,
-      lastModified: new Date(),
+      lastModified: BUILD_DATE,
       changeFrequency: "daily",
       priority: 0.9,
     },

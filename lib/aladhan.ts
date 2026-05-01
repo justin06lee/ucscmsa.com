@@ -24,10 +24,21 @@ const LAT = 36.974;
 const LON = -122.031;
 const METHOD = 2; // ISNA
 
-function trimToHm(s: string): string {
-  // Aladhan returns "05:18 (PDT)" sometimes — strip to HH:mm.
-  const m = s.match(/^(\d{1,2}:\d{2})/);
-  return m ? m[1].padStart(5, "0") : s;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PAST_TTL_MS = 90 * DAY_MS;
+const FUTURE_TTL_MS = 7 * DAY_MS;
+
+// HH:mm with HH in 00-23 and MM in 00-59. Aladhan sometimes appends timezone
+// suffixes like "05:18 (PDT)" so we anchor only to the start.
+const HM_RE = /^([01]\d|2[0-3]):([0-5]\d)/;
+
+export function trimToHm(s: string): string {
+  const m = s.match(HM_RE);
+  if (!m) {
+    console.warn(`[aladhan] malformed time string: ${JSON.stringify(s)}`);
+    return "00:00";
+  }
+  return `${m[1]}:${m[2]}`;
 }
 
 async function fetchAladhan(ymd: string): Promise<PrayerTimes> {
@@ -49,6 +60,39 @@ async function fetchAladhan(ymd: string): Promise<PrayerTimes> {
   };
 }
 
+function todayUtcYmd(): string {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function isStale(ymd: string, cachedAt: Date): boolean {
+  const ageMs = Date.now() - cachedAt.getTime();
+  const isPast = ymd < todayUtcYmd();
+  const ttl = isPast ? PAST_TTL_MS : FUTURE_TTL_MS;
+  return ageMs > ttl;
+}
+
+function rowToTimes(row: {
+  fajr: string;
+  sunrise: string;
+  dhuhr: string;
+  asr: string;
+  maghrib: string;
+  isha: string;
+}): PrayerTimes {
+  return {
+    fajr: row.fajr,
+    sunrise: row.sunrise,
+    dhuhr: row.dhuhr,
+    asr: row.asr,
+    maghrib: row.maghrib,
+    isha: row.isha,
+  };
+}
+
 export async function getPrayerTimes(
   ymd: string,
   db: DB
@@ -61,14 +105,26 @@ export async function getPrayerTimes(
 
   if (cached.length > 0) {
     const row = cached[0];
-    return {
-      fajr: row.fajr,
-      sunrise: row.sunrise,
-      dhuhr: row.dhuhr,
-      asr: row.asr,
-      maghrib: row.maghrib,
-      isha: row.isha,
-    };
+    if (!isStale(ymd, row.cachedAt)) {
+      return rowToTimes(row);
+    }
+
+    // Stale: try to refresh. On failure, fall back to the stale row rather
+    // than the generic defaults — yesterday's real times beat made-up ones.
+    try {
+      const times = await fetchAladhan(ymd);
+      await db
+        .insert(prayerTimesCache)
+        .values({ date: ymd, ...times })
+        .onConflictDoUpdate({
+          target: prayerTimesCache.date,
+          set: { ...times, cachedAt: new Date() },
+        });
+      return times;
+    } catch (err) {
+      console.warn(`[aladhan] refresh failed for ${ymd}, serving stale:`, err);
+      return rowToTimes(row);
+    }
   }
 
   try {

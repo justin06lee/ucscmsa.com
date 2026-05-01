@@ -1,22 +1,47 @@
-import { eq } from "drizzle-orm";
+import { and, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "./client";
 import { events, eventCancellations } from "./schema";
 import { expandEvents, type EventInput, type Occurrence } from "@/lib/rrule-lite";
+
+const MAX_EVENTS_PER_RANGE = 5000;
 
 export async function getOccurrencesInRange(
   rangeStart: Date,
   rangeEnd: Date
 ): Promise<Occurrence[]> {
-  // Fetch every event whose first-occurrence window could overlap OR that recurs indefinitely.
-  // For v1 we fetch all events; the expansion step filters properly. Turso + indexes make this fine at MSA scale.
-  const rows = await db.select().from(events);
+  // Only fetch events that could plausibly overlap the range:
+  //   - non-recurring: standard interval overlap (start < rangeEnd AND end > rangeStart)
+  //   - recurring:     start < rangeEnd AND (no until OR until >= rangeStart)
+  // Hard cap to keep memory/CPU bounded if a bad query slips through.
+  const rows = await db
+    .select()
+    .from(events)
+    .where(
+      and(
+        lt(events.startTime, rangeEnd),
+        or(
+          and(isNull(events.recurrenceFreq), gt(events.endTime, rangeStart)),
+          and(
+            isNotNull(events.recurrenceFreq),
+            or(isNull(events.recurrenceUntil), gte(events.recurrenceUntil, rangeStart)),
+          ),
+        ),
+      ),
+    )
+    .orderBy(sql`${events.startTime} asc`)
+    .limit(MAX_EVENTS_PER_RANGE);
 
-  const cancelRows = await db.select().from(eventCancellations);
   const cancelByEvent = new Map<string, string[]>();
-  for (const c of cancelRows) {
-    const list = cancelByEvent.get(c.eventId) ?? [];
-    list.push(c.occurrenceDate);
-    cancelByEvent.set(c.eventId, list);
+  if (rows.length > 0) {
+    const cancelRows = await db
+      .select()
+      .from(eventCancellations)
+      .where(inArray(eventCancellations.eventId, rows.map((r) => r.id)));
+    for (const c of cancelRows) {
+      const list = cancelByEvent.get(c.eventId) ?? [];
+      list.push(c.occurrenceDate);
+      cancelByEvent.set(c.eventId, list);
+    }
   }
 
   const inputs: EventInput[] = rows.map((r) => ({
@@ -45,7 +70,3 @@ export async function getUpcomingOccurrences(
   return all.slice(0, limit);
 }
 
-export async function getEventById(id: string) {
-  const rows = await db.select().from(events).where(eq(events.id, id)).limit(1);
-  return rows[0] ?? null;
-}

@@ -55,8 +55,16 @@ export function DatePicker({
 
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState<Date>(() => selected ?? new Date());
+  // Day arrow keys move and Enter commits this date. Independent of `selected`.
+  const [focusedDate, setFocusedDate] = useState<Date>(
+    () => selected ?? new Date(),
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  // Bumped each time we want the day-grid to (re)take focus on the focused day,
+  // e.g. after PageUp/PageDown re-renders the grid.
+  const [focusTick, setFocusTick] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +90,7 @@ export function DatePicker({
     if (!isControlled) setInternal(v);
     onChange?.(v);
     setCursor(d);
+    setFocusedDate(d);
     setOpen(false);
     triggerRef.current?.focus();
   }
@@ -92,8 +101,11 @@ export function DatePicker({
   }
 
   function openPanel() {
-    setCursor(selected ?? new Date());
+    const initial = selected ?? new Date();
+    setCursor(initial);
+    setFocusedDate(initial);
     setOpen(true);
+    setFocusTick((t) => t + 1);
   }
 
   const today = new Date();
@@ -110,6 +122,76 @@ export function DatePicker({
     }
     return arr;
   }, [gridStart, gridEnd]);
+
+  // After open or after PageUp/PageDown re-renders the grid, focus the
+  // currently-focused day's button so the roving-tabindex pattern stays glued
+  // to the keyboard cursor.
+  useEffect(() => {
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      const key = format(focusedDate, FMT);
+      const el = gridRef.current?.querySelector<HTMLButtonElement>(
+        `button[data-date="${key}"]`,
+      );
+      el?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+    // focusTick lets us re-run after page-month nav even if focusedDate
+    // identity didn't change.
+  }, [open, focusTick, focusedDate]);
+
+  function moveFocus(next: Date) {
+    setFocusedDate(next);
+    if (!isSameMonth(next, cursor)) {
+      setCursor(next);
+      // Cursor change re-renders the grid; bump tick so effect refocuses.
+      setFocusTick((t) => t + 1);
+    }
+  }
+
+  function onGridKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    switch (e.key) {
+      case "ArrowLeft":
+        e.preventDefault();
+        moveFocus(addDays(focusedDate, -1));
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        moveFocus(addDays(focusedDate, 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        moveFocus(addDays(focusedDate, -7));
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        moveFocus(addDays(focusedDate, 7));
+        break;
+      case "Home":
+        e.preventDefault();
+        moveFocus(startOfWeek(focusedDate, { weekStartsOn: 0 }));
+        break;
+      case "End":
+        e.preventDefault();
+        moveFocus(endOfWeek(focusedDate, { weekStartsOn: 0 }));
+        break;
+      case "PageUp":
+        e.preventDefault();
+        moveFocus(addMonths(focusedDate, -1));
+        break;
+      case "PageDown":
+        e.preventDefault();
+        moveFocus(addMonths(focusedDate, 1));
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        commit(focusedDate);
+        break;
+      default:
+        break;
+    }
+  }
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
@@ -138,6 +220,7 @@ export function DatePicker({
       {open && (
         <div
           role="dialog"
+          aria-label="Choose date"
           className="absolute left-0 top-full z-30 mt-1 w-[300px] rounded-md border border-ink/15 bg-paper p-3 shadow-md"
         >
           <div className="mb-2 flex items-center justify-between">
@@ -149,7 +232,9 @@ export function DatePicker({
             >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-sm font-medium">{format(cursor, "MMMM yyyy")}</span>
+            <span className="text-sm font-medium" aria-live="polite">
+              {format(cursor, "MMMM yyyy")}
+            </span>
             <button
               type="button"
               aria-label="Next month"
@@ -166,19 +251,34 @@ export function DatePicker({
               </span>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1">
+          <div
+            ref={gridRef}
+            role="grid"
+            aria-label={format(cursor, "MMMM yyyy")}
+            onKeyDown={onGridKeyDown}
+            className="grid grid-cols-7 gap-1"
+          >
             {days.map((d) => {
               const inMonth = isSameMonth(d, cursor);
               const isSel = selected ? isSameDay(d, selected) : false;
               const isToday = isSameDay(d, today);
+              const isFocused = isSameDay(d, focusedDate);
+              const dateKey = format(d, FMT);
               return (
                 <button
                   key={d.toISOString()}
                   type="button"
-                  onClick={() => commit(d)}
+                  role="gridcell"
+                  data-date={dateKey}
                   data-selected={isSel ? "true" : "false"}
                   data-today={isToday ? "true" : "false"}
-                  className={`aspect-square rounded-md text-sm transition-colors ${
+                  aria-label={format(d, "EEEE, MMMM d, yyyy")}
+                  aria-selected={isSel}
+                  aria-current={isToday ? "date" : undefined}
+                  tabIndex={isFocused ? 0 : -1}
+                  onClick={() => commit(d)}
+                  onFocus={() => setFocusedDate(d)}
+                  className={`aspect-square rounded-md text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ink/40 ${
                     inMonth ? "text-ink" : "text-ink/30"
                   } hover:bg-ink/5 data-[selected=true]:bg-ink data-[selected=true]:text-paper data-[selected=true]:hover:bg-ink data-[today=true]:ring-1 data-[today=true]:ring-ink/40 data-[selected=true]:data-[today=true]:ring-0`}
                 >

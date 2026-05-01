@@ -11,9 +11,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <SiteHeader variant="admin" />
-      <div className="max-w-5xl mx-auto px-6 py-10 w-full flex-1">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="max-w-5xl mx-auto px-6 py-10 w-full flex-1"
+      >
         {children}
-      </div>
+      </main>
     </>
   );
 }
