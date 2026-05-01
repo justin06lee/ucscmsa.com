@@ -18,6 +18,7 @@ export function DemoteForm({
         if (!confirm(`Nominate ${email} for removal?`)) return;
         fd.set("action", "demote");
         fd.set("targetAdminId", String(targetAdminId));
+        setErr(null);
         start(async () => {
           const r = await nominateAdmin(fd);
           if (!r.ok) setErr(r.error ?? "failed");
@@ -31,7 +32,11 @@ export function DemoteForm({
       >
         Nominate removal
       </button>
-      {err && <span className="ml-2 text-xs text-burgundy">{err}</span>}
+      {err && (
+        <span role="alert" className="ml-2 text-xs text-burgundy">
+          {err}
+        </span>
+      )}
     </form>
   );
 }

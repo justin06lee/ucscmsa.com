@@ -83,7 +83,7 @@ export default async function CalendarPage({
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-12 w-full flex-1">
+    <main id="main" tabIndex={-1} className="max-w-6xl mx-auto px-6 py-12 w-full flex-1">
       <CalendarNav view={view} date={date} />
       {content}
     </main>

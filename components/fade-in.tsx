@@ -1,9 +1,15 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
 export function FadeIn({ children }: { children: ReactNode }) {
+  const reduce = useReducedMotion();
+
+  if (reduce) {
+    return <div style={{ opacity: 1 }}>{children}</div>;
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

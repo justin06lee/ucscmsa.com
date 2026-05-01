@@ -67,7 +67,15 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
     }
     update();
     const id = window.setInterval(update, 60_000);
-    return () => window.clearInterval(id);
+    // Browsers throttle setInterval in background tabs; resync on visibility return.
+    function onVisibility() {
+      if (document.visibilityState === "visible") update();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [ymd, gridStart, bodyHeight]);
 
   return (

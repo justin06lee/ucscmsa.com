@@ -28,7 +28,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user }) {
       const email = (user.email ?? "").toLowerCase();
-      return email.endsWith("@ucsc.edu");
+      if (!email.endsWith("@ucsc.edu")) return false;
+      // Normalize email to lowercase before the adapter persists it. Without this,
+      // case-sensitive lookups (eq(users.email, ...)) silently fail when Google
+      // returns a mixed-case email.
+      user.email = email;
+      return true;
     },
     async session({ session, user }) {
       if (user?.id) {
@@ -48,6 +53,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user }) {
       if (!user.id) return;
       const email = (user.email ?? "").toLowerCase();
+      // Backfill: ensure existing rows are lowercase so future lookups match.
+      if (user.email && user.email !== email) {
+        await db.update(users).set({ email }).where(eq(users.id, user.id));
+      }
       if (!seedEmails.includes(email)) return;
       await db
         .insert(admins)

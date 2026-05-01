@@ -2,19 +2,23 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-
 const ASCII_COUNT = 10;
+// Pick once per server boot rather than per request so the page is cacheable
+// and doesn't burn entropy + redo I/O for every 404.
+const ASCII_INDEX = 1 + Math.floor(Math.random() * ASCII_COUNT);
 
 export default async function NotFound() {
-  const n = 1 + Math.floor(Math.random() * ASCII_COUNT);
   const ascii = await fs.readFile(
-    path.join(process.cwd(), "public/ascii", `ascii${n}.txt`),
+    path.join(process.cwd(), "public/ascii", `ascii${ASCII_INDEX}.txt`),
     "utf8",
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center px-6 py-10">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center px-6 py-10"
+    >
       <div className="flex flex-1 flex-col items-center justify-center gap-8">
         <pre className="whitespace-pre overflow-x-auto text-xs leading-tight text-ink/70 font-mono">
           {ascii}

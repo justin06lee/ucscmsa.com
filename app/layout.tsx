@@ -67,6 +67,12 @@ export default function RootLayout({
       className={`${amiri.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-paper focus:text-ink focus:px-3 focus:py-2 focus:rounded-md focus:border focus:border-ink/30"
+        >
+          Skip to main content
+        </a>
         <BoilTickerProvider intervalMs={1000}>{children}</BoilTickerProvider>
         <Analytics />
       </body>

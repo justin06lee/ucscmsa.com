@@ -36,7 +36,11 @@ export function NominateForm() {
         <Button type="submit" disabled={pending}>
           Create nomination
         </Button>
-        {err && <span className="text-sm text-burgundy">{err}</span>}
+        {err && (
+          <span role="alert" className="text-sm text-burgundy">
+            {err}
+          </span>
+        )}
         {ok && <span className="text-sm text-dim">Nomination created.</span>}
       </div>
     </form>

@@ -101,6 +101,8 @@ export function TimePicker({
   );
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hourColRef = useRef<HTMLDivElement>(null);
+  const [autofocusHour, setAutofocusHour] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -119,6 +121,23 @@ export function TimePicker({
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
+  }, [open]);
+
+  // Move focus into the hour column's active option when the dialog opens.
+  useEffect(() => {
+    if (!open) {
+      setAutofocusHour(false);
+      return;
+    }
+    setAutofocusHour(true);
+    // Defer to ensure Column has rendered and the active button exists.
+    const id = requestAnimationFrame(() => {
+      const el = hourColRef.current?.querySelector<HTMLButtonElement>(
+        "[data-active=true]",
+      );
+      el?.focus();
+    });
+    return () => cancelAnimationFrame(id);
   }, [open]);
 
   const minutes = useMemo(
@@ -190,10 +209,12 @@ export function TimePicker({
           className="absolute left-0 top-full z-30 mt-1 flex w-[260px] gap-2 rounded-md border border-ink/15 bg-paper p-2 shadow-md"
         >
           <Column
+            ref={hourColRef}
             label="Hour"
             items={HOURS_12.map((h) => ({ value: h, label: String(h) }))}
             value={draft.h12}
             onSelect={(v) => commit({ ...draft, h12: v })}
+            autofocus={autofocusHour}
           />
           <Column
             label="Min"
@@ -219,40 +240,118 @@ export function TimePicker({
   );
 }
 
+type ColumnProps<T extends string | number> = {
+  label: string;
+  items: Array<{ value: T; label: string }>;
+  value: T;
+  onSelect: (v: T) => void;
+  autofocus?: boolean;
+  ref?: React.Ref<HTMLDivElement>;
+};
+
 function Column<T extends string | number>({
   label,
   items,
   value,
   onSelect,
-}: {
-  label: string;
-  items: Array<{ value: T; label: string }>;
-  value: T;
-  onSelect: (v: T) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
+  autofocus,
+  ref,
+}: ColumnProps<T>) {
+  const localRef = useRef<HTMLDivElement>(null);
+  const setRef = (el: HTMLDivElement | null) => {
+    localRef.current = el;
+    if (typeof ref === "function") ref(el);
+    else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
+
+  // Track which item is the roving-tabindex target. Defaults to the active value.
+  const activeIndex = Math.max(
+    0,
+    items.findIndex((it) => it.value === value),
+  );
+  const [focusIndex, setFocusIndex] = useState(activeIndex);
+
+  // When the selected value changes (e.g., user clicks another column), keep
+  // the roving target aligned with the active value.
   useEffect(() => {
-    const el = ref.current?.querySelector<HTMLButtonElement>("[data-active=true]");
+    setFocusIndex(activeIndex);
+  }, [activeIndex]);
+
+  // Scroll the active item into view (preserves prior behavior).
+  useEffect(() => {
+    const el = localRef.current?.querySelector<HTMLButtonElement>(
+      "[data-active=true]",
+    );
     el?.scrollIntoView({ block: "center" });
   }, [value]);
+
+  // When the column is told to autofocus, move focus to the active item.
+  useEffect(() => {
+    if (!autofocus) return;
+    const el = localRef.current?.querySelector<HTMLButtonElement>(
+      "[data-active=true]",
+    );
+    el?.focus();
+  }, [autofocus]);
+
+  function focusIndexAndScroll(next: number) {
+    setFocusIndex(next);
+    // Find the button by index attr and focus it.
+    const buttons = localRef.current?.querySelectorAll<HTMLButtonElement>(
+      "button[role=option]",
+    );
+    const btn = buttons?.[next];
+    btn?.focus();
+    btn?.scrollIntoView({ block: "nearest" });
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const last = items.length - 1;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      focusIndexAndScroll(focusIndex >= last ? 0 : focusIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      focusIndexAndScroll(focusIndex <= 0 ? last : focusIndex - 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      focusIndexAndScroll(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      focusIndexAndScroll(last);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const it = items[focusIndex];
+      if (it) onSelect(it.value);
+    }
+  }
+
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <span className="px-2 pb-1 text-[10px] uppercase tracking-wide text-dim">
         {label}
       </span>
       <div
-        ref={ref}
+        ref={setRef}
+        role="listbox"
+        aria-label={label}
+        onKeyDown={onKeyDown}
         className="flex max-h-48 flex-col overflow-y-auto rounded-md border border-ink/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {items.map((it) => {
+        {items.map((it, i) => {
           const active = it.value === value;
+          const isFocusTarget = i === focusIndex;
           return (
             <button
               key={String(it.value)}
               type="button"
+              role="option"
+              aria-selected={active}
               data-active={active ? "true" : "false"}
+              tabIndex={isFocusTarget ? 0 : -1}
               onClick={() => onSelect(it.value)}
-              className={`px-3 py-1.5 text-center text-sm transition-colors ${
+              onFocus={() => setFocusIndex(i)}
+              className={`px-3 py-1.5 text-center text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ink/40 ${
                 active ? "bg-ink text-paper" : "text-ink/80 hover:bg-ink/5"
               }`}
             >
