@@ -3,8 +3,10 @@ import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { formatLocal } from "@/lib/time";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function AdminEvents() {
+  await requireAdmin();
   const rows = await db.select().from(events).orderBy(desc(events.startTime));
   return (
     <div>

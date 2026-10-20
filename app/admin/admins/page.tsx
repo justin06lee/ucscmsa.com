@@ -3,10 +3,10 @@ import { admins, users } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { DemoteForm } from "./demote-form";
 import { formatLocal } from "@/lib/time";
-import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function AdminsList() {
-  const session = await getSession();
+  const session = await requireAdmin();
   const rows = await db
     .select({
       id: admins.id,

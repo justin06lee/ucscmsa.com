@@ -3,12 +3,12 @@ import { admins, adminApprovals, adminNominations, users } from "@/lib/db/schema
 import { desc, eq, inArray } from "drizzle-orm";
 import { NominateForm } from "./nominate-form";
 import { ActionsRow } from "./actions-row";
-import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { formatLocal } from "@/lib/time";
 
 export default async function NominationsPage() {
-  const session = await getSession();
-  const myAdminId = session?.user?.adminId ?? null;
+  const session = await requireAdmin();
+  const myAdminId = session.user.adminId ?? null;
 
   const noms = await db
     .select({

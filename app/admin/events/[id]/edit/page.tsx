@@ -6,10 +6,12 @@ import { EventForm } from "@/app/admin/events/event-form";
 import { deleteEvent, updateEvent } from "@/app/admin/_actions";
 import { formatLocal } from "@/lib/time";
 import { Button } from "@/components/ui/button";
+import { requireAdmin } from "@/lib/auth";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditEventPage({ params }: Props) {
+  await requireAdmin();
   const { id } = await params;
   const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
   if (!row) notFound();

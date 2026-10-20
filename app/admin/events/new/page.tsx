@@ -1,7 +1,9 @@
 import { EventForm } from "@/app/admin/events/event-form";
 import { createEvent } from "@/app/admin/_actions";
+import { requireAdmin } from "@/lib/auth";
 
-export default function NewEventPage() {
+export default async function NewEventPage() {
+  await requireAdmin();
   async function submit(fd: FormData) {
     "use server";
     return await createEvent(fd);
