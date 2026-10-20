@@ -6,9 +6,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { eventRsvps } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth";
+import { findOccurrence } from "@/lib/db/queries";
 
 const rsvpSchema = z.object({
-  eventId: z.string(),
+  eventId: z.string().max(64),
   occurrenceStart: z.string().datetime(),
   status: z.enum(["yes", "no", "maybe"]),
 });
@@ -29,6 +30,11 @@ export async function rsvp(formData: FormData) {
   const { eventId, occurrenceStart, status } = parsed.data;
   const start = new Date(occurrenceStart);
   const userId = session.user.id;
+  // Only real occurrences: otherwise any timestamp (or unknown event id) could
+  // be sent, adding junk rows or failing on the foreign key.
+  if (!(await findOccurrence(eventId, start))) {
+    return { ok: false as const, error: "invalid_input" };
+  }
 
   await db
     .insert(eventRsvps)
@@ -48,7 +54,7 @@ export async function rsvp(formData: FormData) {
 }
 
 const clearSchema = z.object({
-  eventId: z.string(),
+  eventId: z.string().max(64),
   occurrenceStart: z.string().datetime(),
 });
 

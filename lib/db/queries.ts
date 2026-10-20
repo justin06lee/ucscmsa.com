@@ -1,5 +1,5 @@
-import { and, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
-import { db } from "./client";
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { db, type DB } from "./client";
 import { events, eventCancellations } from "./schema";
 import { expandEvents, type EventInput, type Occurrence } from "@/lib/rrule-lite";
 
@@ -44,7 +44,12 @@ export async function getOccurrencesInRange(
     }
   }
 
-  const inputs: EventInput[] = rows.map((r) => ({
+  const inputs = rows.map((r) => toEventInput(r, cancelByEvent.get(r.id) ?? []));
+  return expandEvents(inputs, rangeStart, rangeEnd);
+}
+
+function toEventInput(r: typeof events.$inferSelect, cancellations: string[]): EventInput {
+  return {
     id: r.id,
     title: r.title,
     description: r.description,
@@ -55,10 +60,36 @@ export async function getOccurrencesInRange(
     recurrenceByWeekday: r.recurrenceByWeekday,
     recurrenceInterval: r.recurrenceInterval,
     recurrenceUntil: r.recurrenceUntil,
-    cancellations: cancelByEvent.get(r.id) ?? [],
-  }));
+    cancellations,
+  };
+}
 
-  return expandEvents(inputs, rangeStart, rangeEnd);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The occurrence of `eventId` that starts exactly at `occurrenceStart`, or
+ * null when the event doesn't exist or has no (uncancelled) occurrence then.
+ * Used to check start times that arrive from the client.
+ */
+export async function findOccurrence(
+  eventId: string,
+  occurrenceStart: Date,
+  database: DB = db
+): Promise<Occurrence | null> {
+  const t = occurrenceStart.getTime();
+  if (Number.isNaN(t)) return null;
+  const [row] = await database.select().from(events).where(eq(events.id, eventId)).limit(1);
+  if (!row) return null;
+  const cancelRows = await database
+    .select()
+    .from(eventCancellations)
+    .where(eq(eventCancellations.eventId, eventId));
+  const occurrences = expandEvents(
+    [toEventInput(row, cancelRows.map((c) => c.occurrenceDate))],
+    new Date(t - DAY_MS),
+    new Date(t + DAY_MS)
+  );
+  return occurrences.find((o) => o.occurrenceStart.getTime() === t) ?? null;
 }
 
 export async function getUpcomingOccurrences(
