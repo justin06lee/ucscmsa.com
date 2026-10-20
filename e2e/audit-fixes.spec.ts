@@ -14,11 +14,12 @@ function effectiveOpacity(l: Locator) {
 }
 
 test.describe("with prefers-reduced-motion: reduce", () => {
-  test.use({ reducedMotion: "reduce" });
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
 
   test("event page content is not left at opacity 0", async ({ page }) => {
     await page.goto("/calendar/events/ev-gbm");
     await page.waitForLoadState("networkidle");
+    expect(await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
     const h1 = page.getByRole("heading", { level: 1, name: "Fall General Body Meeting" });
     expect(await effectiveOpacity(h1)).toBe(1);
   });
