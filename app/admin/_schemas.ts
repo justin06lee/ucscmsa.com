@@ -1,30 +1,45 @@
 import { z } from "zod";
 
-const ymd = z
+// A real calendar date in a sane range. The pattern alone let "2026-02-31"
+// and "0001-01-01" through: the first became an Invalid Date at insert time,
+// the second made every page view expand two thousand years of recurrences.
+function isRealYmd(s: string): boolean {
+  const d = new Date(`${s}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s) return false;
+  const year = d.getUTCFullYear();
+  return year >= 2000 && year <= 2100;
+}
+
+const realYmd = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
-  .or(z.literal(""))
-  .default("");
+  .refine(isRealYmd, "Invalid date");
+
+const ymd = realYmd.or(z.literal("")).default("");
+
+const hm = (message: string) =>
+  z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, message);
+
+const WEEKDAY = "(SU|MO|TU|WE|TH|FR|SA)";
 
 export const eventInputSchema = z
   .object({
-    title: z.string().min(1, "Title required"),
-    description: z.string().default(""),
-    location: z.string().default(""),
+    title: z.string().trim().min(1, "Title required").max(200, "Title is too long"),
+    description: z.string().max(10_000, "Description is too long").default(""),
+    location: z.string().trim().max(200, "Location is too long").default(""),
     startDate: ymd,
-    startTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid start time"),
+    startTime: hm("Invalid start time"),
     endDate: ymd,
-    endTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid end time"),
+    endTime: hm("Invalid end time"),
     recurrenceFreq: z
       .enum(["none", "daily", "weekly", "monthly", "yearly"])
       .default("none"),
-    recurrenceByWeekday: z.string().default(""),
-    recurrenceInterval: z.coerce.number().int().min(1).default(1),
-    recurrenceUntil: z
+    recurrenceByWeekday: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .or(z.literal(""))
+      .regex(new RegExp(`^(${WEEKDAY}(,${WEEKDAY})*)?$`), "Invalid weekdays")
       .default(""),
+    recurrenceInterval: z.coerce.number().int().min(1).max(99).default(1),
+    recurrenceUntil: ymd,
   })
   .refine(
     (d) => d.recurrenceFreq !== "none" || (d.startDate && d.endDate),
@@ -32,8 +47,11 @@ export const eventInputSchema = z
   )
   .refine(
     (d) => {
-      if (!d.startDate || !d.endDate) return true;
-      return `${d.endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`;
+      // Blank dates are filled in by resolveDates: a blank start is today
+      // (can't compare here), a blank end is the start date.
+      if (!d.startDate && d.endDate) return true;
+      const endDate = d.endDate || d.startDate;
+      return `${endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`;
     },
     { message: "End must be after start", path: ["endDate"] },
   );
