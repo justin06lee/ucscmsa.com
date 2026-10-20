@@ -4,6 +4,10 @@ import { WiggleLetters } from "@/components/logo/wiggle-letters";
 import { UpcomingEvents } from "@/components/upcoming-events";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
+// The page is otherwise prerendered once at build time, which froze "Upcoming"
+// at the last deploy. Regenerate it in the background every 5 minutes.
+export const revalidate = 300;
+
 const orgLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
