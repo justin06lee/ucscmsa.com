@@ -1,5 +1,5 @@
-import { getDay } from "date-fns";
-import { SITE_TZ, toLocalYmd, toZonedTime } from "./time";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { SITE_TZ, toLocalYmd } from "./time";
 
 export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -36,42 +36,30 @@ const WEEKDAY_MAP: Record<string, number> = {
   SA: 6,
 };
 
-function addDaysUtc(d: Date, n: number): Date {
-  const out = new Date(d.getTime());
-  out.setUTCDate(out.getUTCDate() + n);
-  return out;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Recurrence happens on the Santa Cruz wall clock: a 1:30 PM Jummah stays at
+// 1:30 PM local on both sides of a DST change. So we walk *local calendar
+// dates* (UTC-midnight Dates used purely as calendar values, as in
+// monthGridDays) and convert each date + the start's local time back to an
+// instant. Stepping instants by 24h instead shifted every occurrence on the
+// other side of a DST change by an hour.
+
+function localCalendarDate(d: Date): Date {
+  const [y, m, day] = formatInTimeZone(d, SITE_TZ, "yyyy-MM-dd").split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, day));
 }
 
-function addYearsUtc(d: Date, n: number): Date {
-  const out = new Date(d.getTime());
-  const dom = out.getUTCDate();
-  out.setUTCFullYear(out.getUTCFullYear() + n);
-  // Clamp Feb 29 -> Feb 28 when target year is not a leap year.
-  if (out.getUTCDate() !== dom) out.setUTCDate(0);
-  return out;
+function addDays(cal: Date, n: number): Date {
+  return new Date(cal.getTime() + n * DAY_MS);
 }
 
-function occursOnAllowedWeekday(d: Date, allowed: number[]): boolean {
-  return allowed.includes(getDay(toZonedTime(d, SITE_TZ)));
+function daysInMonth(year: number, month0: number): number {
+  return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 }
 
-function addMonthsClamped(start: Date, months: number): Date {
-  // Use UTC math explicitly so we don't accidentally shift by an hour across a
-  // DST boundary. date-fns `addMonths` operates in local time, which causes
-  // e.g. Jan 31 19:00Z (11:00 PST) to become Mar 31 18:00Z (11:00 PDT).
-  const sourceDom = start.getUTCDate();
-  const year = start.getUTCFullYear();
-  const month = start.getUTCMonth();
-  const targetYear = year + Math.floor((month + months) / 12);
-  const targetMonthRaw = month + months;
-  const targetMonth = ((targetMonthRaw % 12) + 12) % 12;
-  const daysInMonth = new Date(
-    Date.UTC(targetYear, targetMonth + 1, 0)
-  ).getUTCDate();
-  const day = Math.min(sourceDom, daysInMonth);
-  const out = new Date(start.getTime());
-  out.setUTCFullYear(targetYear, targetMonth, day);
-  return out;
+function calYmd(cal: Date): string {
+  return cal.toISOString().slice(0, 10);
 }
 
 export function expandEvents(
@@ -110,11 +98,25 @@ export function expandEvents(
       ? new Date(Math.min(ev.recurrenceUntil.getTime(), rangeEnd.getTime()))
       : rangeEnd;
 
+    const startCal = localCalendarDate(ev.startTime);
+    const localTime = formatInTimeZone(ev.startTime, SITE_TZ, "HH:mm:ss.SSS");
+    const at = (cal: Date) => fromZonedTime(`${calYmd(cal)}T${localTime}`, SITE_TZ);
+
+    // Days from the first occurrence to the earliest one that can still
+    // overlap the range (allowing for its duration). Lets daily and weekly
+    // expansion skip ahead instead of walking every day since the event began.
+    const leadDays = Math.max(
+      0,
+      Math.floor((localCalendarDate(rangeStart).getTime() - startCal.getTime()) / DAY_MS) -
+        Math.ceil(durationMs / DAY_MS) -
+        1
+    );
+
     if (ev.recurrenceFreq === "daily") {
-      let cursor = ev.startTime;
-      while (cursor < hardStop) {
-        emit(cursor);
-        cursor = addDaysUtc(cursor, interval);
+      let cal = addDays(startCal, Math.floor(leadDays / interval) * interval);
+      for (let start = at(cal); start < hardStop; start = at(cal)) {
+        emit(start);
+        cal = addDays(cal, interval);
       }
     } else if (ev.recurrenceFreq === "weekly") {
       const allowed = ev.recurrenceByWeekday
@@ -123,33 +125,46 @@ export function expandEvents(
             .map((s) => s.trim().toUpperCase())
             .filter((s) => s in WEEKDAY_MAP)
             .map((s) => WEEKDAY_MAP[s])
-        : [getDay(toZonedTime(ev.startTime, SITE_TZ))];
-
-      let weekCursor = ev.startTime;
-      while (weekCursor < hardStop) {
+        : [startCal.getUTCDay()];
+      // Weeks run Sunday to Saturday, like the month grid, and the interval
+      // counts whole weeks from the week the event starts in.
+      const firstWeek = addDays(startCal, -startCal.getUTCDay());
+      const weekStep = 7 * interval;
+      let week = addDays(firstWeek, Math.floor(leadDays / weekStep) * weekStep);
+      weeks: while (true) {
         for (let i = 0; i < 7; i++) {
-          const day = addDaysUtc(weekCursor, i);
-          if (day < ev.startTime) continue;
-          if (day >= hardStop) break;
-          if (occursOnAllowedWeekday(day, allowed)) emit(day);
+          const day = addDays(week, i);
+          if (day < startCal || !allowed.includes(day.getUTCDay())) continue;
+          const start = at(day);
+          if (start >= hardStop) break weeks;
+          emit(start);
         }
-        weekCursor = addDaysUtc(weekCursor, 7 * interval);
+        if (allowed.length === 0 || at(week) >= hardStop) break;
+        week = addDays(week, weekStep);
       }
     } else if (ev.recurrenceFreq === "monthly") {
-      let i = 0;
-      while (true) {
-        const candidate = addMonthsClamped(ev.startTime, i * interval);
-        if (candidate >= hardStop) break;
-        emit(candidate);
-        i++;
+      const y = startCal.getUTCFullYear();
+      const m = startCal.getUTCMonth();
+      const dom = startCal.getUTCDate();
+      for (let i = 0; ; i++) {
+        const month = m + i * interval;
+        const ty = y + Math.floor(month / 12);
+        const tm = ((month % 12) + 12) % 12;
+        // Clamp e.g. Jan 31 -> Feb 28; later months go back to the 31st.
+        const start = at(new Date(Date.UTC(ty, tm, Math.min(dom, daysInMonth(ty, tm)))));
+        if (start >= hardStop) break;
+        emit(start);
       }
     } else if (ev.recurrenceFreq === "yearly") {
-      let i = 0;
-      while (true) {
-        const candidate = addYearsUtc(ev.startTime, i * interval);
-        if (candidate >= hardStop) break;
-        emit(candidate);
-        i++;
+      const y = startCal.getUTCFullYear();
+      const m = startCal.getUTCMonth();
+      const dom = startCal.getUTCDate();
+      for (let i = 0; ; i++) {
+        const ty = y + i * interval;
+        // Clamp Feb 29 -> Feb 28 when the target year is not a leap year.
+        const start = at(new Date(Date.UTC(ty, m, Math.min(dom, daysInMonth(ty, m)))));
+        if (start >= hardStop) break;
+        emit(start);
       }
     }
   }
