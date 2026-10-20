@@ -9,6 +9,9 @@ export default defineConfig({
     setupFiles: ["./test/setup.ts"],
     globals: true,
     exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
+    // .env.local may hold the production Turso URL and token. Pin every test
+    // to a throwaway local database so nothing here can ever reach it.
+    env: { TURSO_DATABASE_URL: "file::memory:", TURSO_AUTH_TOKEN: "" },
   },
   resolve: {
     alias: {
