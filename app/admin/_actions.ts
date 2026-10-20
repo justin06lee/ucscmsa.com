@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { ulid } from "ulid";
 import { db } from "@/lib/db/client";
-import { admins, adminApprovals, adminNominations, events } from "@/lib/db/schema";
-import { eq, count } from "drizzle-orm";
+import { adminNominations, events } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { requireAdminId } from "@/lib/auth";
 import { eventInputSchema, nominateSchema } from "./_schemas";
 import { parseHMInLocal, toLocalYmd } from "@/lib/time";
-import { applyIfQuorum } from "./_apply-nomination";
+import { approveNominationTx, createNomination } from "./_governance";
 
 function resolveDates(p: {
   startDate: string;
@@ -110,82 +110,20 @@ export async function nominateAdmin(fd: FormData) {
   if (!parsed.success) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
-  const { action, nomineeEmail, targetAdminId } = parsed.data;
-
-  if (action === "promote") {
-    if (!nomineeEmail) return { ok: false as const, error: "email required" };
-  } else {
-    if (!targetAdminId) return { ok: false as const, error: "target admin required" };
-    if (targetAdminId === adminId) {
-      return { ok: false as const, error: "cannot_nominate_self" };
-    }
-  }
-
-  const id = ulid();
-  const insertResult = await db.transaction(async (tx) => {
-    if (action === "demote") {
-      const [{ total }] = await tx.select({ total: count() }).from(admins);
-      if (total <= 1) {
-        return { ok: false as const, error: "cannot demote the last admin" };
-      }
-    }
-    await tx.insert(adminNominations).values({
-      id,
-      action,
-      nomineeEmail: action === "promote" ? nomineeEmail! : null,
-      targetAdminId: action === "demote" ? targetAdminId! : null,
-      nominatedByAdminId: adminId,
-    });
-    return { ok: true as const, id };
-  });
-  if (!insertResult.ok) return insertResult;
-  revalidatePath("/admin/nominations");
-  return insertResult;
+  const result = await createNomination(db, adminId, parsed.data);
+  if (result.ok) revalidatePath("/admin/nominations");
+  return result;
 }
 
 export async function approveNomination(nominationId: string) {
   const approverId = await requireAdminId();
-
-  try {
-    return await db.transaction(async (tx) => {
-      const [nom] = await tx.select().from(adminNominations)
-        .where(eq(adminNominations.id, nominationId)).limit(1);
-      if (!nom) return { ok: false as const, error: "not_found" };
-      if (nom.status !== "pending") return { ok: false as const, error: "not_pending" };
-      if (nom.nominatedByAdminId === approverId) {
-        return { ok: false as const, error: "nominator_cannot_approve" };
-      }
-
-      try {
-        await tx.insert(adminApprovals).values({
-          nominationId,
-          approverAdminId: approverId,
-        });
-      } catch {
-        return { ok: false as const, error: "already_approved" };
-      }
-
-      const result = await applyIfQuorum(tx, nominationId);
-      if (result.applied) {
-        revalidatePath("/admin");
-        revalidatePath("/admin/admins");
-        revalidatePath("/admin/nominations");
-        return { ok: true as const, applied: true };
-      }
-      if (result.reason === "user_not_found") {
-        return { ok: false as const, error: "nominee_must_sign_in_first" };
-      }
-      if (result.reason === "would_remove_last_admin") {
-        return { ok: false as const, error: "would_remove_last_admin" };
-      }
-      return { ok: true as const, applied: false };
-    });
-  } catch (err) {
-    if (err instanceof Error && err.message === "last_admin_race") {
-      return { ok: false as const, error: "would_remove_last_admin" };
-    }
-    throw err;
+  const result = await approveNominationTx(db, approverId, nominationId);
+  if (result.ok && result.applied) {
+    revalidatePath("/admin");
+    revalidatePath("/admin/admins");
   }
+  revalidatePath("/admin/nominations");
+  return result;
 }
 
 export async function cancelNomination(nominationId: string) {

@@ -15,6 +15,13 @@
       "when": 1777604553965,
       "tag": "0001_yellow_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792539009431,
+      "tag": "0002_melodic_redwing",
+      "breakpoints": true
     }
   ]
 }

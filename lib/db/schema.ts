@@ -125,6 +125,26 @@ export const adminApprovals = sqliteTable(
   })
 );
 
+// One row per admin removed by an approved demote nomination. Deliberately no
+// foreign keys: the admins row it describes is deleted, and the record must
+// outlive later cascades. ADMIN_SEED_EMAILS seeding skips emails listed here,
+// so a demoted seed admin is not re-promoted at their next sign-in.
+export const adminRemovals = sqliteTable(
+  "admin_removals",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id").notNull(),
+    email: text("email").notNull(),
+    nominationId: text("nomination_id"),
+    removedAt: integer("removed_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    emailIdx: index("admin_removals_email_idx").on(t.email),
+  })
+);
+
 // ---------- Events ----------
 
 export const events = sqliteTable(
@@ -142,9 +162,11 @@ export const events = sqliteTable(
     recurrenceByWeekday: text("recurrence_by_weekday"),
     recurrenceInterval: integer("recurrence_interval").notNull().default(1),
     recurrenceUntil: integer("recurrence_until", { mode: "timestamp_ms" }),
-    createdByAdminId: integer("created_by_admin_id")
-      .notNull()
-      .references(() => admins.id),
+    // Nullable with SET NULL: a NOT NULL reference here made any admin who had
+    // created an event impossible to demote (the admins delete failed).
+    createdByAdminId: integer("created_by_admin_id").references(() => admins.id, {
+      onDelete: "set null",
+    }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
