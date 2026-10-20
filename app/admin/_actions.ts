@@ -24,6 +24,14 @@ function resolveDates(p: {
   return { startDate, endDate };
 }
 
+// Everywhere an event shows up, including the landing page's upcoming list.
+function revalidateEventPages(id?: string) {
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/calendar");
+  if (id) revalidatePath(`/calendar/events/${id}`);
+}
+
 function formToObject(fd: FormData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of fd.entries()) {
@@ -58,8 +66,7 @@ export async function createEvent(fd: FormData) {
     recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
     createdByAdminId: adminId,
   });
-  revalidatePath("/admin");
-  revalidatePath("/calendar");
+  revalidateEventPages();
   return { ok: true as const, id };
 }
 
@@ -86,17 +93,14 @@ export async function updateEvent(id: string, fd: FormData) {
     recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
     updatedAt: new Date(),
   }).where(eq(events.id, id));
-  revalidatePath("/admin");
-  revalidatePath(`/calendar/events/${id}`);
-  revalidatePath("/calendar");
+  revalidateEventPages(id);
   return { ok: true as const };
 }
 
 export async function deleteEvent(id: string) {
   await requireAdminId();
   await db.delete(events).where(eq(events.id, id));
-  revalidatePath("/admin");
-  revalidatePath("/calendar");
+  revalidateEventPages(id);
   return { ok: true as const };
 }
 
