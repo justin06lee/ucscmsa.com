@@ -64,7 +64,7 @@ export default function Home() {
       />
       <h1 className="sr-only">{SITE_NAME} — {SITE_TAGLINE}</h1>
       <div className="flex flex-col items-center gap-6">
-        <WiggleIcon size={200} alt="" />
+        <WiggleIcon size={200} alt="" priority />
         <WiggleLetters />
       </div>
       <section className="w-full">
