@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db/client";
-import { eventRsvps, events } from "@/lib/db/schema";
+import { eventCancellations, eventRsvps, events } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { formatLocal } from "@/lib/time";
-import { expandEvents } from "@/lib/rrule-lite";
+import type { EventInput } from "@/lib/rrule-lite";
+import { resolveOccurrence } from "@/lib/occurrence";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { FadeIn } from "@/components/fade-in";
 import { RsvpForm } from "./rsvp-form";
@@ -19,39 +21,29 @@ type Props = {
 
 type EventRow = typeof events.$inferSelect;
 
-function nextOccurrence(row: EventRow): { start: Date; end: Date } {
-  if (!row.recurrenceFreq) {
-    return { start: row.startTime, end: row.endTime };
-  }
-  const now = new Date();
-  const oneYearOut = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-  const occurrences = expandEvents(
-    [
-      {
-        id: row.id,
-        title: row.title,
-        description: row.description,
-        location: row.location,
-        startTime: row.startTime,
-        endTime: row.endTime,
-        recurrenceFreq: row.recurrenceFreq,
-        recurrenceByWeekday: row.recurrenceByWeekday,
-        recurrenceInterval: row.recurrenceInterval,
-        recurrenceUntil: row.recurrenceUntil,
-        cancellations: [],
-      },
-    ],
-    now,
-    oneYearOut,
-  );
-  if (occurrences.length > 0) {
-    return {
-      start: occurrences[0].occurrenceStart,
-      end: occurrences[0].occurrenceEnd,
-    };
-  }
-  return { start: row.startTime, end: row.endTime };
-}
+// Shared by generateMetadata and the page within one request.
+const loadEvent = cache(async (id: string) => {
+  const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
+  if (!row) return null;
+  const cancelled = await db
+    .select({ date: eventCancellations.occurrenceDate })
+    .from(eventCancellations)
+    .where(eq(eventCancellations.eventId, id));
+  const input: EventInput = {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    location: row.location,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    recurrenceFreq: row.recurrenceFreq,
+    recurrenceByWeekday: row.recurrenceByWeekday,
+    recurrenceInterval: row.recurrenceInterval,
+    recurrenceUntil: row.recurrenceUntil,
+    cancellations: cancelled.map((c) => c.date),
+  };
+  return { row, input };
+});
 
 function truncate(s: string, n: number): string {
   if (s.length <= n) return s;
@@ -60,12 +52,11 @@ function truncate(s: string, n: number): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const row = (
-    await db.select().from(events).where(eq(events.id, id)).limit(1)
-  )[0];
-  if (!row) return { title: "Event not found" };
+  const loaded = await loadEvent(id);
+  if (!loaded) return { title: "Event not found" };
+  const { row, input } = loaded;
 
-  const { start } = nextOccurrence(row);
+  const { start } = resolveOccurrence(input, undefined, new Date());
   const dateLabel = formatLocal(start, "EEEE, MMMM d, yyyy 'at' h:mm a");
   const baseDesc = row.description?.trim()
     ? truncate(row.description, 200)
@@ -91,8 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function eventJsonLd(row: EventRow): object {
-  const { start, end } = nextOccurrence(row);
+function eventJsonLd(row: EventRow, start: Date, end: Date): object {
   const place = row.location?.trim()
     ? {
         "@type": "Place",
@@ -152,12 +142,12 @@ function ldJson(data: object): string {
 export default async function EventDetail({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = await searchParams;
-  const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
-  if (!row) notFound();
+  const loaded = await loadEvent(id);
+  if (!loaded) notFound();
+  const { row, input } = loaded;
 
-  const occurrenceStart = sp.occurrence
-    ? new Date(sp.occurrence)
-    : row.startTime;
+  const occurrence = resolveOccurrence(input, sp.occurrence, new Date());
+  const occurrenceStart = occurrence.start;
   const session = await getSession();
 
   let myStatus: "yes" | "no" | "maybe" | null = null;
@@ -180,7 +170,9 @@ export default async function EventDetail({ params, searchParams }: Props) {
     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: ldJson(eventJsonLd(row)) }}
+        dangerouslySetInnerHTML={{
+          __html: ldJson(eventJsonLd(row, occurrence.start, occurrence.end)),
+        }}
       />
       <FadeIn>
         <Link
