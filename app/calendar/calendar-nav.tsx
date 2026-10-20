@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, addMonths, addYears, formatISO } from "date-fns";
@@ -46,6 +46,7 @@ function subtitleLabel(view: View, viewYmd: string, isCurrent: boolean): string 
 export function CalendarNav({ view, date }: { view: View; date: Date }) {
   const router = useRouter();
   const params = useSearchParams();
+  const toolbarRef = useRef<HTMLElement>(null);
 
   const viewYmd = useMemo(() => toLocalYmd(date), [date]);
   const isCurrent = useMemo(() => matchesNow(viewYmd, view), [viewYmd, view]);
@@ -75,6 +76,9 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
       if (t && (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable)) return;
       if (e.key === "ArrowLeft") go(stepDate(date, view, -1), view);
       if (e.key === "ArrowRight") go(stepDate(date, view, 1), view);
+      // Single-letter shortcuts only while focus is in this toolbar (WCAG
+      // 2.1.4): page-wide, they fire on speech-input and stray keystrokes.
+      if (!toolbarRef.current?.contains(document.activeElement)) return;
       if (e.key.toLowerCase() === "t") go(new Date(), view);
       if (e.key.toLowerCase() === "d") go(date, "day");
       if (e.key.toLowerCase() === "m") go(date, "month");
@@ -85,7 +89,7 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
   }, [view, date, go]);
 
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+    <header ref={toolbarRef} className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
