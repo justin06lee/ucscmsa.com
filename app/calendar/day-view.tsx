@@ -24,11 +24,71 @@ function localHourAndMinute(utc: Date): { h: number; m: number } {
   return { h: Number(hm[0]), m: Number(hm[1]) };
 }
 
+const DAY_MIN = 24 * 60;
+const MIN_EVENT_H = 24;
+
+function wallMinutes(utc: Date): number {
+  const { h, m } = localHourAndMinute(utc);
+  return h * 60 + m;
+}
+
+type Placed = {
+  o: Occurrence;
+  start: number; // wall-clock minutes since local midnight, clipped to this day
+  end: number;
+  lane: number;
+  lanes: number;
+};
+
+// Clip each occurrence to this local day, then give events that overlap
+// (visually, counting the minimum chip height) their own lane so none is
+// hidden behind another.
+function placeOccurrences(occurrences: Occurrence[], ymd: string): Placed[] {
+  const minDur = (MIN_EVENT_H / HOUR_H) * 60;
+  const items = occurrences
+    .map((o) => {
+      const start = toLocalYmd(o.occurrenceStart) < ymd ? 0 : wallMinutes(o.occurrenceStart);
+      const end = toLocalYmd(o.occurrenceEnd) > ymd ? DAY_MIN : wallMinutes(o.occurrenceEnd);
+      return { o, start, end: Math.max(end, start), lane: 0, lanes: 1 };
+    })
+    .sort((a, b) => a.start - b.start || b.end - a.end);
+
+  let cluster: Placed[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = -Infinity;
+  const flush = () => {
+    for (const p of cluster) p.lanes = laneEnds.length;
+    cluster = [];
+    laneEnds = [];
+  };
+  for (const p of items) {
+    const visualEnd = Math.max(p.end, p.start + minDur);
+    if (p.start >= clusterEnd) flush();
+    let lane = laneEnds.findIndex((e) => e <= p.start);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = visualEnd;
+    p.lane = lane;
+    cluster.push(p);
+    clusterEnd = Math.max(clusterEnd, visualEnd);
+  }
+  flush();
+  return items;
+}
+
 export function DayView({ ymd, occurrences, prayer }: Props) {
   const fajrUtc = parseHMInLocal(ymd, prayer.fajr);
   const ishaUtc = parseHMInLocal(ymd, prayer.isha);
-  const gridStart = floorLocalHour(fajrUtc);
-  const gridEnd = ceilLocalHour(ishaUtc);
+  const placed = placeOccurrences(occurrences, ymd);
+  // The grid runs Fajr to Isha, stretched to cover any event outside that
+  // window (an evening halaqa after an early winter Isha, say).
+  const gridStart = Math.max(
+    0,
+    Math.min(floorLocalHour(fajrUtc), ...placed.map((p) => Math.floor(p.start / 60))),
+  );
+  const gridEnd = Math.min(
+    24,
+    Math.max(ceilLocalHour(ishaUtc), gridStart + 1, ...placed.map((p) => Math.ceil(p.end / 60))),
+  );
   const hours = Array.from({ length: gridEnd - gridStart }, (_, i) => gridStart + i);
   const bodyHeight = hours.length * HOUR_H;
 
@@ -122,22 +182,26 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
           {occurrences.length === 0 ? (
             <div className="day-grid__empty">No events scheduled</div>
           ) : (
-            occurrences.map((o) => {
-              const s = localHourAndMinute(o.occurrenceStart);
-              if (s.h < gridStart || s.h >= gridEnd) return null;
-              const durMin =
-                (o.occurrenceEnd.getTime() - o.occurrenceStart.getTime()) /
-                60000;
-              const top = (s.h - gridStart) * HOUR_H + (s.m / 60) * HOUR_H;
-              const rawHeight = (durMin / 60) * HOUR_H;
-              const height = Math.max(24, Math.min(rawHeight, bodyHeight - top));
+            placed.map(({ o, start, end, lane, lanes }) => {
+              const top = (start / 60 - gridStart) * HOUR_H;
+              const rawHeight = ((end - start) / 60) * HOUR_H;
+              const height = Math.max(MIN_EVENT_H, Math.min(rawHeight, bodyHeight - top));
               const showTime = height >= 48;
+              const laneStyle =
+                lanes > 1
+                  ? {
+                      left: `calc(8px + (100% - 16px) * ${lane / lanes})`,
+                      width: `calc((100% - 16px) / ${lanes} - 4px)`,
+                      right: "auto",
+                    }
+                  : null;
               return (
                 <Link
                   key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
                   href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                   className="day-grid__event"
-                  style={{ top, height }}
+                  style={{ top, height, ...laneStyle }}
+                  data-lane={`${lane + 1}/${lanes}`}
                 >
                   <div className="truncate font-medium leading-tight">{o.title}</div>
                   {showTime && (
