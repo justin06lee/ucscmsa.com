@@ -5,7 +5,7 @@
   --color-ink: #151312;
   --color-burgundy: #6b1f2a;
   --color-burgundy-soft: #b96c75;
-  --color-dim: #7a6f63;
+  --color-dim: #6f655a; /* 4.97:1 on paper; #7a6f63 was 4.28:1, under WCAG AA */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-amiri), "Iowan Old Style", Georgia, serif;
 }
