@@ -13,6 +13,7 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "calendar year", path: "/calendar?view=year&date=2026-10-20" },
   { name: "event", path: "/calendar/events/ev-gbm" },
   { name: "recurring event", path: "/calendar/events/ev-jummah" },
+  { name: "event with links", path: "/calendar/events/ev-sisters" },
   { name: "event signed in", path: "/calendar/events/ev-gbm", as: "member" },
   { name: "login", path: "/login" },
   { name: "404", path: "/this-page-does-not-exist" },
