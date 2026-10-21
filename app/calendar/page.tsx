@@ -11,6 +11,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { getOccurrencesInRange } from "@/lib/db/queries";
 import { getPrayerTimes } from "@/lib/aladhan";
 import { db } from "@/lib/db/client";
+import { calendarMetadata } from "@/lib/seo";
 import { CalendarNav } from "./calendar-nav";
 import { DayView } from "./day-view";
 import { MonthView } from "./month-view";
@@ -33,20 +34,12 @@ export async function generateMetadata({
   searchParams: Promise<SP>;
 }): Promise<Metadata> {
   const sp = await searchParams;
-  const view = parseView(sp.view);
-  const date = parseDate(sp.date);
-  const label =
-    view === "day"
-      ? formatInTimeZone(date, SITE_TZ, "EEEE, MMMM d, yyyy")
-      : view === "year"
-        ? formatInTimeZone(date, SITE_TZ, "yyyy")
-        : formatInTimeZone(date, SITE_TZ, "MMMM yyyy");
-  return {
-    title: `Calendar — ${label}`,
-    description:
-      "MSA at UCSC events calendar. Day view runs Fajr to Isha for the selected date in Santa Cruz.",
-    alternates: { canonical: "/calendar" },
-  };
+  // Canonical is /calendar for every view and date (see calendarMetadata).
+  return calendarMetadata(
+    parseView(sp.view),
+    parseDate(sp.date),
+    sp.view !== undefined || sp.date !== undefined,
+  );
 }
 
 export default async function CalendarPage({

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Sign in",
+  description: "Sign in to MSA at UCSC with your @ucsc.edu Google account.",
   robots: { index: false, follow: false },
 };
 

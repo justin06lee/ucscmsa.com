@@ -8,5 +8,7 @@ describe("landing page", () => {
     expect(typeof mod.revalidate).toBe("number");
     expect(mod.revalidate).toBeGreaterThan(0);
     expect(mod.revalidate).toBeLessThanOrEqual(900);
-  });
+    // Importing the whole page module (fonts, date-fns-tz) can pass 5s on a
+    // loaded machine.
+  }, 20_000);
 });

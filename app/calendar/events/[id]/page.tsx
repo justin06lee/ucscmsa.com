@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db/client";
-import { eventCancellations, eventRsvps, events } from "@/lib/db/schema";
+import { eventRsvps } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { formatLocal } from "@/lib/time";
-import type { EventInput } from "@/lib/rrule-lite";
 import { resolveOccurrence } from "@/lib/occurrence";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
+import {
+  breadcrumbJsonLd,
+  eventDescription,
+  eventJsonLd,
+  eventTitle,
+  eventUrl,
+  isJummah,
+  jsonLdScript,
+  pageMetadata,
+} from "@/lib/seo";
 import { FadeIn } from "@/components/fade-in";
+import { loadEvent } from "./load-event";
 import { RsvpForm } from "./rsvp-form";
 
 type Props = {
@@ -19,128 +28,20 @@ type Props = {
   searchParams: Promise<{ occurrence?: string }>;
 };
 
-type EventRow = typeof events.$inferSelect;
-
-// Shared by generateMetadata and the page within one request.
-const loadEvent = cache(async (id: string) => {
-  const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
-  if (!row) return null;
-  const cancelled = await db
-    .select({ date: eventCancellations.occurrenceDate })
-    .from(eventCancellations)
-    .where(eq(eventCancellations.eventId, id));
-  const input: EventInput = {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    location: row.location,
-    startTime: row.startTime,
-    endTime: row.endTime,
-    recurrenceFreq: row.recurrenceFreq,
-    recurrenceByWeekday: row.recurrenceByWeekday,
-    recurrenceInterval: row.recurrenceInterval,
-    recurrenceUntil: row.recurrenceUntil,
-    cancellations: cancelled.map((c) => c.date),
-  };
-  return { row, input };
-});
-
-function truncate(s: string, n: number): string {
-  if (s.length <= n) return s;
-  return s.slice(0, n - 1).trimEnd() + "…";
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const loaded = await loadEvent(id);
   if (!loaded) return { title: "Event not found" };
   const { row, input } = loaded;
-
+  // The canonical URL has no ?occurrence, so its title, description and
+  // JSON-LD describe the next occurrence.
   const { start } = resolveOccurrence(input, undefined, new Date());
-  const dateLabel = formatLocal(start, "EEEE, MMMM d, yyyy 'at' h:mm a");
-  const summary = row.description?.trim()
-    ? truncate(row.description, 200)
-    : `${row.title} on ${dateLabel}${row.location ? ` at ${row.location}` : ""}.`;
-  const baseDesc = row.cancelledAt ? `Cancelled. ${summary}` : summary;
-  const title = row.cancelledAt ? `Cancelled: ${row.title}` : row.title;
-
-  return {
-    title,
-    description: baseDesc,
-    alternates: { canonical: `/calendar/events/${id}` },
-    openGraph: {
-      type: "article",
-      title,
-      description: baseDesc,
-      url: `/calendar/events/${id}`,
-      publishedTime: row.createdAt.toISOString(),
-      modifiedTime: row.updatedAt.toISOString(),
-    },
-    twitter: {
-      card: "summary",
-      title,
-      description: baseDesc,
-    },
-  };
-}
-
-function eventJsonLd(row: EventRow, start: Date, end: Date): object {
-  const place = row.location?.trim()
-    ? {
-        "@type": "Place",
-        name: row.location,
-        address: {
-          "@type": "PostalAddress",
-          addressLocality: "Santa Cruz",
-          addressRegion: "CA",
-          postalCode: "95064",
-          addressCountry: "US",
-        },
-      }
-    : {
-        "@type": "Place",
-        name: "University of California, Santa Cruz",
-        address: {
-          "@type": "PostalAddress",
-          addressLocality: "Santa Cruz",
-          addressRegion: "CA",
-          postalCode: "95064",
-          addressCountry: "US",
-        },
-      };
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: row.title,
-    description: row.description?.trim() || undefined,
-    startDate: start.toISOString(),
-    endDate: end.toISOString(),
-    eventStatus: row.cancelledAt
-      ? "https://schema.org/EventCancelled"
-      : "https://schema.org/EventScheduled",
-    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-    location: place,
-    organizer: {
-      "@type": "Organization",
-      name: SITE_NAME,
-      url: SITE_URL,
-    },
-    isAccessibleForFree: true,
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
-      url: `${SITE_URL}/calendar/events/${row.id}`,
-    },
-    image: [`${SITE_URL}/icon.png`],
-    url: `${SITE_URL}/calendar/events/${row.id}`,
-  };
-}
-
-function ldJson(data: object): string {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
+  return pageMetadata({
+    title: eventTitle(row, start),
+    description: eventDescription(row, start),
+    path: eventUrl(id),
+    image: "segment",
+  });
 }
 
 export default async function EventDetail({ params, searchParams }: Props) {
@@ -178,7 +79,19 @@ export default async function EventDetail({ params, searchParams }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: ldJson(eventJsonLd(row, occurrence.start, occurrence.end)),
+          __html: jsonLdScript(eventJsonLd(row, occurrence.start, occurrence.end)),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: SITE_NAME, path: "/" },
+              { name: "Calendar", path: "/calendar" },
+              { name: row.title, path: eventUrl(id) },
+            ]),
+          ),
         }}
       />
       <FadeIn>
@@ -205,6 +118,12 @@ export default async function EventDetail({ params, searchParams }: Props) {
             </>
           ) : null}
         </div>
+        {isJummah(row.title) ? (
+          <p className="mt-4 text-sm leading-relaxed text-dim">
+            Jumu&rsquo;ah, also spelled Jummah or Jumuah, is the weekly Friday
+            congregational prayer.
+          </p>
+        ) : null}
         {cancelled ? (
           <p
             role="status"
