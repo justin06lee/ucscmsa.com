@@ -16,7 +16,7 @@ import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, wr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { draftToOperation, eventify, type CallModel, type SourceItem } from "./eventify";
+import { draftToOperation, eventify, type CallModel, type LinkEntry, type SourceItem } from "./eventify";
 import { fetchInstagramPosts, IgStop, type IgPost } from "./ig-posts";
 import {
   expandHome,
@@ -144,6 +144,8 @@ export type SyncSummary = {
   needsReview: { sourceId: string; title?: string; notes: string[] }[];
   skipped: { sourceId: string; reason: string }[];
   errors: string[];
+  /** Per posted event: links and flyer images, held for the upload once the API takes them. */
+  enrichment: { sourceId: string; links: LinkEntry[]; images: string[] }[];
 };
 
 /**
@@ -173,6 +175,7 @@ export async function eventifyItems(
       ops.push(draftToOperation(draft));
       const wasPosted = state.processed[item.sourceId]?.status === "posted";
       (wasPosted ? opts.summary.updated : opts.summary.created).push(item.sourceId);
+      if (draft.links.length || draft.images.length) opts.summary.enrichment.push({ sourceId: item.sourceId, links: draft.links, images: draft.images });
       state.processed[item.sourceId] = { hash: itemHash(item), status: "posted" };
     } catch (e) {
       opts.summary.errors.push(`${item.sourceId}: ${(e as Error).message}`);
@@ -219,7 +222,8 @@ export async function main(argv: string[]): Promise<number> {
   const reviewPath = syncCfg.reviewFile ?? DEFAULT_REVIEW_FILE;
   const igDir = expandHome(syncCfg.instagramDir ?? DEFAULT_IG_DIR);
   const state = loadSyncState(statePath);
-  const summary: SyncSummary = { waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [] };
+  const summary: SyncSummary = { waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] };
+  const enrichmentPath = expandHome("~/.config/midna/ucscmsa-sync-enrichment.json");
 
   // --- 1. SCRAPE WhatsApp (primary) ---
   const since = args.since ? new Date(args.since) : state.lastWaUnix ? new Date(state.lastWaUnix * 1000 + 1000) : new Date("2025-11-01T00:00:00-07:00");
@@ -247,6 +251,7 @@ export async function main(argv: string[]): Promise<number> {
         text: m.text ?? m.caption ?? "",
         imageBase64: img?.imageBase64 ?? null,
         imageMediaType: img?.imageMediaType ?? null,
+        imagePaths: m.mediaPath ? [m.mediaPath] : [],
       });
     }
   } catch (e) {
@@ -317,6 +322,11 @@ export async function main(argv: string[]): Promise<number> {
   if (summary.needsReview.length) {
     writeFileSync(expandHome(reviewPath), JSON.stringify(summary.needsReview, null, 2), { mode: 0o600 });
   }
+  if (!args.dryRun && summary.enrichment.length) {
+    const prior: Record<string, { links: LinkEntry[]; images: string[] }> = existsSync(enrichmentPath) ? JSON.parse(readFileSync(enrichmentPath, "utf8")) : {};
+    for (const e of summary.enrichment) prior[e.sourceId] = { links: e.links, images: e.images };
+    writeFileSync(enrichmentPath, JSON.stringify(prior, null, 2), { mode: 0o600 });
+  }
 
   printSummary(summary, args.dryRun, process.stdout.write.bind(process.stdout));
   return exit;
@@ -335,6 +345,7 @@ function igPostToItem(post: IgPost, igDir: string, state: SyncState): SourceItem
     text: post.caption,
     imageBase64: img?.imageBase64 ?? null,
     imageMediaType: img?.imageMediaType ?? null,
+    imagePaths: post.images.map((f) => join(igDir, f)),
   };
 }
 

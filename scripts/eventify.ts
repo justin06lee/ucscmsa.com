@@ -20,10 +20,17 @@ export type SourceItem = {
   sentDate: string;
   /** The message text / caption. May be empty when only a flyer carries the details. */
   text: string;
-  /** base64 JPEG/PNG of the flyer, or null. */
+  /** base64 JPEG/PNG of the primary flyer the model reads, or null. */
   imageBase64?: string | null;
   imageMediaType?: string | null;
+  /** Every flyer image of the post, in order (for display/upload later). */
+  imagePaths?: string[];
 };
+
+/** A link found in the announcement, classified for the site's buttons. */
+export const LINK_KINDS = ["rsvp", "form", "donate", "signup", "map", "other"] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
+export type LinkEntry = { kind: LinkKind; label: string; url: string };
 
 /** A single model request. Returns the raw assistant text. Injected for tests. */
 export type CallModel = (req: {
@@ -52,7 +59,7 @@ const modelSchema = z.object({
   location: z.string().nullable().default(null),
   description: z.string().nullable().default(null),
   hostOrg: z.string().nullable().default(null),
-  links: z.array(z.string()).default([]),
+  links: z.array(z.object({ kind: z.string().default("other"), label: z.string().default(""), url: z.string() })).default([]),
   confidence: z.number().min(0).max(1).default(0),
 });
 export type ModelEvent = z.infer<typeof modelSchema>;
@@ -69,7 +76,10 @@ export type EventDraft = {
   location?: string;
   description?: string;
   hostOrg?: string | null;
-  links: string[];
+  /** Links grounded in the announcement text (never invented). */
+  links: LinkEntry[];
+  /** Every flyer image of the source, in order, passed through for later upload. */
+  images: string[];
   confidence: number;
   needsReview: boolean;
   reviewNotes: string[];
@@ -88,9 +98,9 @@ Return ONE JSON object and nothing else. No prose, no code fence. Fields:
   - Resolve relative dates ("this Friday", "tomorrow") against the date the message was sent, which is given. Use the event's date, not the send date.
   - Never guess a time that is not shown. If no end time is shown, leave endTime null. If no time at all is shown, leave startTime and endTime null.
 - location (string|null): the venue as stated, no personal addresses.
-- description (string|null): 1-3 sentences from the announcement. Include public details (speakers, cost, cause, what to bring). Exclude phone numbers, personal payment handles, and names of private individuals.
+- description (string|null): the full announcement text, with its line breaks kept. Include public details (speakers, cost, cause, what to bring, RSVP wording). Remove only: phone numbers, personal payment handles (Venmo/Zelle/CashApp), and the names of private individuals. Do not summarize or add anything.
 - hostOrg (string|null): the outside organization running it (e.g. SWANA, SJP, ICSC, a named Shaykh) when the MSA is not the host; null when the MSA runs it.
-- links (array of strings): RSVP or form URLs from the announcement.
+- links (array of { "kind", "label", "url" }): every URL that appears in the announcement TEXT. kind is one of rsvp, form, donate, signup, map, other. label is a short human label. Copy each url exactly as written; never invent or complete a URL, and do not include a URL that is only printed on the flyer image.
 - confidence (number 0..1): your confidence that isEvent and the date are correct.
 
 All times and dates are America/Los_Angeles (Santa Cruz) wall-clock. Output only the JSON object.`;
@@ -149,6 +159,56 @@ function norm(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/** Strip a URL to its comparable core (no trailing slash or punctuation). */
+function normUrl(u: string): string {
+  return u.trim().replace(/[).,;:!?'"\]]+$/, "").replace(/\/+$/, "").toLowerCase();
+}
+
+/** Guess a link's kind from its host when the model didn't give a usable one. */
+function inferKind(url: string): LinkKind {
+  const u = url.toLowerCase();
+  if (/forms\.gle|docs\.google\.com\/forms|\/viewform|typeform|airtable/.test(u)) return "form";
+  if (/partiful|lu\.ma|eventbrite|rsvp/.test(u)) return "rsvp";
+  if (/launchgood|amanahfy|charityweek|gofundme|donate|givebutter|paypal\.com\/donate/.test(u)) return "donate";
+  if (/maps\.google|maps\.app|goo\.gl\/maps|google\.com\/maps/.test(u)) return "map";
+  if (/signup|sign-up|volunteer/.test(u)) return "signup";
+  return "other";
+}
+
+const URL_RE = /https?:\/\/[^\s<>"')]+/gi;
+
+/**
+ * The announcement's real links: every URL in the text, classified. A URL the
+ * model returned keeps its kind/label when the URL is genuinely in the text;
+ * a URL only the model invented is dropped (it isn't in the text), and a URL
+ * in the text the model missed is still kept.
+ */
+export function groundLinks(text: string, modelLinks: { kind: string; label: string; url: string }[]): LinkEntry[] {
+  const byUrl = new Map<string, { kind: string; label: string; url: string }>();
+  for (const l of modelLinks) if (l?.url) byUrl.set(normUrl(l.url), l);
+  const out: LinkEntry[] = [];
+  const seen = new Set<string>();
+  for (const raw of text.match(URL_RE) ?? []) {
+    const clean = raw.replace(/[).,;:!?'"\]]+$/, "");
+    const key = normUrl(clean);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const m = byUrl.get(key);
+    const kind = m && (LINK_KINDS as readonly string[]).includes(m.kind) ? (m.kind as LinkKind) : inferKind(clean);
+    const label = m?.label?.trim() || hostLabel(clean);
+    out.push({ kind, label, url: clean });
+  }
+  return out;
+}
+
+function hostLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "link";
+  }
+}
+
 /** Is the claimed time genuinely backed by the announcement text? */
 function quotedInText(claim: ModelEvent["startTime"], text: string): boolean {
   if (claim.source !== "text" || !claim.quote) return false;
@@ -179,7 +239,8 @@ export async function eventify(
   });
   const primary = modelSchema.parse(extractJson(raw));
 
-  const base = { sourceId: item.sourceId, sourceRef: item.sourceRef, links: primary.links ?? [] };
+  const images = item.imagePaths ?? [];
+  const base = { sourceId: item.sourceId, sourceRef: item.sourceRef, links: groundLinks(text, primary.links ?? []), images };
 
   if (!primary.isEvent) {
     return {

@@ -12,7 +12,7 @@ function mockCall(byText: (text: string) => unknown): CallModel {
   return async (req) => JSON.stringify(byText(req.text));
 }
 
-const emptySummary = (): SyncSummary => ({ waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [] });
+const emptySummary = (): SyncSummary => ({ waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] });
 const emptyState = (): SyncState => ({ version: 1, lastWaUnix: null, lastIgTakenAt: null, processed: {} });
 
 describe("eventifyItems", () => {

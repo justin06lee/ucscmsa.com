@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { draftToOperation, eventify, extractJson, type CallModel, type SourceItem } from "./eventify";
+import { draftToOperation, eventify, extractJson, groundLinks, type CallModel, type SourceItem } from "./eventify";
 
 const base: SourceItem = {
   sourceId: "wa:TEST1",
@@ -158,6 +158,41 @@ describe("eventify", () => {
   });
 });
 
+describe("groundLinks", () => {
+  it("keeps a URL that is in the text, with the model's kind and label", () => {
+    const text = "RSVP for the address: https://forms.gle/abc123";
+    const links = groundLinks(text, [{ kind: "form", label: "RSVP form", url: "https://forms.gle/abc123" }]);
+    expect(links).toEqual([{ kind: "form", label: "RSVP form", url: "https://forms.gle/abc123" }]);
+  });
+
+  it("drops a URL the model invented that is not in the text", () => {
+    const links = groundLinks("Come to the potluck!", [{ kind: "rsvp", label: "x", url: "https://evil.example/phish" }]);
+    expect(links).toEqual([]);
+  });
+
+  it("keeps a URL in the text the model missed, inferring the kind", () => {
+    const links = groundLinks("Give here: https://launchgood.com/campaign and maps https://maps.app.goo.gl/xyz", []);
+    expect(links.map((l) => l.kind)).toEqual(["donate", "map"]);
+  });
+
+  it("strips trailing punctuation and de-duplicates", () => {
+    const links = groundLinks("See https://partiful.com/e/AbC. Again: https://partiful.com/e/AbC", []);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toEqual({ kind: "rsvp", label: "partiful.com", url: "https://partiful.com/e/AbC" });
+  });
+});
+
+describe("eventify links and images", () => {
+  it("grounds links from the text and passes images through", async () => {
+    const d = await eventify(
+      { ...base, text: "Beach social! RSVP: https://partiful.com/e/XY", imagePaths: ["/t/a-1.jpg", "/t/a-2.jpg"] },
+      opts({ haiku: { isEvent: true, title: "Beach Social", date: claim("2026-07-18"), links: [{ kind: "rsvp", label: "RSVP", url: "https://partiful.com/e/XY" }], confidence: 0.9 } }),
+    );
+    expect(d.links).toEqual([{ kind: "rsvp", label: "RSVP", url: "https://partiful.com/e/XY" }]);
+    expect(d.images).toEqual(["/t/a-1.jpg", "/t/a-2.jpg"]);
+  });
+});
+
 describe("draftToOperation", () => {
   it("builds a date-only upsert with no times", () => {
     const op = draftToOperation({
@@ -167,6 +202,7 @@ describe("draftToOperation", () => {
       title: "Potluck",
       date: "2026-02-19",
       links: [],
+      images: [],
       confidence: 0.9,
       needsReview: false,
       reviewNotes: [],
@@ -186,6 +222,7 @@ describe("draftToOperation", () => {
       location: "McHenry",
       description: "Fun",
       links: [],
+      images: [],
       confidence: 0.9,
       needsReview: false,
       reviewNotes: [],

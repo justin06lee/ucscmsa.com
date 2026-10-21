@@ -7,7 +7,7 @@ The MSA site's calendar is kept filled from two sources: the WhatsApp announceme
 One command does three steps and prints a summary:
 
 1. **Scrape (plain code, no LLM).** New WhatsApp announcements since the last run, plus their downloaded flyer files; and new Instagram image posts (reels and videos skipped). Incremental: only items newer than the last run.
-2. **Eventify (an LLM through [yagami](https://github.com/justin06lee/yagami)).** Each new message + its flyer becomes an event JSON. **A time is kept only when it's quoted from the message text, or both the primary (Haiku) and verifier (Sonnet) model read the same time off the flyer** — otherwise the time is dropped (date-only / start-only) or the item is held for review. Other groups' events get a "Hosted by …" description. Jummah, polls, deleted messages and non-events are skipped.
+2. **Eventify (an LLM through [yagami](https://github.com/justin06lee/yagami)).** Each new message + its flyer becomes an event JSON. **A time is kept only when it's quoted from the message text, or both the primary (Haiku) and verifier (Sonnet) model read the same time off the flyer** — otherwise the time is dropped (date-only / start-only) or the item is held for review. The description is the full announcement text with its line breaks, opening with "Hosted by …" for other groups' events (phone numbers and private names removed). Links are the URLs that actually appear in the text, classified (`rsvp`/`form`/`donate`/`signup`/`map`/`other`) — a URL only on a flyer, or not in the text, is never used. All flyer images are kept in order. Jummah, polls, deleted messages and non-events are skipped.
 3. **Post.** Valid events go to the [import API](import.md) as idempotent upserts on stable `wa:`/`ig:` ids. Low-confidence or unclear items go to a review file instead of the site.
 
 ```bash
@@ -48,6 +48,7 @@ Everything private lives in `~/.config/midna/`, never in the repo. Each file is 
 | `ucscmsa-wa-state.json` | A hash per message, so `read` can tell when a message was edited. |
 | `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time, last-seen Instagram post, and per-id status. |
 | `ucscmsa-sync-review.json` | Items the sync held back for a human to check. |
+| `ucscmsa-sync-enrichment.json` | Per posted event: its links and flyer images, held until the import API accepts those fields. |
 | `ucscmsa-ig/` | Instagram images and `manifest.json` (a symlink to the T7 disk). |
 | `ucscmsa-batch-<date>.json` | The hand-written batches you send. |
 
