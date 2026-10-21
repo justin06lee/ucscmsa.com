@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   description,
+  eventLinks,
   hm,
   interval,
   localTimeKind,
@@ -67,6 +68,8 @@ const event = z
     endTime: hm("Invalid end time").optional(),
     endDate: realYmd.optional(),
     recurrence: recurrence.optional(),
+    // Buttons such as an RSVP form; leaving it out removes any.
+    links: eventLinks.optional(),
   })
   .superRefine((e, ctx) => {
     const endDate = e.endDate ?? e.date;

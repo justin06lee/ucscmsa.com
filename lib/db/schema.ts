@@ -8,7 +8,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { EVENT_TIMINGS } from "../event-rules";
+import { EVENT_TIMINGS, type EventLink } from "../event-rules";
 
 // ---------- Auth.js (Drizzle adapter) ----------
 
@@ -192,6 +192,9 @@ export const events = sqliteTable(
     adminEditedAt: integer("admin_edited_at", { mode: "timestamp_ms" }),
     // The whole event is cancelled; it drops off the public calendar.
     cancelledAt: integer("cancelled_at", { mode: "timestamp_ms" }),
+    // Up to LINKS_MAX buttons ({ label, url }, checked by eventLinks in
+    // lib/event-rules.ts), such as an RSVP form. Null when there are none.
+    links: text("links", { mode: "json" }).$type<EventLink[]>(),
   },
   (t) => ({
     createdByIdx: index("events_created_by_admin_id_idx").on(

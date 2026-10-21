@@ -39,6 +39,42 @@ export const location = z.string().trim().max(LOCATION_MAX, "Location is too lon
 export const description = z.string().max(DESCRIPTION_MAX, "Description is too long");
 export const interval = z.number().int().min(1).max(INTERVAL_MAX);
 
+// Buttons on the event page, such as an RSVP form or a sign-up sheet. Only
+// http(s) URLs with a host: no javascript:, data: or mailto: links, and no
+// credentials in the URL. Stored as JSON in events.links.
+export const LINKS_MAX = 3;
+export const LINK_LABEL_MAX = 40;
+export const LINK_URL_MAX = 500;
+
+export function isSafeLinkUrl(s: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    return false;
+  }
+  return (u.protocol === "https:" || u.protocol === "http:") &&
+    u.hostname.includes(".") && !u.username && !u.password;
+}
+
+export const eventLink = z.strictObject({
+  label: z
+    .string()
+    .trim()
+    .min(1, "Link label required")
+    .max(LINK_LABEL_MAX, `Link labels are at most ${LINK_LABEL_MAX} characters`)
+    .regex(/^[^\p{Cc}]*$/u, "Link labels can't contain control characters"),
+  url: z
+    .string()
+    .trim()
+    .max(LINK_URL_MAX, `Link URLs are at most ${LINK_URL_MAX} characters`)
+    .refine(isSafeLinkUrl, "Links must be full http:// or https:// URLs"),
+});
+export const eventLinks = z
+  .array(eventLink)
+  .max(LINKS_MAX, `At most ${LINKS_MAX} links`);
+export type EventLink = z.infer<typeof eventLink>;
+
 /**
  * How a Santa Cruz wall-clock time maps to real time on that date: "ok", or
  * "nonexistent" (skipped when clocks spring forward) or "ambiguous" (happens

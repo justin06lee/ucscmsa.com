@@ -142,6 +142,12 @@ describe("validation", () => {
     ["an unknown op", req({ op: "delete", sourceId: "v" })],
     ["a title over 200 characters", req(upsert("v", { title: "x".repeat(201) }))],
     ["a dryRun that isn't a boolean", { ...req(upsert("v")), dryRun: "yes" }],
+    ["a javascript: link", req(upsert("v", { links: [{ label: "RSVP", url: "javascript:alert(1)" }] }))],
+    ["a relative link", req(upsert("v", { links: [{ label: "RSVP", url: "/rsvp" }] }))],
+    ["a link with a password in it", req(upsert("v", { links: [{ label: "RSVP", url: "https://u:p@forms.gle/x" }] }))],
+    ["a link label over 40 characters", req(upsert("v", { links: [{ label: "x".repeat(41), url: "https://forms.gle/x" }] }))],
+    ["a blank link label", req(upsert("v", { links: [{ label: " ", url: "https://forms.gle/x" }] }))],
+    ["more than 3 links", req(upsert("v", { links: Array.from({ length: 4 }, () => ({ label: "RSVP", url: "https://forms.gle/x" })) }))],
   ];
 
   it.each(bad)("rejects %s with 400 invalid_request and applies nothing", async (_, body) => {
@@ -447,5 +453,49 @@ describe("revalidation", () => {
     h.revalidatePath.mockClear();
     await post(req(upsert("rv-1")));
     expect(h.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("links", () => {
+  const rsvp = { label: "RSVP", url: "https://forms.gle/abc123" };
+  const form = { label: "Volunteer form", url: "https://docs.google.com/forms/d/e/xyz/viewform" };
+
+  it("stores links, sees a resend as unchanged, and clears them when left out", async () => {
+    const first = await post(req(upsert("wa-links", { links: [rsvp, form] })));
+    expect(first.json.results![0].status).toBe("created");
+    expect((await eventBySourceId("wa-links")).links).toEqual([rsvp, form]);
+
+    expect((await post(req(upsert("wa-links", { links: [rsvp, form] })))).json.results![0].status).toBe("unchanged");
+    expect((await post(req(upsert("wa-links", { links: [form, rsvp] })))).json.results![0].status).toBe("updated");
+
+    expect((await post(req(upsert("wa-links")))).json.results![0].status).toBe("updated");
+    expect((await eventBySourceId("wa-links")).links).toBeNull();
+  });
+
+  it("the admin form sets links from linkLabel/linkUrl rows and keeps them when it sends none", async () => {
+    const fd = adminForm("Links from the form");
+    for (const [label, url] of [["RSVP", " https://forms.gle/abc123 "], ["", ""], ["Volunteer form", form.url]]) {
+      fd.append("linkLabel", label);
+      fd.append("linkUrl", url);
+    }
+    const created = await createEvent(fd);
+    expect(created.ok).toBe(true);
+    const id = (created as { id: string }).id;
+    const read = async () => (await db.select().from(events).where(eq(events.id, id)))[0].links;
+    expect(await read()).toEqual([rsvp, form]);
+
+    expect((await updateEvent(id, adminForm("Links from the form"))).ok).toBe(true);
+    expect(await read()).toEqual([rsvp, form]);
+
+    const bad = adminForm("Links from the form");
+    bad.append("linkLabel", "Pay");
+    bad.append("linkUrl", "data:text/html,hi");
+    expect(await updateEvent(id, bad)).toEqual({ ok: false, error: "Links must be full http:// or https:// URLs" });
+
+    const cleared = adminForm("Links from the form");
+    cleared.append("linkLabel", "");
+    cleared.append("linkUrl", "");
+    expect((await updateEvent(id, cleared)).ok).toBe(true);
+    expect(await read()).toBeNull();
   });
 });

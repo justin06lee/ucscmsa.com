@@ -43,6 +43,7 @@ Migrations `drizzle/0002_melodic_redwing.sql` (from the audit) and `drizzle/0003
 - **0003 is safe on live data:** it only adds columns, two tables and an index.
 - **Existing events become `source: "manual"`.**
 - **`drizzle/0004_event_timing.sql` (optional times)** adds the `timing` column; existing events become `timed`. It must run before the code that sends or stores date-only events is deployed.
+- **`drizzle/0005_event_links.sql` (links)** adds the nullable `links` column. It must run before the code that sends or stores `links` is deployed.
 - **To apply them,** run this with the production URL and token:
 
   ```bash
@@ -113,6 +114,7 @@ These are the same rules as the admin event form.
 | `endTime` | string | no | `HH:mm`, 24-hour. Only together with `startTime`. |
 | `endDate` | string | no | `YYYY-MM-DD`, for events that end on a later day. Defaults to `date`. |
 | `recurrence` | object | no | Omit for a one-off event. See below. |
+| `links` | array | no | Up to 3 buttons for the event page, such as an RSVP form. See below. Leaving it out removes any links the event had. |
 
 **Times are Santa Cruz wall-clock times** (America/Los_Angeles), exactly as the announcement says them. `"date": "2026-10-23", "startTime": "13:30"` means 1:30 PM in Santa Cruz on that day, whether it's PDT or PST; the server works out the offset. A recurring event keeps that wall-clock time on both sides of a DST change.
 
@@ -147,6 +149,23 @@ Other date and time rules:
 | `until` | string | no | The last date occurrences may fall on, `YYYY-MM-DD`, inclusive. It can't be before `date`. Omit it to repeat with no end. |
 
 The first occurrence is on `date`. Monthly events on the 29th–31st fall on the last day of shorter months.
+
+#### `event.links`
+
+Each link is an object; order is kept.
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `label` | string | yes | The button text, e.g. `"RSVP"`, `"Volunteer form"`, `"Donate"`. 1–40 characters after trimming, no control characters. |
+| `url` | string | yes | A full `https://` or `http://` URL with a host, up to 500 characters. Other schemes (`javascript:`, `data:`, `mailto:`), relative URLs and URLs with a user or password are rejected: `400`. |
+
+```json
+"links": [
+  { "label": "RSVP", "url": "https://forms.gle/thkacLx82yYcgxjt9" }
+]
+```
+
+Send the links from the announcement every time you upsert the event: an upsert replaces the whole list, and leaving `links` out (or sending `[]`) clears it. A link that's also in `description` may stay there too.
 
 ### Operation: `cancel`
 
@@ -464,6 +483,7 @@ New columns on `events`:
 | `admin_edited_at` | Set when an admin saves the event in the admin form |
 | `cancelled_at` | Set while the whole event is cancelled |
 | `timing` | `timed`, `start_only` or `date_only` (migration 0004). An unknown start is stored as the start of the Santa Cruz day, an unknown end as the end of the last day |
+| `links` | JSON array of `{ "label", "url" }`, or null when there are none (migration 0005). Set by imports and by the admin form |
 
 New tables:
 

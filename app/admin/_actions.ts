@@ -45,13 +45,26 @@ function revalidateEventPages(id?: string) {
   if (id) revalidatePath(`/calendar/events/${id}`);
 }
 
+// Links come as rows of linkLabel/linkUrl fields, paired by position; rows
+// with both blank are dropped. No linkUrl fields at all means the form
+// doesn't edit links.
+function formLinks(fd: FormData): { label: string; url: string }[] | undefined {
+  if (!fd.has("linkUrl")) return undefined;
+  const labels = fd.getAll("linkLabel").map(String);
+  const urls = fd.getAll("linkUrl").map(String);
+  return urls
+    .map((url, i) => ({ label: labels[i] ?? "", url }))
+    .filter((l) => l.label.trim() || l.url.trim());
+}
+
 function formToObject(fd: FormData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of fd.entries()) {
-    if (k === "recurrenceByWeekday") continue;
+    if (k === "recurrenceByWeekday" || k === "linkLabel" || k === "linkUrl") continue;
     out[k] = v;
   }
   out.recurrenceByWeekday = fd.getAll("recurrenceByWeekday").join(",");
+  out.links = formLinks(fd);
   return out;
 }
 
@@ -73,6 +86,7 @@ export async function createEvent(fd: FormData) {
     recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
     recurrenceInterval: p.recurrenceInterval,
     recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
+    links: p.links?.length ? p.links : null,
     createdByAdminId: adminId,
   });
   revalidateEventPages();
@@ -98,6 +112,7 @@ export async function updateEvent(id: string, fd: FormData) {
     recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
     recurrenceInterval: p.recurrenceInterval,
     recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
+    ...(p.links ? { links: p.links.length ? p.links : null } : {}),
     updatedAt: new Date(),
     // Tells the event importer not to overwrite this admin's changes.
     adminEditedAt: new Date(),
