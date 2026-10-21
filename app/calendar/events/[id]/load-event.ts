@@ -8,7 +8,8 @@ import type { EventInput } from "@/lib/rrule-lite";
 // and by opengraph-image.
 export const loadEvent = cache(async (id: string) => {
   const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
-  if (!row) return null;
+  // A draft 404s like a missing event: page, metadata and share image.
+  if (!row || row.draft) return null;
   const cancelled = await db
     .select({ date: eventCancellations.occurrenceDate })
     .from(eventCancellations)

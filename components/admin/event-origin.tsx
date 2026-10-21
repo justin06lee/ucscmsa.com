@@ -1,3 +1,5 @@
+import { DraftBadge } from "@/components/board/draft-badge";
+
 // Markers for where an event came from (the import API) and whether the
 // whole event is cancelled. Field names match lib/db/schema.ts `events`.
 
@@ -15,11 +17,20 @@ export function sourceName(source: string): string {
   return SOURCE_NAMES[source] ?? source;
 }
 
-export function EventBadges({ source, cancelledAt }: { source: string; cancelledAt: Date | null }) {
+export function EventBadges({
+  source,
+  cancelledAt,
+  draft = false,
+}: {
+  source: string;
+  cancelledAt: Date | null;
+  draft?: boolean;
+}) {
   const imported = importLabel(source);
-  if (!imported && !cancelledAt) return null;
+  if (!imported && !cancelledAt && !draft) return null;
   return (
     <span className="inline-flex flex-wrap gap-1.5 align-middle">
+      {draft ? <DraftBadge /> : null}
       {imported ? (
         <span className="rounded-full border border-ink/20 px-2 py-0.5 text-xs text-ink/75">{imported}</span>
       ) : null}

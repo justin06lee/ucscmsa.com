@@ -11,6 +11,8 @@ import { parseHMInLocal, toLocalYmd } from "@/lib/time";
 import { eventInstants } from "@/lib/event-rules";
 import { approveNominationTx, createNomination } from "./_governance";
 import { deleteEventRecordingImport } from "@/lib/import/apply";
+import { isPlanTag } from "@/lib/planning";
+import { hasPlan, planFromForm, syncPlan } from "./plan/_plan";
 
 function resolveDates(p: {
   startDate: string;
@@ -37,12 +39,28 @@ function formInstants(p: EventInputForm) {
   });
 }
 
-// Everywhere an event shows up, including the landing page's upcoming list.
+// Everywhere an event shows up, including the landing page's upcoming list
+// and the board's planning pages.
 function revalidateEventPages(id?: string) {
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/calendar");
-  if (id) revalidatePath(`/calendar/events/${id}`);
+  revalidatePath("/admin/plan");
+  if (id) {
+    revalidatePath(`/calendar/events/${id}`);
+    revalidatePath(`/admin/plan/${id}`);
+  }
+}
+
+// The form's planning fields: whether the event is a draft, and its tags. Only
+// a form that carries them (planning=1) changes them, so an edit from an older
+// copy of the form can't publish a draft or drop its tags.
+function planningFields(fd: FormData) {
+  if (fd.get("planning") !== "1") return null;
+  return {
+    draft: fd.get("draft") === "on",
+    tags: fd.getAll("tags").filter(isPlanTag),
+  };
 }
 
 function formToObject(fd: FormData): Record<string, unknown> {
@@ -62,6 +80,7 @@ export async function createEvent(fd: FormData) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
   const p = parsed.data;
+  const planning = planningFields(fd);
   const id = ulid();
   await db.insert(events).values({
     id,
@@ -74,9 +93,14 @@ export async function createEvent(fd: FormData) {
     recurrenceInterval: p.recurrenceInterval,
     recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
     createdByAdminId: adminId,
+    draft: planning?.draft ?? false,
   });
-  revalidateEventPages();
-  return { ok: true as const, id };
+  // A one-off event that hasn't happened yet gets its planning checklist.
+  if (planning) {
+    await planFromForm(db, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
+  }
+  revalidateEventPages(id);
+  return { ok: true as const, id, planned: await hasPlan(db, id) };
 }
 
 // Trust model: any admin may edit/delete any event. The admin council is small
@@ -89,6 +113,7 @@ export async function updateEvent(id: string, fd: FormData) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
   const p = parsed.data;
+  const planning = planningFields(fd);
   await db.update(events).set({
     title: p.title,
     description: p.description,
@@ -101,9 +126,16 @@ export async function updateEvent(id: string, fd: FormData) {
     updatedAt: new Date(),
     // Tells the event importer not to overwrite this admin's changes.
     adminEditedAt: new Date(),
+    ...(planning ? { draft: planning.draft } : {}),
   }).where(eq(events.id, id));
+  // Moving the date moves the open tasks; done ones stay (lib/planning.ts).
+  if (planning) {
+    await planFromForm(db, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
+  } else if (await hasPlan(db, id)) {
+    await syncPlan(db, id);
+  }
   revalidateEventPages(id);
-  return { ok: true as const };
+  return { ok: true as const, id, planned: await hasPlan(db, id) };
 }
 
 export async function deleteEvent(id: string) {

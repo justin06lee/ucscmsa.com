@@ -30,7 +30,7 @@ export default async function AdminEvents() {
             >
               <span className="flex min-w-0 flex-col">
                 <span className="font-medium break-words">{r.title}</span>
-                <EventBadges source={r.source} cancelledAt={r.cancelledAt} />
+                <EventBadges source={r.source} cancelledAt={r.cancelledAt} draft={r.draft} />
                 <span className="text-sm text-dim">
                   {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
                   {r.recurrenceFreq ? ` · ${r.recurrenceFreq}` : ""}
@@ -58,7 +58,7 @@ export default async function AdminEvents() {
             <tr key={r.id} className="border-t border-ink/10">
               <td className="py-2 pr-3">
                 <span className="mr-2">{r.title}</span>
-                <EventBadges source={r.source} cancelledAt={r.cancelledAt} />
+                <EventBadges source={r.source} cancelledAt={r.cancelledAt} draft={r.draft} />
               </td>
               <td className="py-2 pr-3 text-dim">
                 {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
+import { notDraft } from "@/lib/db/queries";
 import { absoluteUrl, eventUrl, listedInSitemap } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -9,8 +10,8 @@ export const revalidate = 3600;
 const BUILD_DATE = new Date();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Deleted events are gone from the table; cancelled ones stay while ahead
-  // (listedInSitemap).
+  // Deleted events are gone from the table, drafts are never listed, and
+  // cancelled ones stay while ahead (listedInSitemap).
   const now = new Date();
   const rows = (
     await db
@@ -23,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         cancelledAt: events.cancelledAt,
       })
       .from(events)
+      .where(notDraft)
   ).filter((r) => listedInSitemap(r, now));
 
   // The landing page and calendar change when an event does.

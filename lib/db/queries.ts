@@ -5,6 +5,13 @@ import { expandEvents, type EventInput, type Occurrence } from "@/lib/rrule-lite
 
 const MAX_EVENTS_PER_RANGE = 5000;
 
+/**
+ * Every public read of events must use this: a draft is the board's work in
+ * progress and never appears on the calendar, the landing page, the sitemap
+ * or at its own URL.
+ */
+export const notDraft = eq(events.draft, false);
+
 export async function getOccurrencesInRange(
   rangeStart: Date,
   rangeEnd: Date
@@ -18,6 +25,7 @@ export async function getOccurrencesInRange(
     .from(events)
     .where(
       and(
+        notDraft,
         isNull(events.cancelledAt),
         lt(events.startTime, rangeEnd),
         or(
@@ -70,8 +78,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The occurrence of `eventId` that starts exactly at `occurrenceStart`, or
- * null when the event doesn't exist, is cancelled, or has no (uncancelled)
- * occurrence then.
+ * null when the event doesn't exist, is cancelled or a draft, or has no
+ * (uncancelled) occurrence then.
  * Used to check start times that arrive from the client.
  */
 export async function findOccurrence(
@@ -82,7 +90,7 @@ export async function findOccurrence(
   const t = occurrenceStart.getTime();
   if (Number.isNaN(t)) return null;
   const [row] = await database.select().from(events).where(eq(events.id, eventId)).limit(1);
-  if (!row || row.cancelledAt) return null;
+  if (!row || row.cancelledAt || row.draft) return null;
   const cancelRows = await database
     .select()
     .from(eventCancellations)

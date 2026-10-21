@@ -14,6 +14,8 @@ const PUBLIC_NAV: NavItem[] = [{ href: "/calendar", label: "Calendar" }];
 
 const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Events" },
+  { href: "/admin/plan", label: "Planning" },
+  { href: "/admin/playbook", label: "Playbook" },
   { href: "/admin/admins", label: "Admins" },
   { href: "/admin/nominations", label: "Nominations" },
   { href: "/calendar", label: "Calendar" },
