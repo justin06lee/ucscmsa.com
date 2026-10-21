@@ -25,7 +25,7 @@ import { POST } from "./route";
 
 const TOKEN = "test-import-token-0123456789-abcdefghij";
 
-type Body = { ok: boolean; error?: string; results?: Array<Record<string, unknown>>; issues?: Array<{ path: string }> };
+type Body = { ok: boolean; dryRun?: boolean; error?: string; results?: Array<Record<string, unknown>>; issues?: Array<{ path: string }> };
 
 async function post(
   body: unknown,
@@ -141,6 +141,7 @@ describe("validation", () => {
     ["no operations", req()],
     ["an unknown op", req({ op: "delete", sourceId: "v" })],
     ["a title over 200 characters", req(upsert("v", { title: "x".repeat(201) }))],
+    ["a dryRun that isn't a boolean", { ...req(upsert("v")), dryRun: "yes" }],
   ];
 
   it.each(bad)("rejects %s with 400 invalid_request and applies nothing", async (_, body) => {
@@ -289,6 +290,62 @@ describe("conflicts with admin changes", () => {
     expect(forced.json.results![0].status).toBe("created");
     expect(await eventBySourceId("c-del")).toBeDefined();
     expect(await db.select().from(eventImportTombstones).where(eq(eventImportTombstones.sourceId, "c-del"))).toHaveLength(0);
+  });
+});
+
+describe("dry run", () => {
+  const dry = (...operations: unknown[]) => ({ ...req(...operations), dryRun: true });
+
+  it("reports a create without writing it or revalidating", async () => {
+    const r = await post(dry(upsert("dry-new")));
+    expect(r.status).toBe(200);
+    expect(r.json.dryRun).toBe(true);
+    expect(r.json.results).toEqual([
+      { index: 0, op: "upsert", sourceId: "dry-new", status: "created", eventId: expect.any(String), dryRun: true },
+    ]);
+    expect(await eventBySourceId("dry-new")).toBeUndefined();
+    expect(await db.select().from(events).where(eq(events.id, r.json.results![0].eventId as string))).toEqual([]);
+    expect(h.revalidatePath).not.toHaveBeenCalled();
+    // It still counts against the rate limit, like any request with the token.
+    expect((await db.select().from(rateLimits)).length).toBeGreaterThan(0);
+  });
+
+  it("gives the results a real run would, and leaves existing data as it was", async () => {
+    await post(req(upsert("dry-a"), upsert("dry-b"), upsert("dry-c")));
+    await deleteEvent((await eventBySourceId("dry-c")).id);
+    const snapshot = async () => ({
+      events: await db.select().from(events).where(eq(events.source, "whatsapp")),
+      cancellations: await db.select().from(eventCancellations),
+      tombstones: await db.select().from(eventImportTombstones),
+    });
+    const before = await snapshot();
+    const ops = [
+      upsert("dry-a", { title: "Jummah (moved)" }),
+      { op: "cancel", sourceId: "dry-b", occurrenceDate: "2026-10-30" },
+      { op: "cancel", sourceId: "dry-b" },
+      upsert("dry-c", {}, { override: true }),
+      upsert("dry-a", { title: "Jummah (moved)" }),
+      { op: "restore", sourceId: "dry-unknown" },
+    ];
+    h.revalidatePath.mockClear();
+
+    const preview = await post(dry(...ops));
+    expect(preview.json.results!.map((x) => [x.sourceId, x.status, x.dryRun])).toEqual([
+      ["dry-a", "updated", true],
+      ["dry-b", "cancelled", true],
+      ["dry-b", "cancelled", true],
+      ["dry-c", "created", true],
+      ["dry-a", "unchanged", true],
+      ["dry-unknown", "not_found", true],
+    ]);
+    expect(await snapshot()).toEqual(before);
+    expect(h.revalidatePath).not.toHaveBeenCalled();
+
+    const real = await post(req(...ops));
+    expect(real.json.dryRun).toBeUndefined();
+    expect(real.json.results!.map((x) => [x.sourceId, x.status, x.dryRun])).toEqual(
+      preview.json.results!.map((x) => [x.sourceId, x.status, undefined])
+    );
   });
 });
 

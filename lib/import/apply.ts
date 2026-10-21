@@ -24,7 +24,17 @@ export type ImportResult = {
   eventId?: string;
   occurrenceDate?: string;
   reason?: "edited_by_admin" | "deleted_by_admin" | "no_occurrence_on_date";
+  dryRun?: true;
 };
+
+type ImportOutcome = { results: ImportResult[]; changedEventIds: string[] };
+
+// Thrown at the end of a dry run so db.transaction rolls everything back.
+class DryRunRollback extends Error {
+  constructor(readonly outcome: ImportOutcome) {
+    super("dry run");
+  }
+}
 
 type EventRow = typeof events.$inferSelect;
 
@@ -85,12 +95,26 @@ function hasOccurrenceOn(row: EventRow, ymd: string): boolean {
  *    not re-created, unless the operation sets override.
  *  - cancel/restore without occurrenceDate act on the whole event; with it,
  *    on that one occurrence.
+ * With dryRun the batch runs the same way and is then rolled back: every
+ * result is marked dryRun and no event ids are reported as changed.
  */
 export async function applyImport(
   db: DB,
   request: ImportRequest,
   now: Date = new Date()
-): Promise<{ results: ImportResult[]; changedEventIds: string[] }> {
+): Promise<ImportOutcome> {
+  try {
+    return await runImport(db, request, now);
+  } catch (err) {
+    if (!(err instanceof DryRunRollback)) throw err;
+    return {
+      results: err.outcome.results.map((r) => ({ ...r, dryRun: true })),
+      changedEventIds: [],
+    };
+  }
+}
+
+async function runImport(db: DB, request: ImportRequest, now: Date): Promise<ImportOutcome> {
   const { source } = request;
   return db.transaction(async (tx) => {
     const results: ImportResult[] = [];
@@ -205,7 +229,9 @@ export async function applyImport(
       }
     }
 
-    return { results, changedEventIds: [...changed] };
+    const outcome = { results, changedEventIds: [...changed] };
+    if (request.dryRun) throw new DryRunRollback(outcome);
+    return outcome;
   });
 }
 

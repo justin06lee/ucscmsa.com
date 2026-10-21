@@ -114,6 +114,8 @@ export const importRequestSchema = z.strictObject({
     .array(z.discriminatedUnion("op", [upsert, cancel, restore]))
     .min(1)
     .max(MAX_OPERATIONS),
+  // Runs the batch and rolls it back: the results show what would happen.
+  dryRun: z.boolean().optional(),
 });
 
 export type ImportRequest = z.infer<typeof importRequestSchema>;

@@ -90,7 +90,8 @@ export async function POST(req: Request) {
       for (const id of changedEventIds) revalidatePath(`/calendar/events/${id}`);
     }
 
-    return Response.json({ ok: true, results }, { headers: { "Cache-Control": "no-store" } });
+    const dryRun = parsed.data.dryRun === true ? { dryRun: true } : {};
+    return Response.json({ ok: true, ...dryRun, results }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[import] failed:", err);
     return fail(500, "internal_error", "The import failed; nothing was applied. Retrying is safe.");

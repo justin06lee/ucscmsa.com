@@ -6,6 +6,7 @@ midna uses this API to add events from the MSA WhatsApp announcements to the cal
 - **Each event is keyed** on a stable id that you choose.
 - **Requests are idempotent.** Sending the same request twice changes nothing the second time.
 - **Admins can still edit imported events.** The importer never silently overwrites an admin's edits.
+- **A dry run previews a batch.** It returns the results the batch would get, and changes nothing.
 
 ## Setup
 
@@ -66,7 +67,8 @@ Every other method gets `405`.
 ```json
 {
   "source": "whatsapp",
-  "operations": [ /* 1 to 50 operations */ ]
+  "operations": [ /* 1 to 50 operations */ ],
+  "dryRun": true            // optional
 }
 ```
 
@@ -76,6 +78,7 @@ Every other method gets `405`.
 |---|---|---|
 | `source` | string | Names where the events come from, e.g. `"whatsapp"`. Lowercase letters, digits, `-` and `_`; 1–32 characters; must start with a letter. `"manual"` is reserved for events made in the admin form. Source ids are scoped to their source. |
 | `operations` | array | 1 to 50 operations, applied in order. |
+| `dryRun` | boolean | Optional. `true` previews the batch without applying it; see "Dry run". Default `false`. |
 
 ### Operation: `upsert`
 
@@ -186,6 +189,29 @@ There is one result per operation, in order:
 | `edited_by_admin` | `conflict` | An admin edited the event in the admin form since it was imported. |
 | `deleted_by_admin` | `conflict` | An admin deleted the event. |
 | `no_occurrence_on_date` | `not_found` | The event has no occurrence on `occurrenceDate`. |
+
+### Dry run
+
+With `"dryRun": true` the server runs the whole batch the normal way, inside its transaction, and then rolls the transaction back:
+
+- **The results are the ones a real run would get** at that moment: the same statuses, reasons and conflicts, in the same order.
+- **The response has `"dryRun": true`,** and so does every result.
+- **Nothing is written.** No event, cancellation or tombstone changes, and no page is refreshed.
+- **The `eventId` of a `created` result is only a preview.** No event has that id; the real run creates the event with a new one. Other results carry the real `eventId`.
+- **Auth and rate limits are the same as for a real run.** A dry run counts against the limits.
+
+```json
+{
+  "ok": true,
+  "dryRun": true,
+  "results": [
+    { "index": 0, "op": "upsert", "sourceId": "wa-3EB0C4", "status": "created", "eventId": "01JAD3X9Q0…", "dryRun": true },
+    { "index": 1, "op": "cancel", "sourceId": "2026-10-30-halaqa", "status": "not_found", "dryRun": true }
+  ]
+}
+```
+
+A real run made later can still get different results if an admin or another import changed something in between.
 
 ### Idempotency and retries
 
@@ -307,6 +333,15 @@ curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
 curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"source":"whatsapp","operations":[{"op":"restore","sourceId":"weekly-jummah-fall-2026"}]}'
 ```
+
+### Preview a batch first (dry run)
+
+```bash
+curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"source":"whatsapp","dryRun":true,"operations":[{"op":"cancel","sourceId":"weekly-jummah-fall-2026","occurrenceDate":"2026-10-30"}]}'
+```
+
+Send the same body without `dryRun` to apply it.
 
 ### A day's announcements in one batch
 
