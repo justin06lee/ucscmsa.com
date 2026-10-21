@@ -114,8 +114,9 @@ const ann = (sourceId: string, iso: string, text = "Potluck Friday"): Candidate 
 
 describe("candidatesFor", () => {
   const anns = [ann("wa:a", "2025-10-08T19:34:00Z"), ann("wa:b", "2025-10-01T19:00:00Z"), ann("wa:c", "2025-09-01T19:00:00Z")];
-  it("allows 90 seconds around a filename timestamp", () => {
-    expect(candidatesFor({ file: "f", unix: unix("2025-10-08T19:34:56Z"), from: "filename" }, anns).map((c) => c.sourceId)).toEqual(["wa:a"]);
+  it("allows 10 minutes around a filename timestamp", () => {
+    expect(candidatesFor({ file: "f", unix: unix("2025-10-08T19:43:00Z"), from: "filename" }, anns).map((c) => c.sourceId)).toEqual(["wa:a"]);
+    expect(candidatesFor({ file: "f", unix: unix("2025-10-08T19:45:00Z"), from: "filename" }, anns)).toEqual([]);
   });
   it("allows 14 days around an EXIF/mtime date, nearest first", () => {
     expect(candidatesFor({ file: "f", unix: unix("2025-10-07T00:00:00Z"), from: "mtime" }, anns).map((c) => c.sourceId)).toEqual(["wa:a", "wa:b"]);

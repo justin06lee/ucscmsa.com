@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CallModel, SourceItem } from "./eventify";
-import { eventifyItems, loadSyncConfig, loadSyncState, saveSyncState, yagamiCall, yagamiUp, type SyncState, type SyncSummary } from "./msa-sync";
+import { eventifyItems, groupPosts, loadSyncConfig, loadSyncState, saveSyncState, yagamiCall, yagamiUp, type SyncState, type SyncSummary } from "./msa-sync";
+import type { WaMessage } from "./wa-announcements";
 
 const item = (sourceId: string, text: string): SourceItem => ({ sourceId, sourceRef: "ref", sentDate: "2026-02-01", text });
 
@@ -166,6 +167,34 @@ describe("yagamiCall", () => {
     const call = yagamiCall({ baseUrl: "http://127.0.0.1:8787", apiKey: "k".repeat(32), sleep: noSleep });
     await expect(call({ model: "m", system: "s", text: "t" })).rejects.toThrow(/unreachable|running/);
     expect(n).toBe(1);
+  });
+});
+
+describe("groupPosts", () => {
+  const msg = (id: string, unix: number, type: string, opts: { text?: string; caption?: string; jid?: string } = {}) =>
+    ({ id, sourceId: `wa:${id}`, time: { unix, utc: "", santaCruz: "" }, sender: { name: null, jid: opts.jid ?? "a@s", admin: true, fromMe: false }, type, text: opts.text ?? null, caption: opts.caption ?? null, mediaPath: null }) as unknown as WaMessage;
+  const shape = (posts: ReturnType<typeof groupPosts>) => posts.map((p) => [p.anchor.id, p.images.map((i) => i.id)]);
+
+  it("joins an uncaptioned flyer to the same sender's text within 10 minutes", () => {
+    expect(shape(groupPosts([msg("img", 1000, "image"), msg("txt", 1546, "text", { text: "Galentine's" })]))).toEqual([["txt", ["img"]]]);
+  });
+  it("keeps an album as one post on its captioned image", () => {
+    const album = [msg("i1", 2000, "image", { caption: "Ramadan schedule" }), msg("i2", 2000, "image"), msg("i3", 2000, "image")];
+    expect(shape(groupPosts(album))).toEqual([["i1", ["i1", "i2", "i3"]]]);
+  });
+  it("makes one post of an uncaptioned album with no text nearby, even sent seconds apart", () => {
+    expect(shape(groupPosts([msg("i1", 3000, "image"), msg("i2", 3000, "image"), msg("i3", 3020, "image"), msg("later", 3200, "image")]))).toEqual([
+      ["i1", ["i1", "i2", "i3"]],
+      ["later", ["later"]],
+    ]);
+  });
+  it("leaves another sender's image, or one sent 11 minutes later, on its own", () => {
+    const posts = groupPosts([msg("txt", 4000, "text", { text: "Potluck" }), msg("other", 4060, "image", { jid: "b@s" }), msg("late", 4660, "image")]);
+    expect(shape(posts)).toEqual([["txt", []], ["other", ["other"]], ["late", ["late"]]]);
+  });
+  it("gives a flyer to the nearest of two texts", () => {
+    const posts = groupPosts([msg("t1", 5000, "text", { text: "a" }), msg("img", 5300, "image"), msg("t2", 5400, "text", { text: "b" })]);
+    expect(shape(posts)).toEqual([["t1", []], ["t2", ["img"]]]);
   });
 });
 

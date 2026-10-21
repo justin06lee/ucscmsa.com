@@ -126,12 +126,12 @@ export function indexImageFolder(dir: string): { images: DatedImage[]; unsupport
 }
 
 /**
- * The announcements an image could belong to: within 90 seconds of a filename
- * timestamp (the send instant), or 14 days of an EXIF/mtime date; nearest
- * first, at most 8.
+ * The announcements an image could belong to: within 10 minutes of a filename
+ * timestamp (the send instant; a flyer can follow its text by minutes), or 14
+ * days of an EXIF/mtime date; nearest first, at most 8.
  */
 export function candidatesFor(img: DatedImage, announcements: Candidate[]): Candidate[] {
-  const window = img.from === "filename" ? 90 : 14 * 86400;
+  const window = img.from === "filename" ? 600 : 14 * 86400;
   return announcements
     .filter((a) => Math.abs(a.unix - img.unix) <= window)
     .sort((a, b) => Math.abs(a.unix - img.unix) - Math.abs(b.unix - img.unix))
@@ -169,7 +169,7 @@ export async function matchImages(
   for (const img of images) {
     const cands = candidatesFor(img, announcements);
     if (!cands.length) {
-      review.push({ file: img.file, note: `no announcement within ${img.from === "filename" ? "90 seconds" : "14 days"} of its ${img.from} date` });
+      review.push({ file: img.file, note: `no announcement within ${img.from === "filename" ? "10 minutes" : "14 days"} of its ${img.from} date` });
       continue;
     }
     const pic = opts.load(img.file);

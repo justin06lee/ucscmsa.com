@@ -235,6 +235,42 @@ function fromAnnouncer(m: WaMessage): boolean {
   return m.sender.admin; // announcements come from board admins
 }
 
+/**
+ * Announcements grouped into posts, the way they were sent: each text or
+ * captioned message, with the uncaptioned images the same person sent within
+ * `windowSec` (10 minutes) of it, nearest message wins. Uncaptioned images
+ * with no such message form their own post: one per run of images a sender
+ * sent within a minute of each other (an album), anchored on its first image. So an album is one post, not one
+ * per image, and a flyer sent apart from its text joins that text.
+ */
+export function groupPosts(announcements: WaMessage[], windowSec = 600): { anchor: WaMessage; images: WaMessage[] }[] {
+  const bare = (m: WaMessage) => m.type === "image" && !(m.caption ?? "").trim();
+  const anchors = announcements.filter((m) => !bare(m));
+  const posts = new Map<string, { anchor: WaMessage; images: WaMessage[] }>();
+  for (const a of anchors) posts.set(a.id, { anchor: a, images: a.type === "image" ? [a] : [] });
+  const albums: { anchor: WaMessage; images: WaMessage[] }[] = [];
+  for (const m of [...announcements.filter(bare)].sort((x, y) => x.time.unix - y.time.unix)) {
+    let best: WaMessage | null = null;
+    for (const a of anchors) {
+      if (a.sender.jid !== m.sender.jid) continue;
+      const d = Math.abs(a.time.unix - m.time.unix);
+      if (d <= windowSec && (!best || d < Math.abs(best.time.unix - m.time.unix))) best = a;
+    }
+    if (best) {
+      posts.get(best.id)!.images.push(m);
+      continue;
+    }
+    const album = albums.find((p) => p.anchor.sender.jid === m.sender.jid && m.time.unix - p.images[p.images.length - 1].time.unix <= 60);
+    if (album) album.images.push(m);
+    else {
+      const post = { anchor: m, images: [m] };
+      albums.push(post);
+      posts.set(`album:${m.id}`, post);
+    }
+  }
+  return [...posts.values()].sort((x, y) => x.anchor.time.unix - y.anchor.time.unix);
+}
+
 export type SyncSummary = {
   waRead: number;
   flyersMatched: number;
@@ -368,9 +404,10 @@ export async function main(argv: string[]): Promise<number> {
     summary.flyersUnmatched = unmatched.length;
 
     for (const m of messages) maxWaUnix = Math.max(maxWaUnix, m.time.unix);
-    for (const m of announcements) {
-      // A folder flyer, else WhatsApp's own downloaded copy if there is one.
-      const flyerPaths = byMessage.get(m.time.unix) ?? (m.mediaPath ? [m.mediaPath] : []);
+    // Each image's folder flyer(s), else WhatsApp's own downloaded copy if there is one.
+    const flyersOf = (img: WaMessage) => byMessage.get(img.time.unix) ?? (img.mediaPath ? [img.mediaPath] : []);
+    for (const { anchor: m, images } of groupPosts(announcements)) {
+      const flyerPaths = [...new Set(images.flatMap(flyersOf))];
       const text = m.text ?? m.caption ?? "";
       if (!text.trim() && flyerPaths.length === 0) continue; // nothing to read
       summary.candidates++;
