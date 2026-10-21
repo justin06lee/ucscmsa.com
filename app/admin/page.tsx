@@ -4,6 +4,7 @@ import { events } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { formatLocal } from "@/lib/time";
 import { requireAdmin } from "@/lib/auth";
+import { EventBadges } from "@/components/admin/event-origin";
 
 export default async function AdminEvents() {
   await requireAdmin();
@@ -29,6 +30,7 @@ export default async function AdminEvents() {
             >
               <span className="flex min-w-0 flex-col">
                 <span className="font-medium break-words">{r.title}</span>
+                <EventBadges source={r.source} cancelledAt={r.cancelledAt} />
                 <span className="text-sm text-dim">
                   {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
                   {r.recurrenceFreq ? ` · ${r.recurrenceFreq}` : ""}
@@ -54,7 +56,10 @@ export default async function AdminEvents() {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t border-ink/10">
-              <td className="py-2 pr-3">{r.title}</td>
+              <td className="py-2 pr-3">
+                <span className="mr-2">{r.title}</span>
+                <EventBadges source={r.source} cancelledAt={r.cancelledAt} />
+              </td>
               <td className="py-2 pr-3 text-dim">
                 {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
               </td>
