@@ -1,0 +1,172 @@
+import { test, expect, type Page } from "@playwright/test";
+import { seed, signIn } from "./fixtures";
+
+// Every page at phone and tablet widths: nothing scrolls sideways, and every
+// control is a usable touch target. Relies on scripts/seed-local.ts fixtures.
+
+const WIDTHS = [375, 390, 768] as const;
+
+const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
+  { name: "landing", path: "/" },
+  { name: "calendar month", path: "/calendar?view=month&date=2026-10-20" },
+  { name: "calendar day", path: "/calendar?view=day&date=2026-10-23" },
+  { name: "calendar year", path: "/calendar?view=year&date=2026-10-20" },
+  { name: "event", path: "/calendar/events/ev-gbm" },
+  { name: "recurring event", path: "/calendar/events/ev-jummah" },
+  { name: "event signed in", path: "/calendar/events/ev-gbm", as: "member" },
+  { name: "login", path: "/login" },
+  { name: "404", path: "/this-page-does-not-exist" },
+  { name: "admin events", path: "/admin", as: "admin" },
+  { name: "admin new event", path: "/admin/events/new", as: "admin" },
+  { name: "admin edit event", path: "/admin/events/ev-jummah/edit", as: "admin" },
+  { name: "admin admins", path: "/admin/admins", as: "admin" },
+  { name: "admin nominations", path: "/admin/nominations", as: "admin" },
+];
+
+function mobile(width: number) {
+  return { viewport: { width, height: 844 }, isMobile: width < 768, hasTouch: true };
+}
+
+/**
+ * Visible controls whose smaller side is under `min` px. Exempt: links inside
+ * running text (WCAG 2.5.8's inline exception), the visually hidden skip link,
+ * and parts marked data-dense-target (year-view day squares from sm up, the
+ * halves of the 44px time picker).
+ */
+function smallTargets(page: Page, min: number, includeDense: boolean) {
+  return page.evaluate(
+    ({ min, includeDense }) => {
+      const out: string[] = [];
+      const sel = "a[href], button, input:not([type=hidden]), select, textarea, [role=tab], [role=option]";
+      for (const el of document.querySelectorAll<HTMLElement>(sel)) {
+        const b = el.getBoundingClientRect();
+        if (b.width <= 1 || b.height <= 1 || getComputedStyle(el).visibility === "hidden") continue;
+        if (el.tagName === "A" && el.closest("p")) continue;
+        if (!includeDense && el.hasAttribute("data-dense-target")) continue;
+        if (Math.min(b.width, b.height) < min) {
+          const name = (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 30);
+          out.push(`${name} (${Math.round(b.width)}×${Math.round(b.height)})`);
+        }
+      }
+      return out;
+    },
+    { min, includeDense },
+  );
+}
+
+for (const width of WIDTHS) {
+  test.describe(`${width}px`, () => {
+    test.use(mobile(width));
+
+    for (const p of PAGES) {
+      test(`${p.name}: no sideways scroll, touch-sized controls`, async ({ page, context, baseURL }) => {
+        if (p.as) {
+          test.skip(!seed(), "needs the seeded session tokens (E2E_SEED_FILE)");
+          await signIn(context, baseURL!, p.as);
+        }
+        await page.goto(p.path);
+        await page.waitForLoadState("networkidle");
+        expect(new URL(page.url()).pathname).toBe(new URL(p.path, baseURL).pathname);
+
+        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+        expect(scrollWidth, "page scrolls sideways").toBeLessThanOrEqual(innerWidth);
+        expect(await smallTargets(page, 24, true), "under the WCAG 24px minimum").toEqual([]);
+        expect(await smallTargets(page, 44, false), "under 44px").toEqual([]);
+      });
+    }
+  });
+}
+
+test.describe("day view on phones is a stacked agenda", () => {
+  for (const width of [375, 390] as const) {
+    test(`${width}px: prayer markers and every event, in time order`, async ({ browser }) => {
+      const context = await browser.newContext({ ...mobile(width), timezoneId: "America/Los_Angeles" });
+      const page = await context.newPage();
+      await page.goto("/calendar?view=day&date=2026-10-23");
+
+      await expect(page.locator(".day-grid")).toBeHidden();
+      const agenda = page.getByRole("list", { name: /Prayer times and events, Friday, October 23/ });
+      await expect(agenda).toBeVisible();
+
+      const rows = await agenda.locator(":scope > li").evaluateAll((els) =>
+        els.map((el) =>
+          el.matches(".day-agenda__prayer")
+            ? `[${el.getAttribute("data-prayer")}]`
+            : (el.querySelector(".font-medium")?.textContent ?? ""),
+        ),
+      );
+      expect(rows).toEqual([
+        "Qiyam al-Layl", // before Fajr
+        "[fajr]",
+        "[sunrise]",
+        "[dhuhr]",
+        "Jummah Prayer", // overlaps the next one: both listed
+        "Brothers' Basketball",
+        "[asr]",
+        "[maghrib]",
+        "[isha]",
+        "Night Hike to the Lookout", // after Isha
+      ]);
+      await expect(agenda.locator('[data-prayer="fajr"]')).toHaveText(/^Fajr \d{1,2}:\d\d AM$/);
+      await expect(agenda.getByRole("link", { name: /Jummah Prayer/ })).toBeVisible();
+      await expect(agenda.getByRole("link", { name: /Brothers' Basketball/ })).toBeVisible();
+      await context.close();
+    });
+  }
+
+  test("768px keeps the prayer-aligned grid", async ({ browser }) => {
+    const context = await browser.newContext(mobile(768));
+    const page = await context.newPage();
+    await page.goto("/calendar?view=day&date=2026-10-23");
+    await expect(page.locator(".day-grid")).toBeVisible();
+    await expect(page.locator(".day-agenda")).toBeHidden();
+    await context.close();
+  });
+});
+
+test.describe("month view on phones", () => {
+  test.use(mobile(390));
+
+  test("cells show dots instead of clipped chips, with the month listed below", async ({ page }) => {
+    await page.goto("/calendar?view=month&date=2026-10-20");
+    const cell = page.getByRole("link", { name: "Friday, October 23, 4 events" });
+    await expect(cell).toBeVisible();
+    await expect(cell.getByText("Jummah Prayer")).toBeHidden();
+    const list = page.getByRole("region", { name: "October events" });
+    await expect(list.getByRole("link", { name: /Night Hike to the Lookout/ })).toBeVisible();
+  });
+});
+
+test.describe("admin nav on phones", () => {
+  test.use(mobile(375));
+
+  test("the menu opens, its links are touch-sized, and Escape closes it", async ({ page, context, baseURL }) => {
+    test.skip(!seed(), "needs the seeded session tokens (E2E_SEED_FILE)");
+    await signIn(context, baseURL!, "admin");
+    await page.goto("/admin");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const menu = page.locator("#site-header-mobile-menu");
+    for (const name of ["Events", "Admins", "Nominations", "Calendar"]) {
+      const box = await menu.getByRole("link", { name }).boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+  });
+
+  test("form fields use 16px+ text so iOS doesn't zoom on focus", async ({ page, context, baseURL }) => {
+    test.skip(!seed(), "needs the seeded session tokens (E2E_SEED_FILE)");
+    await signIn(context, baseURL!, "admin");
+    for (const path of ["/admin/events/new", "/admin/nominations"]) {
+      await page.goto(path);
+      const sizes = await page
+        .locator("input:not([type=hidden]), textarea")
+        .evaluateAll((els) => els.map((el) => parseFloat(getComputedStyle(el).fontSize)));
+      expect(sizes.length).toBeGreaterThan(0);
+      for (const s of sizes) expect(s).toBeGreaterThanOrEqual(16);
+    }
+  });
+});

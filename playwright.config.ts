@@ -10,6 +10,9 @@ const external = process.env.PLAYWRIGHT_BASE_URL;
 const port = 3210;
 const baseURL = external ?? `http://localhost:${port}`;
 const dbUrl = `file:${path.join(os.tmpdir(), "ucscmsa-e2e.db")}`;
+// Session tokens from the seed, for specs that sign in (e2e/fixtures.ts).
+// With PLAYWRIGHT_BASE_URL, point E2E_SEED_FILE at your own seed's output.
+process.env.E2E_SEED_FILE ??= path.join(os.tmpdir(), "ucscmsa-e2e-seed.json");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -17,7 +20,7 @@ export default defineConfig({
   webServer: external
     ? undefined
     : {
-        command: `bun scripts/seed-local.ts ${dbUrl} > /dev/null && bun run dev --port ${port}`,
+        command: `bun scripts/seed-local.ts ${dbUrl} > ${process.env.E2E_SEED_FILE} && bun run dev --port ${port}`,
         url: baseURL,
         reuseExistingServer: false,
         timeout: 120_000,

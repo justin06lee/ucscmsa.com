@@ -27,7 +27,7 @@ test.describe("with prefers-reduced-motion: reduce", () => {
   test("calendar month grid is not left at opacity 0", async ({ page }) => {
     await page.goto("/calendar?view=month&date=2026-10-20");
     await page.waitForLoadState("networkidle");
-    const cell = page.locator('a[href="/calendar?view=day&date=2026-10-22"]');
+    const cell = page.getByRole("link", { name: /^Thursday, October 22, / });
     expect(await effectiveOpacity(cell)).toBe(1);
   });
 });
