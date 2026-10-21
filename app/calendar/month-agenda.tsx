@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { Occurrence } from "@/lib/rrule-lite";
+import { timeOnDay } from "@/lib/event-time";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
-import { timeRange } from "./day-agenda";
 
 /**
  * The month's events as a list grouped by day, under the month grid on phones,
@@ -57,7 +57,7 @@ export function MonthAgenda({
                   href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                   className="flex min-h-11 items-baseline gap-3 rounded-lg border border-burgundy/20 bg-burgundy/[0.06] px-3 py-2 transition-colors hover:border-burgundy"
                 >
-                  <span className="w-24 shrink-0 text-xs tabular-nums text-ink/70">{timeRange(o, day)}</span>
+                  <span className="w-24 shrink-0 text-xs tabular-nums text-ink/70">{timeOnDay(o, day)}</span>
                   <span className="min-w-0">
                     <span className="block font-medium leading-snug">{o.title}</span>
                     {o.location ? <span className="block text-xs text-ink/70">{o.location}</span> : null}

@@ -77,9 +77,10 @@ export default async function EditEventPage({ params }: Props) {
           description: row.description,
           location: row.location,
           startDate: formatLocal(row.startTime, "yyyy-MM-dd"),
-          startTime: formatLocal(row.startTime, "HH:mm"),
+          // Unknown times stay blank, not the stored 00:00 / 23:59 stand-ins.
+          startTime: row.timing === "date_only" ? "" : formatLocal(row.startTime, "HH:mm"),
           endDate: formatLocal(row.endTime, "yyyy-MM-dd"),
-          endTime: formatLocal(row.endTime, "HH:mm"),
+          endTime: row.timing === "timed" ? formatLocal(row.endTime, "HH:mm") : "",
           recurrenceFreq: (row.recurrenceFreq ?? "none") as
             "none" | "daily" | "weekly" | "monthly" | "yearly",
           recurrenceByWeekday: row.recurrenceByWeekday ?? "",

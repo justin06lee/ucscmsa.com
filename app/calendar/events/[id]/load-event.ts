@@ -26,6 +26,7 @@ export const loadEvent = cache(async (id: string) => {
     recurrenceByWeekday: row.recurrenceByWeekday,
     recurrenceInterval: row.recurrenceInterval,
     recurrenceUntil: row.recurrenceUntil,
+    timing: row.timing,
     cancellations: cancelled.map((c) => c.date),
   };
   return { row, input };

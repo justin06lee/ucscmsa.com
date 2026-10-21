@@ -3,8 +3,17 @@ import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { formatLocal } from "@/lib/time";
+import type { EventTiming } from "@/lib/event-rules";
+import { TIME_NOT_ANNOUNCED } from "@/lib/event-time";
 import { requireAdmin } from "@/lib/auth";
 import { EventBadges } from "@/components/admin/event-origin";
+
+// The start, or the date alone when no time was announced.
+function adminWhen(r: { startTime: Date; timing: EventTiming }): string {
+  return r.timing === "date_only"
+    ? `${formatLocal(r.startTime, "MMM d, yyyy")} · ${TIME_NOT_ANNOUNCED.toLowerCase()}`
+    : formatLocal(r.startTime, "MMM d, yyyy h:mm a");
+}
 
 export default async function AdminEvents() {
   await requireAdmin();
@@ -32,7 +41,7 @@ export default async function AdminEvents() {
                 <span className="font-medium break-words">{r.title}</span>
                 <EventBadges source={r.source} cancelledAt={r.cancelledAt} draft={r.draft} />
                 <span className="text-sm text-dim">
-                  {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
+                  {adminWhen(r)}
                   {r.recurrenceFreq ? ` · ${r.recurrenceFreq}` : ""}
                 </span>
               </span>
@@ -60,9 +69,7 @@ export default async function AdminEvents() {
                 <span className="mr-2">{r.title}</span>
                 <EventBadges source={r.source} cancelledAt={r.cancelledAt} draft={r.draft} />
               </td>
-              <td className="py-2 pr-3 text-dim">
-                {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
-              </td>
+              <td className="py-2 pr-3 text-dim">{adminWhen(r)}</td>
               <td className="py-2 pr-3 text-dim">{r.recurrenceFreq ?? "—"}</td>
               <td className="py-1 text-right">
                 <Link

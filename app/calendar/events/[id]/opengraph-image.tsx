@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { EventCard, OG_SIZE, ogAssets } from "@/components/og/og-card";
 import { resolveOccurrence } from "@/lib/occurrence";
 import { recurrenceSummary } from "@/lib/seo";
+import { startTimeText } from "@/lib/event-time";
 import { formatLocal } from "@/lib/time";
 import { loadEvent } from "./load-event";
 
@@ -18,10 +19,10 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const { row, input } = loaded;
   const { start } = resolveOccurrence(input, undefined, new Date());
   const series = recurrenceSummary(row, start);
-  const time = formatLocal(start, "h:mm a");
-  const when = series
-    ? `${series} · ${time}`
-    : `${formatLocal(start, "EEEE, MMMM d, yyyy")} · ${time}`;
+  // No time on the card when none was announced, rather than a made-up one.
+  const time = startTimeText(start, row.timing);
+  const day = series ?? formatLocal(start, "EEEE, MMMM d, yyyy");
+  const when = time ? `${day} · ${time}` : day;
   const a = await ogAssets();
   return new ImageResponse(
     <EventCard

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getUpcomingOccurrences } from "@/lib/db/queries";
+import { startTimeText, TIME_NOT_ANNOUNCED } from "@/lib/event-time";
 import { formatLocal } from "@/lib/time";
 
 export async function UpcomingEvents({
@@ -45,7 +46,8 @@ export async function UpcomingEvents({
             className="block"
           >
             <div className="text-xs uppercase tracking-wide text-dim">
-              {formatLocal(o.occurrenceStart, "EEE, MMM d · h:mm a")}
+              {formatLocal(o.occurrenceStart, "EEE, MMM d")} ·{" "}
+              {startTimeText(o.occurrenceStart, o.timing) ?? TIME_NOT_ANNOUNCED}
             </div>
             <div className="mt-1 text-lg font-medium text-ink">{o.title}</div>
             {o.location ? (

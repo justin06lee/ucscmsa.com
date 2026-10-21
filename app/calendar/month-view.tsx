@@ -89,9 +89,11 @@ export function MonthView({ ymd, occurrences }: Props) {
                       : "border-burgundy/10 bg-burgundy/5 text-burgundy/80"
                   }`}
                 >
-                  <span className="hidden tabular-nums lg:inline">
-                    {formatLocal(o.occurrenceStart, "h:mm a")}{" "}
-                  </span>
+                  {o.timing !== "date_only" ? (
+                    <span className="hidden tabular-nums lg:inline">
+                      {formatLocal(o.occurrenceStart, "h:mm a")}{" "}
+                    </span>
+                  ) : null}
                   {o.title}
                 </div>
               ))}
