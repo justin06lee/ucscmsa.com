@@ -24,14 +24,26 @@ The summary lists created, updated, unchanged, needs-review, skipped and errors.
 
 ### The LLM step (yagami)
 
-The eventify step talks to an Anthropic-compatible endpoint. In development that's yagami on this Mac; run `yagami start` first (it must be up). Settings come from the environment or `ucscmsa-sync.json`, never hardcoded:
+The eventify step talks to an Anthropic-compatible endpoint. In development that's **yagami** on this Mac; only midna starts it (`yagami start`), never the sync. msa-sync checks the port first and, **if yagami is down, stops before posting anything** — it eventifies and posts nothing, says so in the summary, and exits non-zero. Settings come from the environment or config, never hardcoded:
 
-| Setting | Env | Default |
-|---|---|---|
-| Endpoint | `ANTHROPIC_BASE_URL` | `aiBaseUrl`, else `https://api.anthropic.com` |
-| Key | `ANTHROPIC_API_KEY` | `aiKeyFile` (a `chmod 600` file) |
-| Primary model | — | `aiModel`, default `claude-haiku-5-5` |
-| Verifier model | — | `aiVerifierModel`, default `claude-sonnet-5-5` |
+| Setting | From |
+|---|---|
+| Endpoint | `ANTHROPIC_BASE_URL` (env), else the env file, else `aiBaseUrl`, else `http://127.0.0.1:8787` |
+| Key | `ANTHROPIC_API_KEY` (env), else the env file |
+| Primary model | `aiModel`, default `claude-haiku-5-5` |
+| Verifier model | `aiVerifierModel`, default `claude-sonnet-5-5` (retry / second flyer reader only) |
+| Effort | `aiEffort`, default `medium` (sent as yagami's top-level `effort`) |
+
+The **env file** is `~/.config/midna/msa-sync.env` (`chmod 600`), holding `KEY=VALUE` lines. Fill it from yagami:
+
+```bash
+umask 077
+yagami key    # prints ANTHROPIC_BASE_URL=… and ANTHROPIC_API_KEY=ygm_…
+# paste both lines into ~/.config/midna/msa-sync.env, then:
+chmod 600 ~/.config/midna/msa-sync.env
+```
+
+The key is read but never printed. Requests are sent one at a time (under yagami's concurrency guidance); overloads — which yagami returns as a normal reply, not an HTTP error — and 5xx/429 are retried up to six times with backoff and `Retry-After`, but a refused connection is never retried.
 
 ### Instagram
 

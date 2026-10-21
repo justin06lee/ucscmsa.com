@@ -217,6 +217,15 @@ function quotedInText(claim: ModelEvent["startTime"], text: string): boolean {
 
 const HM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+/** Call the model and parse its reply; one retry if the JSON is missing/invalid. */
+async function callAndParse(call: CallModel, req: Parameters<CallModel>[0]): Promise<ModelEvent> {
+  try {
+    return modelSchema.parse(extractJson(await call(req)));
+  } catch {
+    return modelSchema.parse(extractJson(await call(req)));
+  }
+}
+
 /**
  * Turn one item into an event draft. Primary model first; the verifier runs
  * only to confirm a flyer-only time. Times never come from thin air.
@@ -230,14 +239,13 @@ export async function eventify(
   const text = item.text ?? "";
   const userText = `Message sent on ${item.sentDate} (Santa Cruz).\n\nAnnouncement text:\n${text || "(no text; see the flyer)"}`;
 
-  const raw = await opts.call({
+  const primary = await callAndParse(opts.call, {
     model: opts.primaryModel,
     system: SYSTEM_PROMPT,
     text: userText,
     imageBase64: item.imageBase64,
     imageMediaType: item.imageMediaType,
   });
-  const primary = modelSchema.parse(extractJson(raw));
 
   const images = item.imagePaths ?? [];
   const base = { sourceId: item.sourceId, sourceRef: item.sourceRef, links: groundLinks(text, primary.links ?? []), images };
@@ -284,14 +292,13 @@ export async function eventify(
   if (flyerTimesToCheck.length > 0) {
     let verifier: ModelEvent | null = null;
     try {
-      const vraw = await opts.call({
+      verifier = await callAndParse(opts.call, {
         model: opts.verifierModel,
         system: SYSTEM_PROMPT,
         text: userText,
         imageBase64: item.imageBase64,
         imageMediaType: item.imageMediaType,
       });
-      verifier = modelSchema.parse(extractJson(vraw));
     } catch (e) {
       notes.push(`verifier failed (${(e as Error).message}); flyer times dropped`);
     }

@@ -35,11 +35,15 @@ const DEFAULT_SYNC_STATE = "~/.config/midna/ucscmsa-sync-state.json";
 const DEFAULT_REVIEW_FILE = "~/.config/midna/ucscmsa-sync-review.json";
 const DEFAULT_IG_DIR = "~/.config/midna/ucscmsa-ig";
 
+const DEFAULT_ENV_FILE = "~/.config/midna/msa-sync.env";
+const DEFAULT_BASE_URL = "http://127.0.0.1:8787"; // yagami on this Mac
+
 const syncConfigSchema = z.object({
   aiBaseUrl: z.string().url().optional(),
-  aiKeyFile: z.string().optional(),
+  envFile: z.string().optional(),
   aiModel: z.string().default("claude-haiku-5-5"),
   aiVerifierModel: z.string().default("claude-sonnet-5-5"),
+  aiEffort: z.string().default("medium"),
   confidenceFloor: z.number().min(0).max(1).optional(),
   instagramUsername: z.string().default("ucsc.msa"),
   instagramDir: z.string().optional(),
@@ -91,36 +95,111 @@ function imageForPath(path: string | null | undefined): { imageBase64: string; i
   return { imageBase64: readFileSync(path).toString("base64"), imageMediaType: media };
 }
 
-/** A real yagami/Anthropic call: raw POST to <base>/v1/messages. */
-export function yagamiCall(cfg: { baseUrl: string; apiKey: string }): CallModel {
+// yagami returns overloads/limits as HTTP 200 with the CLI's error as the text.
+const OVERLOAD_RE = /API Error:\s*(408|409|429|5\d\d)|overloaded|rate.?limit|usage limit|please try again|service unavailable/i;
+const CONN_REFUSED_RE = /ECONNREFUSED|connection refused|failed to fetch|unable to connect/i;
+const MAX_AI_RETRIES = 6;
+
+const nap = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * A real yagami/Anthropic call: raw POST to <base>/v1/messages, with
+ * mira's retry policy — up to 6 tries honouring Retry-After then 1s..60s
+ * backoff, treating 5xx/429 and HTTP-200 overload replies as retryable, but
+ * never retrying a refused connection or an auth error.
+ */
+export function yagamiCall(cfg: { baseUrl: string; apiKey: string; effort?: string; sleep?: (ms: number) => Promise<void> }): CallModel {
+  const sleep = cfg.sleep ?? nap;
   return async (req) => {
     const content: Record<string, unknown>[] = [];
     if (req.imageBase64 && req.imageMediaType) {
       content.push({ type: "image", source: { type: "base64", media_type: req.imageMediaType, data: req.imageBase64 } });
     }
     content.push({ type: "text", text: req.text });
-    const res = await fetch(new URL("/v1/messages", cfg.baseUrl), {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": cfg.apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: req.model, max_tokens: 2000, system: req.system, messages: [{ role: "user", content }] }),
-    });
-    if (!res.ok) throw new Error(`model ${req.model} -> ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const body = (await res.json()) as { content?: { type: string; text?: string }[] };
-    return (body.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("\n");
+    const body = JSON.stringify({ model: req.model, max_tokens: 2000, effort: cfg.effort ?? "medium", system: req.system, messages: [{ role: "user", content }] });
+
+    let lastErr = "";
+    for (let attempt = 0; attempt <= MAX_AI_RETRIES; attempt++) {
+      let res: Response;
+      try {
+        res = await fetch(new URL("/v1/messages", cfg.baseUrl), {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-api-key": cfg.apiKey, "anthropic-version": "2023-06-01" },
+          body,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? `${e.message}${e.cause ? ` (${String(e.cause)})` : ""}` : String(e);
+        if (CONN_REFUSED_RE.test(msg)) throw new Error(`yagami unreachable (${msg}); is it running?`); // never retry
+        lastErr = msg;
+        if (attempt < MAX_AI_RETRIES) await sleep(backoffMs(attempt));
+        continue;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(`model ${req.model} -> ${res.status}: ${(await res.text()).slice(0, 200)}`); // auth/bad request: fatal
+      }
+      if (res.status !== 200) {
+        lastErr = `HTTP ${res.status}`;
+        if (attempt < MAX_AI_RETRIES) await sleep(retryAfterMs(res) ?? backoffMs(attempt));
+        continue;
+      }
+      const json = (await res.json()) as { content?: { type: string; text?: string }[] };
+      const text = (json.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("\n");
+      if (OVERLOAD_RE.test(text.slice(0, 300))) {
+        lastErr = `overload reply: ${text.slice(0, 120).replace(/\s+/g, " ")}`;
+        if (attempt < MAX_AI_RETRIES) await sleep(backoffMs(attempt));
+        continue; // never keep an overload as an answer
+      }
+      return text;
+    }
+    throw new Error(`model ${req.model} failed after ${MAX_AI_RETRIES + 1} tries: ${lastErr}`);
   };
 }
 
-function readApiKey(cfg: SyncConfig): string {
-  const envKey = process.env.ANTHROPIC_API_KEY;
-  if (envKey) return envKey;
-  if (cfg.aiKeyFile) {
-    const p = expandHome(cfg.aiKeyFile);
-    if (existsSync(p)) {
-      if (statSync(p).mode & 0o077) throw new UsageError(`${p} is readable by other users; chmod 600 it`);
-      return readFileSync(p, "utf8").trim();
-    }
+/** Exponential backoff with jitter: 1s, 2s, 4s … capped at 60s. */
+function backoffMs(attempt: number): number {
+  return Math.min(60_000, 1000 * 2 ** attempt) * (0.5 + Math.random() * 0.5);
+}
+
+function retryAfterMs(res: Response): number | null {
+  const h = res.headers.get("retry-after-ms") ?? res.headers.get("retry-after");
+  if (!h) return null;
+  const n = Number(h);
+  if (!Number.isFinite(n)) return null;
+  return res.headers.has("retry-after-ms") ? n : Math.min(300_000, n * 1000);
+}
+
+/** Is yagami answering on its port? Any HTTP reply (even 401) counts as up. */
+export async function yagamiUp(baseUrl: string): Promise<boolean> {
+  try {
+    await fetch(new URL("/v1/models", baseUrl), { method: "GET", signal: AbortSignal.timeout(3000) });
+    return true;
+  } catch {
+    return false; // connection refused / timeout
   }
-  throw new UsageError("No AI key: set ANTHROPIC_API_KEY or aiKeyFile in the sync config");
+}
+
+/** Parse a KEY=VALUE env file (optionally `export KEY=...`), quotes stripped. */
+function parseEnvFile(path: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+  return out;
+}
+
+/** The AI endpoint and key: env first, then ~/.config/midna/msa-sync.env, then config. */
+function loadAiEnv(cfg: SyncConfig): { baseUrl: string; apiKey: string } {
+  const envFile = expandHome(cfg.envFile ?? DEFAULT_ENV_FILE);
+  let fileEnv: Record<string, string> = {};
+  if (existsSync(envFile)) {
+    if (statSync(envFile).mode & 0o077) throw new UsageError(`${envFile} is readable by other users; chmod 600 it`);
+    fileEnv = parseEnvFile(envFile);
+  }
+  const baseUrl = process.env.ANTHROPIC_BASE_URL ?? fileEnv.ANTHROPIC_BASE_URL ?? cfg.aiBaseUrl ?? DEFAULT_BASE_URL;
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? fileEnv.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new UsageError(`No AI key: set ANTHROPIC_API_KEY or put ANTHROPIC_API_KEY=… in ${envFile} (chmod 600)`);
+  return { baseUrl, apiKey };
 }
 
 /** Is this WhatsApp message a candidate to eventify at all? */
@@ -288,13 +367,20 @@ export async function main(argv: string[]): Promise<number> {
   // --- 2. EVENTIFY ---
   let ops: Record<string, unknown>[] = [];
   if (items.length) {
-    let call: CallModel;
+    let ai: { baseUrl: string; apiKey: string };
     try {
-      call = yagamiCall({ baseUrl: syncCfg.aiBaseUrl ?? process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com", apiKey: readApiKey(syncCfg) });
+      ai = loadAiEnv(syncCfg);
     } catch (e) {
       err((e as Error).message);
       return 2;
     }
+    // yagami must be up before we eventify or post anything.
+    if (!(await yagamiUp(ai.baseUrl))) {
+      summary.errors.push(`the AI endpoint at ${ai.baseUrl} is not reachable (yagami down?); nothing was eventified or posted`);
+      printSummary(summary, args.dryRun, process.stdout.write.bind(process.stdout));
+      return 1;
+    }
+    const call = yagamiCall({ baseUrl: ai.baseUrl, apiKey: ai.apiKey, effort: syncCfg.aiEffort });
     ops = await eventifyItems(items, state, { call, primaryModel: syncCfg.aiModel, verifierModel: syncCfg.aiVerifierModel, confidenceFloor: syncCfg.confidenceFloor, summary });
   }
 
