@@ -16,11 +16,9 @@ bun scripts/msa-sync.ts             # scrape, eventify, post; writes a summary
 bun scripts/msa-sync.ts --dry-run   # same, but the import is previewed and rolled back; state is not advanced
 ```
 
-Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--images <folder>` matches a folder of flyer images to announcements (see [below](#another-image-folder---images-folder)); `--config <path>` and `--sync-config <path>` point at non-default config files.
+Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run; **on a real run, never earlier than the last run**: the full history up to 2026-10-21 13:24 was imported by hand, and re-reading it would overwrite those hand-checked events with the model's text. `--dry-run --since …` is safe for testing); `--images <folder>` matches a folder of flyer images to announcements (see [below](#another-image-folder---images-folder)); `--config <path>` and `--sync-config <path>` point at non-default config files.
 
 The summary lists created, updated, unchanged, needs-review, skipped and errors, plus how many flyers matched an announcement (and how many didn't). **The exit code is non-zero if anything errored.** Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
-
-> **Until optional times (migration 0004) is live in production,** a dry run reports `HTTP 400 … event.endTime: expected string` for any event without an end time — the current production schema still requires one. That's expected; it clears once that release deploys. Keep runs on `--dry-run` until then.
 
 ### The LLM step (yagami)
 
