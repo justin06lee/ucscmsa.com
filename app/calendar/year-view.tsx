@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
@@ -53,7 +51,41 @@ export function YearView({ ymd, occurrences }: Props) {
 
   return (
     <FadeIn>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {/* Phones: day squares would be ~19px, under the 24px minimum tap
+          target, so each month is one target that opens the month view. */}
+      <ul className="grid grid-cols-2 gap-3 sm:hidden">
+        {months.map(({ monthName, firstYmd, offset, days }) => {
+          const total = days.reduce((n, d) => n + (countByDay.get(d) ?? 0), 0);
+          return (
+            <li key={firstYmd}>
+              <Link
+                href={`/calendar?view=month&date=${firstYmd}`}
+                aria-label={`${monthName} ${year}, ${total === 0 ? "no events" : `${total} event${total === 1 ? "" : "s"}`}`}
+                className="block rounded-xl border border-ink/10 bg-paper p-2.5 transition-colors hover:border-ink/25"
+              >
+                <span className="flex items-baseline justify-between text-sm font-medium">
+                  {monthName}
+                  {total > 0 ? <span className="text-xs tabular-nums text-dim">{total}</span> : null}
+                </span>
+                <span aria-hidden="true" className="mt-2 grid grid-cols-7 gap-0.5">
+                  {Array.from({ length: offset }, (_, i) => (
+                    <span key={`off-${i}`} className="aspect-square" />
+                  ))}
+                  {days.map((dayYmd) => (
+                    <span
+                      key={dayYmd}
+                      className={`aspect-square rounded-[3px] ${intensityClass(countByDay.get(dayYmd) ?? 0)} ${
+                        dayYmd === todayYmd ? "ring-1 ring-burgundy ring-offset-1 ring-offset-paper" : ""
+                      }`}
+                    />
+                  ))}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {months.map(({ monthName, firstYmd, offset, days }) => {
           const totalCells = offset + days.length;
           const trailing = (7 - (totalCells % 7)) % 7;
@@ -64,11 +96,11 @@ export function YearView({ ymd, occurrences }: Props) {
             >
               <Link
                 href={`/calendar?view=month&date=${firstYmd}`}
-                className="inline-block text-sm font-medium hover:text-burgundy transition-colors"
+                className="flex min-h-11 w-full items-center text-sm font-medium hover:text-burgundy transition-colors"
               >
                 {monthName}
               </Link>
-              <div className="mt-2 grid grid-cols-7 gap-1 text-[10px] text-dim uppercase tracking-wider">
+              <div className="grid grid-cols-7 gap-1 text-[10px] text-dim uppercase tracking-wider">
                 {WEEKDAY_INITIALS.map((d, i) => (
                   <div key={i} className="flex h-5 items-center justify-center">
                     {d}
@@ -88,6 +120,10 @@ export function YearView({ ymd, occurrences }: Props) {
                       key={dayYmd}
                       href={`/calendar?view=day&date=${dayYmd}`}
                       title={`${dayYmd}: ${count} event${s}`}
+                      aria-label={`${formatLocal(parseHMInLocal(dayYmd, "12:00"), "EEEE, MMMM d")}, ${
+                        count === 0 ? "no events" : `${count} event${s}`
+                      }`}
+                      data-dense-target=""
                       className={`h-7 w-7 rounded-md transition-transform hover:scale-110 ${intensityClass(count)} ${
                         isToday ? "ring-2 ring-burgundy ring-offset-2 ring-offset-paper" : ""
                       }`}

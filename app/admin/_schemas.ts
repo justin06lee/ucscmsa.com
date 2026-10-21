@@ -1,30 +1,28 @@
 import { z } from "zod";
+import { description, hm, location, realYmd, title, INTERVAL_MAX, WEEKDAY_CODES } from "@/lib/event-rules";
 
-const ymd = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
-  .or(z.literal(""))
-  .default("");
+const ymd = realYmd.or(z.literal("")).default("");
+
+const WEEKDAY = `(${WEEKDAY_CODES.join("|")})`;
 
 export const eventInputSchema = z
   .object({
-    title: z.string().min(1, "Title required"),
-    description: z.string().default(""),
-    location: z.string().default(""),
+    title,
+    description: description.default(""),
+    location: location.default(""),
     startDate: ymd,
-    startTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid start time"),
+    startTime: hm("Invalid start time"),
     endDate: ymd,
-    endTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid end time"),
+    endTime: hm("Invalid end time"),
     recurrenceFreq: z
       .enum(["none", "daily", "weekly", "monthly", "yearly"])
       .default("none"),
-    recurrenceByWeekday: z.string().default(""),
-    recurrenceInterval: z.coerce.number().int().min(1).default(1),
-    recurrenceUntil: z
+    recurrenceByWeekday: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .or(z.literal(""))
+      .regex(new RegExp(`^(${WEEKDAY}(,${WEEKDAY})*)?$`), "Invalid weekdays")
       .default(""),
+    recurrenceInterval: z.coerce.number().int().min(1).max(INTERVAL_MAX).default(1),
+    recurrenceUntil: ymd,
   })
   .refine(
     (d) => d.recurrenceFreq !== "none" || (d.startDate && d.endDate),
@@ -32,8 +30,11 @@ export const eventInputSchema = z
   )
   .refine(
     (d) => {
-      if (!d.startDate || !d.endDate) return true;
-      return `${d.endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`;
+      // Blank dates are filled in by resolveDates: a blank start is today
+      // (can't compare here), a blank end is the start date.
+      if (!d.startDate && d.endDate) return true;
+      const endDate = d.endDate || d.startDate;
+      return `${endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`;
     },
     { message: "End must be after start", path: ["endDate"] },
   );

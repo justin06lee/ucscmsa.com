@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { prayerTimesCache } from "./db/schema";
 import type { DB } from "./db/client";
+import { toLocalYmd } from "./time";
 
 export type PrayerTimes = {
   fajr: string;
@@ -27,6 +28,10 @@ const METHOD = 2; // ISNA
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PAST_TTL_MS = 90 * DAY_MS;
 const FUTURE_TTL_MS = 7 * DAY_MS;
+// Only dates within this many days of today are written to the cache. Any
+// visitor can ask for any date (/calendar?view=day&date=…), and caching every
+// one let anyone fill the table with millions of rows, each a billed write.
+const CACHE_WINDOW_DAYS = 730;
 
 // HH:mm with HH in 00-23 and MM in 00-59. Aladhan sometimes appends timezone
 // suffixes like "05:18 (PDT)" so we anchor only to the start.
@@ -60,17 +65,22 @@ async function fetchAladhan(ymd: string): Promise<PrayerTimes> {
   };
 }
 
-function todayUtcYmd(): string {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(now.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+// A real calendar date: "2026-02-31" and "2026-13-45" match the YYYY-MM-DD
+// pattern but aren't.
+function isRealYmd(ymd: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false;
+  const d = new Date(`${ymd}T12:00:00.000Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === ymd;
 }
 
-function isStale(ymd: string, cachedAt: Date): boolean {
-  const ageMs = Date.now() - cachedAt.getTime();
-  const isPast = ymd < todayUtcYmd();
+function isWithinCacheWindow(ymd: string, now: Date): boolean {
+  const days = (Date.parse(`${ymd}T12:00:00.000Z`) - Date.parse(`${toLocalYmd(now)}T12:00:00.000Z`)) / DAY_MS;
+  return Math.abs(days) <= CACHE_WINDOW_DAYS;
+}
+
+function isStale(ymd: string, cachedAt: Date, now: Date): boolean {
+  const ageMs = now.getTime() - cachedAt.getTime();
+  const isPast = ymd < toLocalYmd(now);
   const ttl = isPast ? PAST_TTL_MS : FUTURE_TTL_MS;
   return ageMs > ttl;
 }
@@ -95,8 +105,20 @@ function rowToTimes(row: {
 
 export async function getPrayerTimes(
   ymd: string,
-  db: DB
+  db: DB,
+  now: Date = new Date()
 ): Promise<PrayerTimes> {
+  if (!isRealYmd(ymd)) return DEFAULT_PRAYER_TIMES;
+  if (!isWithinCacheWindow(ymd, now)) {
+    // Far-off dates are still looked up, just never stored.
+    try {
+      return await fetchAladhan(ymd);
+    } catch (err) {
+      console.warn(`[aladhan] fetch failed for ${ymd}:`, err);
+      return DEFAULT_PRAYER_TIMES;
+    }
+  }
+
   const cached = await db
     .select()
     .from(prayerTimesCache)
@@ -105,7 +127,7 @@ export async function getPrayerTimes(
 
   if (cached.length > 0) {
     const row = cached[0];
-    if (!isStale(ymd, row.cachedAt)) {
+    if (!isStale(ymd, row.cachedAt, now)) {
       return rowToTimes(row);
     }
 
@@ -118,7 +140,7 @@ export async function getPrayerTimes(
         .values({ date: ymd, ...times })
         .onConflictDoUpdate({
           target: prayerTimesCache.date,
-          set: { ...times, cachedAt: new Date() },
+          set: { ...times, cachedAt: now },
         });
       return times;
     } catch (err) {

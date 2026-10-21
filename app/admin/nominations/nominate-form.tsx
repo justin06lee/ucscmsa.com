@@ -23,17 +23,20 @@ export function NominateForm() {
       }}
       className="flex flex-wrap items-end gap-4"
     >
-      <label className="grid gap-1">
+      <label className="grid w-full gap-1 sm:w-auto sm:min-w-72">
         <span className="text-sm text-dim">Nominee UCSC email</span>
         <Input
           name="nomineeEmail"
           type="email"
           required
           placeholder="student@ucsc.edu"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
         />
       </label>
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" size="lg" disabled={pending}>
           Create nomination
         </Button>
         {err && (

@@ -1,0 +1,24 @@
+--- a/auth.ts
++++ b/auth.ts
+@@ -3,6 +3,7 @@
+ import { DrizzleAdapter } from "@auth/drizzle-adapter";
+ import { eq } from "drizzle-orm";
+ import { db } from "@/lib/db/client";
++import { seedAdminIfEligible } from "@/lib/admin-seed";
+ import {
+   accounts,
+   admins,
+@@ -61,11 +62,8 @@
+       if (user.email && user.email !== email) {
+         await db.update(users).set({ email }).where(eq(users.id, user.id));
+       }
+-      if (!seedEmails.includes(email)) return;
+-      await db
+-        .insert(admins)
+-        .values({ userId: user.id, promotedByNominationId: null })
+-        .onConflictDoNothing();
++      // Skips anyone a nomination has removed, so demotions stick.
++      await seedAdminIfEligible(db, user.id, email, seedEmails);
+     },
+   },
+   pages: {

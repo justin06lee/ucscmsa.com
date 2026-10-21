@@ -20,7 +20,12 @@ export default async function NotFound() {
       className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center px-6 py-10"
     >
       <div className="flex flex-1 flex-col items-center justify-center gap-8">
-        <pre className="whitespace-pre overflow-x-auto text-xs leading-tight text-ink/70 font-mono">
+        {/* Art is up to 73 columns: shrink the type on phones so it fits
+            instead of scrolling sideways. */}
+        <pre
+          aria-hidden="true"
+          className="max-w-full whitespace-pre overflow-x-auto text-[length:min(0.75rem,1.9vw)] leading-tight text-ink/70 font-mono"
+        >
           {ascii}
         </pre>
         <div className="flex flex-col items-center gap-2 text-center">
@@ -34,7 +39,7 @@ export default async function NotFound() {
           Back home
         </Link>
       </div>
-      <p className="text-[11px] text-dim/70">
+      <p className="text-xs text-dim">
         site by{" "}
         <a
           href="https://justin06lee.dev"

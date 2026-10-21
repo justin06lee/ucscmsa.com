@@ -172,13 +172,15 @@ export function TimePicker({
         required={required}
         onChange={() => {}}
       />
-      <div className="flex items-stretch rounded-md border border-ink/20 bg-paper transition-colors hover:border-ink/40 focus-within:border-ink">
+      <div className="flex min-h-11 items-stretch rounded-md border border-ink/20 bg-paper transition-colors hover:border-ink/40 focus-within:border-ink">
         <input
           ref={inputRef}
           id={id}
           type="text"
           inputMode="text"
           autoComplete="off"
+          // Parts of one 44px-tall control (the bordered box above).
+          data-dense-target=""
           aria-label={ariaLabel}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -196,9 +198,10 @@ export function TimePicker({
           type="button"
           aria-label="Open time picker"
           aria-haspopup="dialog"
+          data-dense-target=""
           aria-expanded={open}
           onClick={() => (open ? setOpen(false) : openPanel())}
-          className="flex items-center px-3 text-dim transition-colors hover:text-ink"
+          className="flex w-11 items-center justify-center text-dim transition-colors hover:text-ink"
         >
           <Clock size={16} />
         </button>

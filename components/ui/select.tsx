@@ -112,7 +112,7 @@ export function Select({
         aria-label={ariaLabel}
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={onTriggerKey}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-ink/20 bg-paper px-3 py-2 text-left transition-colors hover:border-ink/40 focus:border-ink focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-ink/20 bg-paper px-3 py-2 text-left transition-colors hover:border-ink/40 focus:border-ink focus:outline-none disabled:pointer-events-none disabled:opacity-50"
       >
         <span className={selected ? "" : "text-dim"}>
           {selected?.label ?? placeholder}

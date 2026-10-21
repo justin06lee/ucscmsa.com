@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Sign in",
+  description: "Sign in to MSA at UCSC with your @ucsc.edu Google account.",
   robots: { index: false, follow: false },
 };
 
@@ -83,7 +84,7 @@ export default async function LoginPage({
       </form>
       <Link
         href="/"
-        className="text-sm text-dim transition-colors hover:text-ink"
+        className="inline-flex min-h-11 items-center text-sm text-dim transition-colors hover:text-ink"
       >
         &larr; Back to home
       </Link>

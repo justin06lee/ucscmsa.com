@@ -100,7 +100,7 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
       <Field label="Location">
         <Input name="location" defaultValue={initial.location ?? ""} />
       </Field>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Start date" hint={dateHint}>
           <DatePicker
             name="startDate"
@@ -140,7 +140,7 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
         {freq === "weekly" && (
           <div className="grid gap-1">
             <span className="text-sm text-dim">On days</span>
-            <div className="mt-1 flex flex-wrap gap-3">
+            <div className="mt-1 flex flex-wrap gap-x-1 gap-y-0">
               {WEEKDAYS.map((d) => (
                 <Checkbox
                   key={d.v}
@@ -154,10 +154,11 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
           </div>
         )}
         {freq !== "none" && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Every N">
               <Input
                 type="number"
+                inputMode="numeric"
                 name="recurrenceInterval"
                 min={1}
                 defaultValue={initial.recurrenceInterval ?? 1}

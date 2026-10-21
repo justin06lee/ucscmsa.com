@@ -38,7 +38,9 @@ export function WiggleLetters() {
         return (
           <img
             key={g.key}
-            src={`/letters/${g.file}-${variant}.png`}
+            src={`/letters/${g.file}-${variant}.webp`}
+            width={96}
+            height={96}
             alt=""
             aria-hidden="true"
             draggable={false}

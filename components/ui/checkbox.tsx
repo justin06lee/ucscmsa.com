@@ -25,7 +25,7 @@ export function Checkbox({
   return (
     <label
       htmlFor={inputId}
-      className={`inline-flex cursor-pointer select-none items-center gap-2 text-sm ${className}`}
+      className={`inline-flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-md px-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-burgundy ${className}`}
     >
       <span
         aria-hidden

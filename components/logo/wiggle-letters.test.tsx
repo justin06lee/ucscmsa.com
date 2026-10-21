@@ -36,7 +36,7 @@ describe("WiggleLetters", () => {
     // Glyphs: m, s, a, at, u, c, s, c = 8
     expect(imgs).toHaveLength(8);
     for (const img of imgs) {
-      expect(img.src).toMatch(/-1\.png$/);
+      expect(img.src).toMatch(/-1\.webp$/);
     }
   });
 

@@ -1,22 +1,10 @@
-"use client";
-
-import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
+// CSS-only entrance fade (.fade-in in globals.css). The JS version rendered
+// opacity:0 into the server HTML and only revealed content after hydration —
+// and never for prefers-reduced-motion users, whose client render couldn't
+// patch the server's inline style. A CSS animation runs without JS and the
+// reduced-motion media query switches it off.
 export function FadeIn({ children }: { children: ReactNode }) {
-  const reduce = useReducedMotion();
-
-  if (reduce) {
-    return <div style={{ opacity: 1 }}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="fade-in">{children}</div>;
 }

@@ -16,5 +16,5 @@ test("day view shows prayer line markers", async ({ page }) => {
 
 test("admin page redirects unauthenticated visitors", async ({ page }) => {
   await page.goto("/admin");
-  await page.waitForURL("**/");
+  await page.waitForURL(/\/login\?callbackUrl=%2Fadmin$/);
 });

@@ -1,7 +1,41 @@
 const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
 export const SITE_URL = fromEnv && fromEnv.length > 0 ? fromEnv : "https://ucscmsa.com";
 export const SITE_NAME = "MSA at UCSC";
+// What students type into search; also the Organization/WebSite alternateName.
+export const SITE_SHORT_NAME = "UCSC MSA";
 export const SITE_TAGLINE =
   "Muslim Student Association at the University of California, Santa Cruz";
 export const SITE_DESCRIPTION =
-  "Events, prayer times, and community for Muslim students at UC Santa Cruz. Jummah, Iftar, halaqas, and more.";
+  "Muslim Student Association at UC Santa Cruz: Jummah (Jumu'ah) Friday prayer, halaqas, iftars, socials and daily prayer times for UCSC Muslim students.";
+
+// The MSA's own profiles (Instagram, Linktree, the UCSC student-org directory
+// page...), used as Organization sameAs in search results. Only add links the
+// MSA actually runs; none are confirmed in the repo yet.
+export const SITE_SAME_AS: string[] = [];
+
+// The campus prayer space, shown on the landing page when set (searches like
+// "prayer room UCSC"). Left empty on purpose: only confirmed facts go here —
+// never guess a room or hours. See PrayerSpace in components/prayer-space.tsx.
+export type PrayerSpaceInfo = {
+  /** e.g. the building and room name, as students would find it */
+  name: string;
+  /** how to get there or where in the building it is */
+  where: string;
+  /** opening hours or access rules, if fixed */
+  hours?: string;
+  /** anything else: wudu facilities, separate spaces, who to contact */
+  notes?: string;
+};
+export const PRAYER_SPACE: PrayerSpaceInfo | null = null;
+
+// Search-engine ownership checks, set per deployment with no code change:
+// GOOGLE_SITE_VERIFICATION is the content of Search Console's HTML-tag method,
+// BING_SITE_VERIFICATION the msvalidate.01 value from Bing Webmaster Tools.
+export const SITE_VERIFICATION = {
+  google: process.env.GOOGLE_SITE_VERIFICATION?.trim() || undefined,
+  bing: process.env.BING_SITE_VERIFICATION?.trim() || undefined,
+};
+
+// Vercel preview deployments must never be indexed (Vercel also sends
+// X-Robots-Tag: noindex there; this is the in-page backstop).
+export const IS_PREVIEW_DEPLOYMENT = process.env.VERCEL_ENV === "preview";
