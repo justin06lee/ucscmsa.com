@@ -20,6 +20,7 @@ import {
   pageMetadata,
 } from "@/lib/seo";
 import { FadeIn } from "@/components/fade-in";
+import { LinkifiedText } from "@/components/linkified-text";
 import { loadEvent } from "./load-event";
 import { RsvpForm } from "./rsvp-form";
 
@@ -134,7 +135,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
         ) : null}
         {row.description && (
           <p className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-ink/85">
-            {row.description}
+            <LinkifiedText text={row.description} />
           </p>
         )}
         {!cancelled && (

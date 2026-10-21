@@ -102,7 +102,12 @@ async function main() {
     {
       id: "ev-sisters",
       title: "Sisters' Circle",
-      description: "A relaxed space for sisters to catch up, study together and plan events.",
+      // A Game Night-style RSVP link, and a long one that must wrap at 375px
+      // (e2e/event-description.spec.ts).
+      description:
+        "A relaxed space for sisters to catch up, study together and plan events.\n\n" +
+        "RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9.\n" +
+        "Reading list (PDF): https://drive.google.com/file/d/1aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT1uV2wX3yZ4/view?usp=sharing",
       location: "Cantú Queer Center Lounge",
       startTime: at("2026-09-29", "18:00"),
       endTime: at("2026-09-29", "19:15"),
