@@ -150,7 +150,10 @@ export default async function EventDetail({ params, searchParams }: Props) {
               />
             ) : (
               <Link
-                href="/api/auth/signin"
+                // The sign-in page itself, back to this event afterwards. A
+                // <Link> to /api/auth/signin was prefetched on every view and
+                // its redirect left a request hanging; it also returned home.
+                href={`/login?callbackUrl=${encodeURIComponent(eventUrl(id))}`}
                 className="inline-flex min-h-11 items-center rounded-full border border-ink px-5 py-2 text-sm font-medium transition-colors hover:bg-ink hover:text-paper"
               >
                 Sign in with UCSC to RSVP
