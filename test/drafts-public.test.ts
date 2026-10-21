@@ -19,11 +19,18 @@ vi.mock("@/lib/auth", () => ({ getSession: async () => null }));
 import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
 import { parseHMInLocal } from "@/lib/time";
-import { findOccurrence, getOccurrencesInRange, getUpcomingOccurrences } from "@/lib/db/queries";
+import {
+  findOccurrence,
+  getOccurrencesInRange,
+  getPublicEventRow,
+  getUpcomingOccurrences,
+} from "@/lib/db/queries";
 import { loadEvent } from "@/app/calendar/events/[id]/load-event";
 import sitemap from "@/app/sitemap";
 import EventDetail, { generateMetadata } from "@/app/calendar/events/[id]/page";
 import Image from "@/app/calendar/events/[id]/opengraph-image";
+import { UpcomingEvents } from "@/components/upcoming-events";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const inDays = (n: number) => ymd(new Date(Date.now() + n * 86_400_000));
@@ -58,6 +65,16 @@ describe("draft events stay off every public path", () => {
   it("landing page Upcoming", async () => {
     const up = await getUpcomingOccurrences(10);
     expect(up.map((o) => o.eventId)).toEqual(["ev-public"]);
+    const html = renderToStaticMarkup(await UpcomingEvents({ limit: 10 }));
+    expect(html).toContain("Game Night");
+    expect(html).not.toMatch(/Secret|Draft Series|ev-draft/);
+  });
+
+  it("the admin's planning reads can ask for drafts", async () => {
+    const occ = await getOccurrencesInRange(parseHMInLocal(DAY, "00:00"), parseHMInLocal(inDays(20), "00:00"), {
+      includeDrafts: true,
+    });
+    expect(new Set(occ.map((o) => o.eventId))).toEqual(new Set(["ev-public", "ev-draft", "ev-draft-weekly"]));
   });
 
   it("RSVP: a draft has no occurrence to RSVP to", async () => {
@@ -79,6 +96,8 @@ describe("draft events stay off every public path", () => {
   it("share image 404s", async () => {
     const res = (await Image({ params: Promise.resolve({ id: "ev-draft" }) })) as Response;
     expect(res.status).toBe(404);
+    expect(await getPublicEventRow("ev-draft")).toBeNull();
+    expect(await getPublicEventRow("ev-public")).not.toBeNull();
   });
 
   it("sitemap", async () => {

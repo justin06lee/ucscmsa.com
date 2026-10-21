@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ebefff6b-e479-47cb-a2c8-a4a56632c1db",
+  "id": "3dd6fba5-2a69-4561-af06-3f0cf34187f5",
   "prevId": "1c5353c3-5c02-4eca-8a26-640445165e7e",
   "tables": {
     "account": {
@@ -646,12 +646,7 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {
-        "event_tags_tag_check": {
-          "name": "event_tags_tag_check",
-          "value": "\"event_tags\".\"tag\" IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab')"
-        }
-      }
+      "checkConstraints": {}
     },
     "event_tasks": {
       "name": "event_tasks",
@@ -1405,10 +1400,6 @@
         "task_templates_days_before_check": {
           "name": "task_templates_days_before_check",
           "value": "\"task_templates\".\"days_before\" BETWEEN 0 AND 120"
-        },
-        "task_templates_tag_check": {
-          "name": "task_templates_tag_check",
-          "value": "\"task_templates\".\"tag\" IS NULL OR \"task_templates\".\"tag\" IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab')"
         }
       }
     },

@@ -2,8 +2,7 @@ CREATE TABLE `event_tags` (
 	`event_id` text NOT NULL,
 	`tag` text NOT NULL,
 	PRIMARY KEY(`event_id`, `tag`),
-	FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "event_tags_tag_check" CHECK("event_tags"."tag" IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab'))
+	FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `event_tasks` (
@@ -55,12 +54,10 @@ CREATE TABLE `task_templates` (
 	`days_before` integer NOT NULL,
 	`guide_slug` text,
 	`sort` integer DEFAULT 0 NOT NULL,
-	CONSTRAINT "task_templates_days_before_check" CHECK("task_templates"."days_before" BETWEEN 0 AND 120),
-	CONSTRAINT "task_templates_tag_check" CHECK("task_templates"."tag" IS NULL OR "task_templates"."tag" IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab'))
+	CONSTRAINT "task_templates_days_before_check" CHECK("task_templates"."days_before" BETWEEN 0 AND 120)
 );
 --> statement-breakpoint
-ALTER TABLE `events` ADD `draft` integer DEFAULT false NOT NULL;
---> statement-breakpoint
+ALTER TABLE `events` ADD `draft` integer DEFAULT false NOT NULL;--> statement-breakpoint
 INSERT INTO `guides` (`slug`, `title`, `body`, `sort`) VALUES ('book-a-room', 'Book a room', '## Steps
 
 1. Go to the UCSC spaces website and pick a room. TODO: add the link to the spaces website.
@@ -163,7 +160,7 @@ INSERT INTO `guides` (`slug`, `title`, `body`, `sort`) VALUES ('food', 'Buy food
 
 ## Steps
 
-1. Fill in the purchase form. TODO: add its link, if it isn''t the DocuSign form in step 2.
+1. Fill in the purchase form. TODO: add its link, if it isn''t the DocuSign form.
 2. Meet in person to sign everything off on DocuSign. TODO: add the DocuSign link.
 3. They email you a purchase order (for restaurants).
 4. Get an itemized receipt.
@@ -178,7 +175,7 @@ INSERT INTO `guide_versions` (`guide_slug`, `title`, `body`) VALUES ('food', 'Bu
 
 ## Steps
 
-1. Fill in the purchase form. TODO: add its link, if it isn''t the DocuSign form in step 2.
+1. Fill in the purchase form. TODO: add its link, if it isn''t the DocuSign form.
 2. Meet in person to sign everything off on DocuSign. TODO: add the DocuSign link.
 3. They email you a purchase order (for restaurants).
 4. Get an itemized receipt.

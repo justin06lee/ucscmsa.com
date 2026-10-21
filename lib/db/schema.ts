@@ -285,6 +285,8 @@ export const eventRsvps = sqliteTable(
 // ---------- Board: event planning and the playbook ----------
 
 // What an event needs (room, food, ...). Each tag brings its task templates.
+// Tags are checked in the server actions, not by a CHECK: SQLite can't alter
+// one, so a new tag would mean rebuilding the table.
 export const eventTags = sqliteTable(
   "event_tags",
   {
@@ -295,10 +297,6 @@ export const eventTags = sqliteTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.eventId, t.tag] }),
-    tagCheck: check(
-      "event_tags_tag_check",
-      sql`${t.tag} IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab')`
-    ),
   })
 );
 
@@ -316,10 +314,6 @@ export const taskTemplates = sqliteTable(
   },
   (t) => ({
     daysCheck: check("task_templates_days_before_check", sql`${t.daysBefore} BETWEEN 0 AND 120`),
-    tagCheck: check(
-      "task_templates_tag_check",
-      sql`${t.tag} IS NULL OR ${t.tag} IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab')`
-    ),
   })
 );
 

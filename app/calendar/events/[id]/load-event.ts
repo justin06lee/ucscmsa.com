@@ -1,15 +1,16 @@
 import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { eventCancellations, events } from "@/lib/db/schema";
+import { eventCancellations } from "@/lib/db/schema";
+import { getPublicEventRow } from "@/lib/db/queries";
 import type { EventInput } from "@/lib/rrule-lite";
 
 // Shared by generateMetadata and the page within one request (React cache),
 // and by opengraph-image.
 export const loadEvent = cache(async (id: string) => {
-  const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
   // A draft 404s like a missing event: page, metadata and share image.
-  if (!row || row.draft) return null;
+  const row = await getPublicEventRow(id);
+  if (!row) return null;
   const cancelled = await db
     .select({ date: eventCancellations.occurrenceDate })
     .from(eventCancellations)

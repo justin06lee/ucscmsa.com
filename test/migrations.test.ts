@@ -164,3 +164,61 @@ describe("migration 0004 (event timing)", () => {
     }
   });
 });
+
+describe("migration 0005 (board: drafts, tags, tasks, guides)", () => {
+  it("keeps existing events public with their RSVPs and cancellations, and seeds the guides and lead times", async () => {
+    const file = path.join(os.tmpdir(), `ucscmsa-migtest-${crypto.randomUUID()}.db`);
+    const client = createClient({ url: `file:${file}` });
+    const db = drizzle(client);
+    try {
+      await migrate(db, { migrationsFolder: migrationsUpTo(5) });
+      await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
+      await client.execute("INSERT INTO admins (user_id) VALUES ('u1')");
+      await client.execute(
+        "INSERT INTO events (id, title, start_time, end_time, recurrence_freq, created_by_admin_id, source, source_id) VALUES ('ev1', 'Jummah', 1792000000000, 1792003600000, 'weekly', 1, 'whatsapp', 'msg-1')"
+      );
+      await client.execute(
+        "INSERT INTO events (id, title, start_time, end_time, created_by_admin_id) VALUES ('ev2', 'Halaqa', 1792100000000, 1792103600000, 1)"
+      );
+      await client.execute(
+        "INSERT INTO event_rsvps (event_id, occurrence_start, user_id, status) VALUES ('ev1', 1792000000000, 'u1', 'yes')"
+      );
+      await client.execute("INSERT INTO event_cancellations (event_id, occurrence_date) VALUES ('ev1', '2026-10-30')");
+
+      await migrate(db, { migrationsFolder: "./drizzle" });
+
+      const typed = drizzle(client, { schema });
+      const evs = await typed.select().from(schema.events);
+      expect(evs).toHaveLength(2);
+      expect(evs.every((e) => e.draft === false)).toBe(true);
+      expect(await typed.select().from(schema.eventRsvps)).toHaveLength(1);
+      expect(await typed.select().from(schema.eventCancellations)).toHaveLength(1);
+      // Nothing is planned until an admin tags an event.
+      expect(await typed.select().from(schema.eventTags)).toEqual([]);
+      expect(await typed.select().from(schema.eventTasks)).toEqual([]);
+
+      const guides = await typed.select().from(schema.guides);
+      expect(guides.map((g) => g.slug).sort()).toEqual(["bigger-events", "book-a-room", "food", "funding", "promotion"]);
+      // Each seeded guide starts with one version to restore to.
+      expect(await typed.select().from(schema.guideVersions)).toHaveLength(5);
+      const templates = await typed.select().from(schema.taskTemplates);
+      expect(Object.fromEntries(templates.map((t) => [t.id, [t.tag, t.daysBefore]]))).toEqual({
+        funding: ["funding", 21],
+        proposal: ["big", 21],
+        advisor: ["big", 14],
+        collab: ["collab", 21],
+        room: ["room", 14],
+        offcampus: ["offcampus", 14],
+        purchase: ["food", 7],
+        "promo-week": [null, 7],
+        "promo-eve": [null, 1],
+      });
+      // Every template's guide exists.
+      const slugs = new Set(guides.map((g) => g.slug));
+      expect(templates.filter((t) => t.guideSlug && !slugs.has(t.guideSlug))).toEqual([]);
+    } finally {
+      client.close();
+      fs.rmSync(file, { force: true });
+    }
+  });
+});

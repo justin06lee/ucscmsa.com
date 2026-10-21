@@ -6,15 +6,16 @@ import { expandEvents, type EventInput, type Occurrence } from "@/lib/rrule-lite
 const MAX_EVENTS_PER_RANGE = 5000;
 
 /**
- * Every public read of events must use this: a draft is the board's work in
- * progress and never appears on the calendar, the landing page, the sitemap
- * or at its own URL.
+ * A draft is the board's work in progress and never appears on the calendar,
+ * the landing page, the sitemap or at its own URL. The reads below leave drafts
+ * out by default; a public read that queries events itself must use this.
  */
 export const notDraft = eq(events.draft, false);
 
 export async function getOccurrencesInRange(
   rangeStart: Date,
-  rangeEnd: Date
+  rangeEnd: Date,
+  { includeDrafts = false }: { includeDrafts?: boolean } = {}
 ): Promise<Occurrence[]> {
   // Only fetch events that could plausibly overlap the range:
   //   - non-recurring: standard interval overlap (start < rangeEnd AND end > rangeStart)
@@ -25,7 +26,7 @@ export async function getOccurrencesInRange(
     .from(events)
     .where(
       and(
-        notDraft,
+        includeDrafts ? undefined : notDraft,
         isNull(events.cancelledAt),
         lt(events.startTime, rangeEnd),
         or(
@@ -74,6 +75,15 @@ function toEventInput(r: typeof events.$inferSelect, cancellations: string[]): E
   };
 }
 
+/** An event as the public may see it: null when it doesn't exist or is a draft. */
+export async function getPublicEventRow(
+  id: string,
+  database: DB = db
+): Promise<typeof events.$inferSelect | null> {
+  const [row] = await database.select().from(events).where(and(eq(events.id, id), notDraft)).limit(1);
+  return row ?? null;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -89,8 +99,8 @@ export async function findOccurrence(
 ): Promise<Occurrence | null> {
   const t = occurrenceStart.getTime();
   if (Number.isNaN(t)) return null;
-  const [row] = await database.select().from(events).where(eq(events.id, eventId)).limit(1);
-  if (!row || row.cancelledAt || row.draft) return null;
+  const row = await getPublicEventRow(eventId, database);
+  if (!row || row.cancelledAt) return null;
   const cancelRows = await database
     .select()
     .from(eventCancellations)
