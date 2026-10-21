@@ -141,7 +141,7 @@ The first occurrence is on `date`. Monthly events on the 29th–31st fall on the
 | `sourceId` | string | yes | |
 | `occurrenceDate` | string | no | `YYYY-MM-DD`. Omit it to cancel the **whole event**, every occurrence. Give it to cancel just the occurrence on that Santa Cruz date. |
 
-- **A cancelled whole event** leaves the public calendar, the upcoming list and RSVPs. The row is kept, and admins still see it.
+- **A cancelled whole event** leaves the public calendar, the upcoming list and RSVPs. The row is kept: admins see it with a "Cancelled" badge. Its public page stays up, so shared links keep working; it says "This event was cancelled", has no RSVP section, and marks the event `EventCancelled` for search engines. It also stays in the sitemap.
 - **A cancelled occurrence** disappears from that day; the rest of the series stays.
 - **Cancellation is sticky.** A later `upsert` of the same `sourceId`, even re-sending the original announcement, updates the details but does **not** un-cancel. Only `restore` does.
 - **An `occurrenceDate` the event has no occurrence on** gets `not_found` with reason `no_occurrence_on_date`.
