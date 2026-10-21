@@ -12,6 +12,7 @@ import sharp from "sharp";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { admins, events, rateLimits, users } from "@/lib/db/schema";
+import { getOccurrencesInRange } from "@/lib/db/queries";
 import { imageId } from "@/lib/event-image-store";
 import type { EventImage } from "@/lib/event-image";
 import { memoryStorage, setStorageForTests } from "@/lib/storage";
@@ -202,6 +203,18 @@ describe("PUT /api/import/events/images", () => {
     expect(r.json).toMatchObject({ status: "updated", dryRun: true });
     expect(await imagesOf(id)).toBeNull();
     expect(paths()).toEqual(before);
+  });
+
+  it("calendar occurrences carry the links, the first image and the image count", async () => {
+    const id = await importEvent("img-11");
+    const [a, b] = await Promise.all([jpeg(40), jpeg(41)]);
+    await put(req("img-11", [{ url: await upload(id, a) }, { url: await upload(id, b) }]));
+    await db.update(events).set({ links: [{ kind: "rsvp", label: "RSVP", url: "https://forms.gle/x" }] }).where(eq(events.id, id));
+    const occ = (await getOccurrencesInRange(new Date("2026-11-06T00:00:00Z"), new Date("2026-11-08T00:00:00Z")))
+      .find((o) => o.eventId === id)!;
+    expect(occ.links).toEqual([{ kind: "rsvp", label: "RSVP", url: "https://forms.gle/x" }]);
+    expect(occ.cover?.id).toBe(imageId(a));
+    expect(occ.imageCount).toBe(2);
   });
 
   it("not_found for unknown events", async () => {
