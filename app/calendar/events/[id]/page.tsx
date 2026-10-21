@@ -52,11 +52,16 @@ export default async function EventDetail({ params, searchParams }: Props) {
   if (!loaded) notFound();
   const { row, input } = loaded;
 
-  const occurrence = resolveOccurrence(input, sp.occurrence, new Date());
+  const now = new Date();
+  const occurrence = resolveOccurrence(input, sp.occurrence, now);
   const occurrenceStart = occurrence.start;
   // Cancelled as a whole (by the import). The page stays up, marked cancelled
   // with EventCancelled JSON-LD, so links and search results say so.
   const cancelled = row.cancelledAt != null;
+  // Over: no RSVP. A series viewed on a past date points at its next one.
+  const passed = !cancelled && occurrence.end <= now;
+  const next = passed && row.recurrenceFreq ? resolveOccurrence(input, undefined, now) : null;
+  const nextUpcoming = next && next.end > now ? next : null;
   const session = await getSession();
 
   let myStatus: "yes" | "no" | "maybe" | null = null;
@@ -133,12 +138,28 @@ export default async function EventDetail({ params, searchParams }: Props) {
             This event was cancelled.
           </p>
         ) : null}
+        {passed ? (
+          <p
+            role="status"
+            className="mt-6 rounded-md border border-ink/15 bg-ink/[0.03] px-4 py-3 text-sm text-ink/80"
+          >
+            <span className="font-medium">This event has passed.</span>
+            {nextUpcoming ? (
+              <>
+                {" "}
+                <Link href={eventUrl(id)} className="text-burgundy underline underline-offset-2">
+                  Next: {formatLocal(nextUpcoming.start, "EEE, MMM d")}
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : null}
         {row.description && (
           <p className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-ink/85">
             <LinkifiedText text={row.description} />
           </p>
         )}
-        {!cancelled && (
+        {!cancelled && !passed && (
           <section className="mt-10 border-t border-ink/10 pt-6">
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-dim">
               RSVP

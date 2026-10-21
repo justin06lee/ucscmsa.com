@@ -6,6 +6,11 @@ import { seed, signIn } from "./fixtures";
 
 const WIDTHS = [375, 390, 768] as const;
 
+// A month the seed's past events fill (scripts/seed-local.ts), three back from today.
+const MONTHS_BACK = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+  timeZone: "America/Los_Angeles",
+});
+
 const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "landing", path: "/" },
   { name: "calendar month", path: "/calendar?view=month&date=2026-10-20" },
@@ -14,6 +19,9 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "event", path: "/calendar/events/ev-gbm" },
   { name: "recurring event", path: "/calendar/events/ev-jummah" },
   { name: "event with links", path: "/calendar/events/ev-sisters" },
+  { name: "past event", path: "/calendar/events/ev-past-01" },
+  { name: "calendar month, 3 back", path: `/calendar?view=month&date=${MONTHS_BACK}` },
+  { name: "calendar this month", path: "/calendar?view=month" },
   { name: "event signed in", path: "/calendar/events/ev-gbm", as: "member" },
   { name: "login", path: "/login" },
   { name: "404", path: "/this-page-does-not-exist" },

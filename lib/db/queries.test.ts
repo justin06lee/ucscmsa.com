@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createTestDb } from "@/test/db";
 import { admins, eventCancellations, events, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { findOccurrence } from "./queries";
+import { findOccurrence, getPastOccurrences } from "./queries";
 
 async function setup() {
   const t = await createTestDb();
@@ -48,6 +48,34 @@ describe("cancelled events", () => {
     const start = new Date("2026-04-03T20:30:00.000Z");
     await db.update(events).set({ cancelledAt: new Date() }).where(eq(events.id, "jummah"));
     expect(await findOccurrence("jummah", start, db)).toBeNull();
+    client.close();
+  });
+});
+
+describe("getPastOccurrences", () => {
+  it("lists ended one-off events newest first, without series, cancelled or ongoing events", async () => {
+    const { db, client } = await setup();
+    const now = new Date("2026-04-20T19:00:00.000Z");
+    const oneOff = (id: string, start: string, hours: number, extra = {}) => ({
+      id,
+      title: id,
+      startTime: new Date(start),
+      endTime: new Date(new Date(start).getTime() + hours * 3_600_000),
+      createdByAdminId: 1,
+      ...extra,
+    });
+    await db.insert(events).values([
+      oneOff("older", "2026-03-01T02:00:00.000Z", 2),
+      oneOff("newest", "2026-04-18T02:00:00.000Z", 2),
+      oneOff("middle", "2026-04-02T02:00:00.000Z", 2),
+      oneOff("cancelled", "2026-04-19T02:00:00.000Z", 2, { cancelledAt: new Date("2026-04-10T00:00:00.000Z") }),
+      oneOff("ongoing", "2026-04-20T18:00:00.000Z", 2),
+      oneOff("upcoming", "2026-04-25T02:00:00.000Z", 2),
+    ]);
+    const past = await getPastOccurrences(3, now, db);
+    expect(past.map((o) => o.eventId)).toEqual(["newest", "middle", "older"]);
+    expect(past[0].occurrenceStart.toISOString()).toBe("2026-04-18T02:00:00.000Z");
+    expect((await getPastOccurrences(10, now, db)).map((o) => o.eventId)).not.toContain("jummah");
     client.close();
   });
 });
