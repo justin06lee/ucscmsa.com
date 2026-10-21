@@ -42,7 +42,17 @@ export function safeHref(raw: string): string | null {
 }
 
 const LIST_RE = /^( *)([-*+]|\d{1,3}[.)])\s+(.*)$/;
-const HEADING_RE = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
+// Every pattern here runs on admin-written text up to GUIDE_BODY_MAX, so each
+// is linear or bounded: no nested or overlapping repeats that backtrack.
+const HEADING_RE = /^(#{1,6})\s+(.*)$/;
+
+/** A heading's text without its optional closing #s. */
+function headingText(raw: string): string {
+  const s = raw.trimEnd();
+  let end = s.length;
+  while (end > 0 && s[end - 1] === "#") end--;
+  return end === 0 || /\s/.test(s[end - 1]) ? s.slice(0, end).trimEnd() : s;
+}
 
 export function parseMarkdown(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, "\n").split("\n");
@@ -89,7 +99,7 @@ export function parseMarkdown(src: string): Block[] {
     const h = HEADING_RE.exec(line);
     if (h && !line.startsWith(" ")) {
       flushAll();
-      blocks.push({ t: "heading", level: h[1].length >= 3 ? 3 : 2, c: parseInline(h[2]) });
+      blocks.push({ t: "heading", level: h[1].length >= 3 ? 3 : 2, c: parseInline(headingText(h[2])) });
       continue;
     }
     const li = LIST_RE.exec(line);
@@ -149,14 +159,27 @@ const URL_RE = /https?:\/\/[^\s<>]+/iy;
 
 /** Trims trailing punctuation (and an unbalanced ")") off a bare URL. */
 function trimUrl(u: string): string {
-  let s = u;
+  let open = 0;
+  let close = 0;
+  for (const c of u) {
+    if (c === "(") open++;
+    else if (c === ")") close++;
+  }
+  let end = u.length;
   for (;;) {
-    const last = s.at(-1);
-    if (last && ".,;:!?'\"".includes(last)) s = s.slice(0, -1);
-    else if (last === ")" && (s.match(/\(/g)?.length ?? 0) < (s.match(/\)/g)?.length ?? 0)) s = s.slice(0, -1);
-    else return s;
+    const last = u[end - 1];
+    if (last && ".,;:!?'\"".includes(last)) end--;
+    else if (last === ")" && open < close) {
+      end--;
+      close--;
+    } else return u.slice(0, end);
   }
 }
+
+// [label](href): the href may hold one level of balanced parentheses, as in
+// https://en.wikipedia.org/wiki/X_(Y). The two branches start with different
+// characters and both repeats are bounded, so a failed match costs O(length).
+const LINK_RE = /^\[([^\]\n]{0,300})\]\(((?:[^()\s]|\([^()\s]{0,2048}\)){0,2048})\)/;
 
 export function parseInline(src: string): Inline[] {
   const out: Inline[] = [];
@@ -203,7 +226,7 @@ export function parseInline(src: string): Inline[] {
       }
     }
     if (ch === "[") {
-      const m = /^\[([^\]]*)\]\(([^)\s]*(?:\([^)\s]*\)[^)\s]*)*)\)/.exec(rest);
+      const m = LINK_RE.exec(rest);
       if (m) {
         pushText();
         const href = safeHref(m[2]);
@@ -215,7 +238,7 @@ export function parseInline(src: string): Inline[] {
         continue;
       }
     }
-    if ((ch === "h" || ch === "H") && /^https?:\/\//i.test(rest) && !/[\w/]$/.test(text)) {
+    if ((ch === "h" || ch === "H") && /^https?:\/\//i.test(rest) && !/[\w/]/.test(text.at(-1) ?? "")) {
       URL_RE.lastIndex = i;
       const m = URL_RE.exec(src);
       if (m) {
@@ -227,9 +250,14 @@ export function parseInline(src: string): Inline[] {
           i += url.length;
           continue;
         }
+        // Not a usable URL: the whole run stays text, so it isn't parsed
+        // again from every later "http" inside it.
+        text += m[0];
+        i += m[0].length;
+        continue;
       }
     }
-    if (rest.startsWith("TODO") && !/\w$/.test(text) && !/^TODO\w/.test(rest)) {
+    if (rest.startsWith("TODO") && !/\w/.test(text.at(-1) ?? "") && !/^TODO\w/.test(rest)) {
       pushText();
       out.push({ t: "todo" });
       i += 4;

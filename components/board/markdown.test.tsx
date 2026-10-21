@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { Markdown } from "./markdown";
-import { parseInline, parseMarkdown, safeHref } from "@/lib/markdown";
+import { GUIDE_BODY_MAX, parseInline, parseMarkdown, safeHref } from "@/lib/markdown";
 
 function html(source: string) {
   return render(<Markdown source={source} />).container;
@@ -101,9 +101,51 @@ describe("guide markdown: what it renders", () => {
     ]);
   });
 
+  it("keeps balanced parentheses in a link, and drops a heading's closing #s", () => {
+    const url = "https://en.wikipedia.org/wiki/Iftar_(meal)";
+    expect(parseInline(`[Iftar](${url})`)).toEqual([{ t: "link", href: url, c: [{ t: "text", v: "Iftar" }] }]);
+    expect(parseInline(`see ${url}).`)).toEqual([
+      { t: "text", v: "see " },
+      { t: "link", href: url, c: [{ t: "text", v: url }] },
+      { t: "text", v: ")." },
+    ]);
+    const heading = (src: string) => (parseMarkdown(src)[0] as { c: unknown }).c;
+    expect(heading("## Room booking ##")).toEqual([{ t: "text", v: "Room booking" }]);
+    expect(heading("## Learn C#")).toEqual([{ t: "text", v: "Learn C#" }]);
+  });
+
   it("safeHref accepts only absolute http(s)", () => {
     expect(safeHref("https://a.example/x")).toBe("https://a.example/x");
     expect(safeHref(" javascript:alert(1)")).toBeNull();
     expect(safeHref("https://a.example/\u0000x")).toBeNull();
   });
+});
+
+// Any admin can save a guide, and /admin/playbook parses every one, so a body
+// built to make the parser backtrack would hang the board's pages for all.
+// Each body is the longest a guide may be; the old link pattern took ~50ms at
+// under 1,000 characters of "[](" and doubled with every few more.
+describe("guide markdown: no input makes the parser slow", () => {
+  const fill = (unit: string, prefix = "", suffix = "") =>
+    prefix + unit.repeat(Math.floor((GUIDE_BODY_MAX - prefix.length - suffix.length) / unit.length)) + suffix;
+  const bodies: Record<string, string> = {
+    "unclosed link openers": fill("[]("),
+    "brackets only": fill("["),
+    "labels with no href end": fill("[a]("),
+    "nested parens in hrefs": fill("[x](http://a("),
+    "a heading of spaces": fill(" ", "# ", "x"),
+    "a URL ending in parens": fill(")", "http://a"),
+    "TODO after words": fill("aTODO"),
+    "emphasis markers": fill("*a"),
+    "strong markers": fill("**a"),
+    "code markers": fill("`a"),
+  };
+  for (const [name, body] of Object.entries(bodies)) {
+    it(`${name} (${body.length} characters)`, () => {
+      const t0 = performance.now();
+      parseMarkdown(body);
+      // Generous for a loaded CI machine; the fixed parser takes a few ms.
+      expect(performance.now() - t0).toBeLessThan(1000);
+    });
+  }
 });
