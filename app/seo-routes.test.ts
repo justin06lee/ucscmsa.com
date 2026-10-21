@@ -16,6 +16,9 @@ import EventPage, { generateMetadata as eventMetadata } from "./calendar/events/
 import { generateMetadata as calendarMetadata } from "./calendar/page";
 
 const MALICIOUS = "</script><script>alert(1)</script>";
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const fromNow = (ms: number) => new Date(Date.now() + ms);
 
 beforeAll(async () => {
   const at = (iso: string) => new Date(iso);
@@ -40,12 +43,22 @@ beforeAll(async () => {
       updatedAt: at("2026-10-10T00:00:00.000Z"),
     },
     {
+      // Cancelled but still ahead: stays in the sitemap.
       id: "ev-cancelled",
       title: "Beach Cleanup",
-      startTime: at("2026-10-25T17:00:00.000Z"),
-      endTime: at("2026-10-25T19:00:00.000Z"),
-      cancelledAt: at("2026-10-19T00:00:00.000Z"),
+      startTime: fromNow(5 * DAY),
+      endTime: fromNow(5 * DAY + 2 * HOUR),
+      cancelledAt: fromNow(-DAY),
       updatedAt: at("2026-10-19T00:00:00.000Z"),
+    },
+    {
+      // Cancelled and its date has passed: dropped.
+      id: "ev-cancelled-past",
+      title: "Bake Sale",
+      startTime: fromNow(-5 * DAY),
+      endTime: fromNow(-5 * DAY + 2 * HOUR),
+      cancelledAt: fromNow(-10 * DAY),
+      updatedAt: at("2026-10-12T00:00:00.000Z"),
     },
     {
       id: "ev-evil",
@@ -63,19 +76,15 @@ const props = (id: string) => ({
 });
 
 describe("sitemap", () => {
-  it("lists the landing page, the calendar and every event that isn't cancelled", async () => {
-    const entries = await sitemap();
-    const urls = entries.map((e) => e.url);
-    expect(urls).toEqual([
-      "https://ucscmsa.com/",
-      "https://ucscmsa.com/calendar",
-      expect.stringMatching(/^https:\/\/ucscmsa\.com\/calendar\/events\//),
-      expect.stringMatching(/^https:\/\/ucscmsa\.com\/calendar\/events\//),
-      expect.stringMatching(/^https:\/\/ucscmsa\.com\/calendar\/events\//),
-    ]);
-    expect(urls).toContain("https://ucscmsa.com/calendar/events/ev-gbm");
-    expect(urls).toContain("https://ucscmsa.com/calendar/events/ev-jummah");
-    expect(urls).not.toContain("https://ucscmsa.com/calendar/events/ev-cancelled");
+  it("lists the landing page, the calendar, every event, and cancelled ones only while ahead", async () => {
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls.slice(0, 2)).toEqual(["https://ucscmsa.com/", "https://ucscmsa.com/calendar"]);
+    expect(urls.slice(2).sort()).toEqual(
+      ["ev-cancelled", "ev-evil", "ev-gbm", "ev-jummah"].map(
+        (id) => `https://ucscmsa.com/calendar/events/${id}`,
+      ),
+    );
+    expect(urls).not.toContain("https://ucscmsa.com/calendar/events/ev-cancelled-past");
     // Escaped as a URL, never raw markup.
     expect(urls.join(" ")).not.toContain("<");
   });
@@ -84,7 +93,8 @@ describe("sitemap", () => {
     const entries = await sitemap();
     const by = (u: string) => entries.find((e) => e.url === u)?.lastModified;
     expect(by("https://ucscmsa.com/calendar/events/ev-gbm")).toEqual(new Date("2026-10-01T00:00:00.000Z"));
-    expect(by("https://ucscmsa.com/")).toEqual(new Date("2026-10-10T00:00:00.000Z"));
+    // ev-cancelled's edit (Oct 19) is the latest of the listed events.
+    expect(by("https://ucscmsa.com/")).toEqual(new Date("2026-10-19T00:00:00.000Z"));
   });
 });
 

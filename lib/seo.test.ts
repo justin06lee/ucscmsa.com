@@ -8,6 +8,7 @@ import {
   isJummah,
   isoInSiteTz,
   jsonLdScript,
+  listedInSitemap,
   organizationJsonLd,
   pageMetadata,
   recurrenceSummary,
@@ -201,5 +202,37 @@ describe("calendarMetadata", () => {
     expect(calendarMetadata("day", OCT, true).title).toBe("Fri, Oct 23, 2026: events & prayer times");
     expect(calendarMetadata("month", OCT, true).title).toBe("October 2026 events");
     expect(calendarMetadata("year", OCT, true).title).toBe("2026 events calendar");
+  });
+});
+
+describe("listedInSitemap", () => {
+  const now = new Date("2026-10-20T12:00:00.000Z");
+  const day = 24 * 60 * 60 * 1000;
+  const row = (over: Partial<Parameters<typeof listedInSitemap>[0]>) => ({
+    endTime: new Date(now.getTime() + day),
+    recurrenceFreq: null,
+    recurrenceUntil: null,
+    cancelledAt: null,
+    ...over,
+  });
+
+  it("lists every event that isn't cancelled, past ones too", () => {
+    expect(listedInSitemap(row({}), now)).toBe(true);
+    expect(listedInSitemap(row({ endTime: new Date(now.getTime() - 30 * day) }), now)).toBe(true);
+  });
+
+  it("keeps a cancelled one-off until it would have ended", () => {
+    const cancelledAt = new Date(now.getTime() - day);
+    expect(listedInSitemap(row({ cancelledAt }), now)).toBe(true);
+    expect(listedInSitemap(row({ cancelledAt, endTime: new Date(now.getTime() - 1) }), now)).toBe(false);
+  });
+
+  it("keeps a cancelled series until its end, or four weeks without one", () => {
+    const series = { recurrenceFreq: "weekly", endTime: new Date("2026-01-09T22:00:00.000Z") };
+    const until = (d: number) => new Date(now.getTime() + d * day);
+    expect(listedInSitemap(row({ ...series, cancelledAt: until(-60), recurrenceUntil: until(10) }), now)).toBe(true);
+    expect(listedInSitemap(row({ ...series, cancelledAt: until(-5), recurrenceUntil: until(-1) }), now)).toBe(false);
+    expect(listedInSitemap(row({ ...series, cancelledAt: until(-20) }), now)).toBe(true);
+    expect(listedInSitemap(row({ ...series, cancelledAt: until(-30) }), now)).toBe(false);
   });
 });

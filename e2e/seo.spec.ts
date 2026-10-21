@@ -156,14 +156,21 @@ test("robots.txt keeps crawlers out of admin and the API and names the sitemap",
   expect(body).toContain(`Sitemap: ${new URL(baseURL!).origin}/sitemap.xml`);
 });
 
-test("sitemap.xml lists the pages and events, not cancelled ones", async ({ request, baseURL }) => {
+test("sitemap.xml lists the pages and events, and cancelled ones only while ahead", async ({
+  request,
+  baseURL,
+}) => {
   const res = await request.get("/sitemap.xml");
   expect(res.status()).toBe(200);
   expect(res.headers()["content-type"]).toMatch(/xml/);
   const xml = await res.text();
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
   expect(locs).toEqual(expect.arrayContaining(["/", "/calendar", ...INDEXABLE.slice(2)]));
-  expect(locs).not.toContain("/calendar/events/ev-cleanup");
+  // ev-cleanup is cancelled; it's listed until it would have ended
+  // (Oct 25, 12:00 in Santa Cruz).
+  const cleanupAhead = Date.now() < Date.parse("2026-10-25T19:00:00.000Z");
+  expect(locs.includes("/calendar/events/ev-cleanup")).toBe(cleanupAhead);
+  expect(locs).not.toContain("/calendar/events/no-such-event");
   expect(xml).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}T/);
   for (const l of [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]) {
     expect(new URL(l[1]).origin).toBe(new URL(baseURL!).origin);

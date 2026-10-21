@@ -250,6 +250,28 @@ export function eventJsonLd(ev: SeoEvent, start: Date, end: Date): Record<string
   };
 }
 
+// ---------- Sitemap ----------
+
+// A cancelled event stays listed while it is still ahead, so crawlers re-read
+// its page and pick up EventCancelled (what Google asks for cancelled events),
+// and drops out once its date has passed: a one-off at its end time, a series
+// at its recurrenceUntil, or 4 weeks after it was cancelled if it had no end.
+const CANCELLED_SERIES_GRACE_MS = 28 * 24 * 60 * 60 * 1000;
+
+type SitemapRow = {
+  endTime: Date;
+  recurrenceFreq: string | null;
+  recurrenceUntil: Date | null;
+  cancelledAt: Date | null;
+};
+
+export function listedInSitemap(r: SitemapRow, now: Date): boolean {
+  if (!r.cancelledAt) return true;
+  if (!r.recurrenceFreq) return r.endTime > now;
+  const last = r.recurrenceUntil ?? new Date(r.cancelledAt.getTime() + CANCELLED_SERIES_GRACE_MS);
+  return last > now;
+}
+
 // ---------- Site-wide ----------
 
 export function organizationJsonLd(): Record<string, unknown> {

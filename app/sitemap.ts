@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
-import { isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
-import { absoluteUrl, eventUrl } from "@/lib/seo";
+import { absoluteUrl, eventUrl, listedInSitemap } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -10,13 +9,21 @@ export const revalidate = 3600;
 const BUILD_DATE = new Date();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Deleted events are gone from the table. Cancelled ones keep their page
-  // ("This event was cancelled", EventCancelled JSON-LD) for anyone with the
-  // link, but aren't put forward for crawling.
-  const rows = await db
-    .select({ id: events.id, updatedAt: events.updatedAt })
-    .from(events)
-    .where(isNull(events.cancelledAt));
+  // Deleted events are gone from the table; cancelled ones stay while ahead
+  // (listedInSitemap).
+  const now = new Date();
+  const rows = (
+    await db
+      .select({
+        id: events.id,
+        updatedAt: events.updatedAt,
+        endTime: events.endTime,
+        recurrenceFreq: events.recurrenceFreq,
+        recurrenceUntil: events.recurrenceUntil,
+        cancelledAt: events.cancelledAt,
+      })
+      .from(events)
+  ).filter((r) => listedInSitemap(r, now));
 
   // The landing page and calendar change when an event does.
   const latest = rows.reduce<Date | null>(
