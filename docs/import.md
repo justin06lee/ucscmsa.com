@@ -219,6 +219,16 @@ A real run made later can still get different results if an admin or another imp
 - **The same request again** returns `unchanged` for every item, creates nothing and writes nothing.
 - **After a timeout, a network error or a `500`,** resend the same request. Items that already applied come back `unchanged`.
 
+### When changes show on the site
+
+- **The calendar, event pages and the admin dashboard:** at once. They are rendered on every request.
+- **The home page's "Upcoming" list:** within 5 minutes. The page is re-rendered at most every 5 minutes.
+- **`/sitemap.xml`: within an hour.**
+  - The import asks Next.js to refresh the sitemap, and that works on a self-hosted `next start`.
+  - On Vercel it didn't: after a real import on 2026-10-21, the live sitemap kept serving its cached copy until its hourly refresh.
+  - Search engines re-read sitemaps much less often than hourly, so this is accepted.
+- **An event's share image:** within an hour.
+
 ## Errors
 
 Errors have this shape, with the matching HTTP status:
