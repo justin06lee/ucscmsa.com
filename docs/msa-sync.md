@@ -47,6 +47,24 @@ The key is read but never printed. Requests are sent one at a time (under yagami
 
 Flyers come from Justin's saved folder, `~/.local/share/midna-ucscmsa/flyers/Msa events/` (set `flyerDir` in the sync config to change it). WhatsApp saves photos as `PHOTO-YYYY-MM-DD-HH-MM-SS.jpg` in Santa Cruz wall-clock time — the instant the announcement was sent — so each flyer is matched to the announcement it was posted with, within 90 seconds. An album sent at once (`PHOTO-…-SS.jpg`, `…(1).jpg`, `…(2).jpg`) stays together and in order. A folder flyer takes precedence over WhatsApp's own downloaded copy. Messages are grouped into posts the way they were sent: an uncaptioned image joins the same sender's nearest text (or captioned image) within 10 minutes, and uncaptioned images with no text nearby, sent within a minute of each other, are one post. So an album is one event with all its flyers in order, not one event per image. Flyers that match no announcement are counted in the summary (`unmatched`) and left alone. The matched flyers are the event's images for the Blob upload (a later step, once that endpoint is live).
 
+### Flyer images on the site: `scripts/flyer-upload.ts`
+
+Flyers go to the site's Vercel Blob store and onto their events through the import API ([Images](import.md)). **Nothing is uploaded until Backend says the image release is live.** Then, once: merge that release (master) into this branch and `bun install`, which brings `@vercel/blob`.
+
+```bash
+bun scripts/flyer-upload.ts --dry-run   # lists each event's flyers and where each would go, with the MB to upload
+bun scripts/flyer-upload.ts             # uploads and attaches; prints counts and MB stored
+```
+
+- **Which flyers:** `ucscmsa-flyer-map.json` (the history, one ordered list per event) plus `ucscmsa-sync-enrichment.json` (what msa-sync posted). `--only <sourceId>` does one event.
+- **Each image:** read from the original (never changed), metadata stripped (EXIF, GPS), turned upright, fitted within 2000 px, re-encoded as JPEG, uploaded to `flyers/<eventId>/<id>.jpg` (`id` = the first 16 hex digits of those bytes' SHA-256). Then `PUT /api/import/events/images` sends the event's whole ordered list (at most 10). The server makes the WebP sizes and deletes the uploads.
+- **Re-runs:** `ucscmsa-images-state.json` remembers each event's id and attached images, so an event that's done sends nothing, and a new flyer uploads only itself.
+- **Pace:** the endpoint allows 60 requests per 10 minutes, so requests go out about 10 s apart (the first full run takes about 20 minutes); a 429 waits out `Retry-After`.
+- **Conflicts:** an event an admin edited answers `conflict` (`edited_by_admin`); it's listed in `ucscmsa-images-review.json` and never forced.
+- **Before the release:** the endpoint answers 404. A real run stops there (exit 3, nothing uploaded); a dry run plans offline with `<eventId>` in the paths.
+- **The daily sync** does the same for the events it posts (step 4): before the release it reports their flyers as held, and `flyer-upload.ts` attaches them later.
+- **Tokens:** the import token as for `import`, and the Blob token from `BLOB_READ_WRITE_TOKEN` or `blob-token` (`chmod 600`). Neither is printed.
+
 ### Another image folder: `--images <folder>`
 
 For flyers saved somewhere else — say, exported from Photos or iCloud — point the sync at the folder:
@@ -76,6 +94,9 @@ Everything private lives in `~/.local/share/midna-ucscmsa/` (the directory is `c
 | `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time, per-id status, and which `--images` files it has matched. |
 | `ucscmsa-sync-review.json` | Items the sync held back for a human to check. |
 | `ucscmsa-sync-enrichment.json` | Per posted event: its links and flyer images, held until the import API accepts those fields. |
+| `ucscmsa-flyer-map.json` | The history's flyers: event sourceId → its images in order. |
+| `ucscmsa-images-state.json` | Per event: the site's event id and the images attached. |
+| `blob-token` | The Vercel Blob token for flyer uploads (`chmod 600`). Never printed. |
 | `flyers/Msa events/` | Justin's saved announcement flyers (`PHOTO-…` images). |
 | `ucscmsa-batch-<date>.json` | The hand-written batches you send. |
 

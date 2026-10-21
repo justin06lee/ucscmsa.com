@@ -496,7 +496,7 @@ const MAX_RETRIES = 2;
 const RETRY_BACKOFF_MS = [5_000, 20_000];
 const MAX_WAIT_SEC = 3600;
 
-function readToken(path: string): string {
+export function readToken(path: string): string {
   let mode: number;
   try {
     mode = statSync(path).mode;

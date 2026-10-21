@@ -19,6 +19,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { draftToOperation, eventify, type CallModel, type LinkEntry, type SourceItem } from "./eventify";
 import { assignFlyers, indexFlyers } from "./flyers";
+import { imagesClient, lazyBlobUpload, runImageSync, summarize } from "./flyer-upload";
 import { indexImageFolder, matchImages, type Candidate, type DatedImage } from "./image-folder";
 import {
   expandHome,
@@ -28,6 +29,7 @@ import {
   runImport,
   UsageError,
   withDbCopy,
+  readToken,
   type Config,
   type WaMessage,
 } from "./wa-announcements";
@@ -286,6 +288,8 @@ export type SyncSummary = {
   enrichment: { sourceId: string; links: LinkEntry[]; images: string[] }[];
   /** --images: folder images matched to an announcement, added to that event's images. */
   imagesMatched: { sourceId: string; file: string }[];
+  /** The flyer upload step's summary lines, when it ran. */
+  imageLines?: string[];
 };
 
 /**
@@ -485,6 +489,29 @@ export async function main(argv: string[]): Promise<number> {
     }
   }
 
+  // --- 4. FLYERS: upload and attach the posted events' images ---
+  // Until the image release is live this only reports them as held; a dry
+  // run plans offline (its events weren't really posted).
+  const withImages = summary.enrichment.filter((e) => e.images.length).map((e) => ({ sourceId: e.sourceId, files: e.images }));
+  if (withImages.length && exit === 0) {
+    try {
+      const res = await runImageSync(withImages, {
+        dryRun: args.dryRun,
+        offline: args.dryRun,
+        put: imagesClient({ baseUrl: waConfig.baseUrl, token: readToken(waConfig.tokenFile) }),
+        upload: args.dryRun ? null : lazyBlobUpload(),
+      });
+      summary.imageLines = summarize(res, args.dryRun);
+      for (const o of res.outcomes) {
+        if (o.status === "error") summary.errors.push(`flyers ${o.sourceId}: ${o.note ?? "error"}`);
+        if (o.status === "conflict" || o.status === "not_found") summary.needsReview.push({ sourceId: o.sourceId, notes: [`flyers not attached: ${o.status} ${o.note ?? ""}`.trim()] });
+      }
+    } catch (e) {
+      summary.errors.push(`flyers: ${(e as Error).message}`);
+    }
+    if (summary.errors.length) exit = 1;
+  }
+
   // --- persist state (not on dry run) and the review file ---
   if (!args.dryRun) {
     state.lastWaUnix = maxWaUnix || state.lastWaUnix;
@@ -515,6 +542,7 @@ function printSummary(s: SyncSummary, dryRun: boolean, write: (b: string) => voi
     ...(s.imagesMatched.length ? [`  --images matched: ${s.imagesMatched.length} (${s.imagesMatched.map((m) => `${m.file.split("/").pop()} -> ${m.sourceId}`).join(", ")})`] : []),
     `  created: ${s.created.length}  updated: ${s.updated.length}  unchanged: ${s.unchanged.length}  needs-review: ${s.needsReview.length}  skipped: ${s.skipped.length}  errors: ${s.errors.length}`,
   ];
+  if (s.imageLines) lines.push(...s.imageLines.map((l) => `  ${l}`));
   if (s.needsReview.length) {
     lines.push("  needs review:");
     for (const r of s.needsReview) lines.push(`    ${r.sourceId} ${r.title ?? ""} — ${r.notes.join("; ")}`);
