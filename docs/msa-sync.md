@@ -16,7 +16,7 @@ bun scripts/msa-sync.ts             # scrape, eventify, post; writes a summary
 bun scripts/msa-sync.ts --dry-run   # same, but the import is previewed and rolled back; state is not advanced
 ```
 
-Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--config <path>` and `--sync-config <path>` point at non-default config files.
+Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--images <folder>` matches a folder of flyer images to announcements (see [below](#another-image-folder---images-folder)); `--config <path>` and `--sync-config <path>` point at non-default config files.
 
 The summary lists created, updated, unchanged, needs-review, skipped and errors, plus how many flyers matched an announcement (and how many didn't). **The exit code is non-zero if anything errored.** Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
 
@@ -24,7 +24,7 @@ The summary lists created, updated, unchanged, needs-review, skipped and errors,
 
 ### The LLM step (yagami)
 
-The eventify step talks to an Anthropic-compatible endpoint. In development that's **yagami** on this Mac; only midna starts it (`yagami start`), never the sync. msa-sync checks the port first and, **if yagami is down, stops before posting anything** — it eventifies and posts nothing, says so in the summary, and exits non-zero. Settings come from the environment or config, never hardcoded:
+The eventify step talks to an Anthropic-compatible endpoint. In development that's **yagami** on this Mac; only midna starts it (`yagami start`), never the sync. msa-sync checks the port first (a TCP connect, since a busy yagami can take many seconds to answer HTTP) and, **if yagami is down, stops before posting anything** — it eventifies and posts nothing, says so in the summary, and exits non-zero. Settings come from the environment or config, never hardcoded:
 
 | Setting | From |
 |---|---|
@@ -43,11 +43,27 @@ yagami key    # prints ANTHROPIC_BASE_URL=… and ANTHROPIC_API_KEY=ygm_…
 chmod 600 ~/.local/share/midna-ucscmsa/msa-sync.env
 ```
 
-The key is read but never printed. Requests are sent one at a time (under yagami's concurrency guidance); overloads — which yagami returns as a normal reply, not an HTTP error — and 5xx/429 are retried up to six times with backoff and `Retry-After`, but a refused connection is never retried.
+The key is read but never printed. Requests are sent one at a time (under yagami's concurrency guidance); overloads — which yagami returns as a normal reply, not an HTTP error — and 5xx/429 are retried up to six times with backoff and `Retry-After`, but a refused connection is never retried. A request with no answer in 5 minutes fails without a retry (yagami's turn is stalled upstream; another request would only queue behind it): that item is reported as an error and tried again on the next run.
 
 ### Flyers
 
 Flyers come from Justin's saved folder, `~/.local/share/midna-ucscmsa/flyers/Msa events/` (set `flyerDir` in the sync config to change it). WhatsApp saves photos as `PHOTO-YYYY-MM-DD-HH-MM-SS.jpg` in Santa Cruz wall-clock time — the instant the announcement was sent — so each flyer is matched to the announcement it was posted with, within 90 seconds. An album sent at once (`PHOTO-…-SS.jpg`, `…(1).jpg`, `…(2).jpg`) stays together and in order. A folder flyer takes precedence over WhatsApp's own downloaded copy. Flyers that match no announcement are counted in the summary (`unmatched`) and left alone. The matched flyers are the event's images for the Blob upload (a later step, once that endpoint is live).
+
+### Another image folder: `--images <folder>`
+
+For flyers saved somewhere else — say, exported from Photos or iCloud — point the sync at the folder:
+
+```bash
+bun scripts/msa-sync.ts --dry-run --images ~/Pictures/msa-flyers   # preview the matches
+bun scripts/msa-sync.ts --images ~/Pictures/msa-flyers             # record them
+```
+
+- **Read only.** The folder is listed and its images read; nothing in it is moved, renamed or written. Subfolders are ignored.
+- **Dating.** Each image is dated by a timestamp in its filename (`PHOTO-…`, `WhatsApp Image 2025-10-08 at 12.34.56`, `IMG_20251008_123456`; 24-hour only), else its EXIF capture date (JPEG), else the file's modified time. A filename timestamp must be within 90 seconds of an announcement; any other date, within 14 days.
+- **Confirming.** The primary model (Haiku) reads the image against those announcements (nearest 8, numbered) and picks one. A pick with confidence 0.8 or more is attached; no candidate, no pick or a lower score goes to `ucscmsa-sync-review.json` as `image:<path>`. Never a guess.
+- **What a match does.** The image is added to that event's images in `ucscmsa-sync-enrichment.json`, for the Blob upload. It doesn't change the event's text or times, and doesn't re-post the event.
+- **Formats.** JPEG, PNG and WebP. Anything else (HEIC from an iPhone, say) goes to review: export it as JPEG.
+- **Once each.** An image is matched once; it's looked at again only if the file changes (size or modified time). A `--dry-run` records nothing.
 
 ## Where things are
 
@@ -59,7 +75,7 @@ Everything private lives in `~/.local/share/midna-ucscmsa/` (the directory is `c
 | `ucscmsa-sync.json` | Sync config: the yagami endpoint, key file, model ids, and `flyerDir`. |
 | `ucscmsa-import-token` | The `EVENT_IMPORT_TOKEN`. The scripts read it and never print it. |
 | `ucscmsa-wa-state.json` | A hash per message, so `read` can tell when a message was edited. |
-| `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time and per-id status. |
+| `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time, per-id status, and which `--images` files it has matched. |
 | `ucscmsa-sync-review.json` | Items the sync held back for a human to check. |
 | `ucscmsa-sync-enrichment.json` | Per posted event: its links and flyer images, held until the import API accepts those fields. |
 | `flyers/Msa events/` | Justin's saved announcement flyers (`PHOTO-…` images). |

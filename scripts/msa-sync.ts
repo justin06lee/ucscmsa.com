@@ -8,16 +8,18 @@
 // normal run posts; --dry-run previews. Non-zero exit on any error.
 //
 // Usage:
-//   bun scripts/msa-sync.ts [--dry-run] [--since <ISO>]
+//   bun scripts/msa-sync.ts [--dry-run] [--since <ISO>] [--images <folder>]
 //                           [--config <wa.json>] [--sync-config <sync.json>]
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { draftToOperation, eventify, type CallModel, type LinkEntry, type SourceItem } from "./eventify";
 import { assignFlyers, indexFlyers } from "./flyers";
+import { indexImageFolder, matchImages, type Candidate, type DatedImage } from "./image-folder";
 import {
   expandHome,
   loadConfig,
@@ -56,6 +58,8 @@ export type SyncState = {
   lastWaUnix: number | null;
   /** sourceId -> last content hash we eventified, and what became of it. */
   processed: Record<string, { hash: string; status: string }>;
+  /** --images: file path -> its size:mtime when last matched, and the event it went to (null: review). */
+  images?: Record<string, { key: string; sourceId: string | null }>;
 };
 
 export function loadSyncConfig(path: string): SyncConfig {
@@ -104,10 +108,15 @@ const nap = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  * A real yagami/Anthropic call: raw POST to <base>/v1/messages, with
  * mira's retry policy — up to 6 tries honouring Retry-After then 1s..60s
  * backoff, treating 5xx/429 and HTTP-200 overload replies as retryable, but
- * never retrying a refused connection or an auth error.
+ * never retrying a refused connection or an auth error. A request with no
+ * answer in `timeoutMs` (default 5 min) fails without a retry: yagami's turn is
+ * stalled upstream, and another request would only queue behind it.
  */
-export function yagamiCall(cfg: { baseUrl: string; apiKey: string; effort?: string; sleep?: (ms: number) => Promise<void> }): CallModel {
+export function yagamiCall(cfg: { baseUrl: string; apiKey: string; effort?: string; sleep?: (ms: number) => Promise<void>; timeoutMs?: number }): CallModel {
   const sleep = cfg.sleep ?? nap;
+  const timeoutMs = cfg.timeoutMs ?? 300_000;
+  const stalled = (e: unknown, model: string) =>
+    e instanceof Error && e.name === "TimeoutError" ? new Error(`model ${model}: no answer from yagami in ${timeoutMs / 1000}s (stalled?)`) : null;
   return async (req) => {
     const content: Record<string, unknown>[] = [];
     if (req.imageBase64 && req.imageMediaType) {
@@ -124,8 +133,11 @@ export function yagamiCall(cfg: { baseUrl: string; apiKey: string; effort?: stri
           method: "POST",
           headers: { "content-type": "application/json", "x-api-key": cfg.apiKey, "anthropic-version": "2023-06-01" },
           body,
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (e) {
+        const timedOut = stalled(e, req.model);
+        if (timedOut) throw timedOut; // never retry
         const msg = e instanceof Error ? `${e.message}${e.cause ? ` (${String(e.cause)})` : ""}` : String(e);
         if (CONN_REFUSED_RE.test(msg)) throw new Error(`yagami unreachable (${msg}); is it running?`); // never retry
         lastErr = msg;
@@ -140,7 +152,12 @@ export function yagamiCall(cfg: { baseUrl: string; apiKey: string; effort?: stri
         if (attempt < MAX_AI_RETRIES) await sleep(retryAfterMs(res) ?? backoffMs(attempt));
         continue;
       }
-      const json = (await res.json()) as { content?: { type: string; text?: string }[] };
+      let json: { content?: { type: string; text?: string }[] };
+      try {
+        json = (await res.json()) as typeof json;
+      } catch (e) {
+        throw stalled(e, req.model) ?? e;
+      }
       const text = (json.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("\n");
       if (OVERLOAD_RE.test(text.slice(0, 300))) {
         lastErr = `overload reply: ${text.slice(0, 120).replace(/\s+/g, " ")}`;
@@ -166,14 +183,24 @@ function retryAfterMs(res: Response): number | null {
   return res.headers.has("retry-after-ms") ? n : Math.min(300_000, n * 1000);
 }
 
-/** Is yagami answering on its port? Any HTTP reply (even 401) counts as up. */
-export async function yagamiUp(baseUrl: string): Promise<boolean> {
-  try {
-    await fetch(new URL("/v1/models", baseUrl), { method: "GET", signal: AbortSignal.timeout(3000) });
-    return true;
-  } catch {
-    return false; // connection refused / timeout
-  }
+/**
+ * Is anything listening on yagami's port? A TCP connect, not an HTTP request:
+ * a busy yagami can take over 10s to answer even GET /v1/models, but the
+ * kernel accepts the connection at once. Down means refused (or no answer in 3s).
+ */
+export function yagamiUp(baseUrl: string): Promise<boolean> {
+  const u = new URL(baseUrl);
+  const port = Number(u.port || (u.protocol === "https:" ? 443 : 80));
+  return new Promise((resolve) => {
+    const sock = connect({ host: u.hostname, port });
+    const done = (up: boolean) => {
+      sock.destroy();
+      resolve(up);
+    };
+    sock.setTimeout(3000, () => done(false));
+    sock.once("connect", () => done(true));
+    sock.once("error", () => done(false));
+  });
 }
 
 /** Parse a KEY=VALUE env file (optionally `export KEY=...`), quotes stripped. */
@@ -221,6 +248,8 @@ export type SyncSummary = {
   errors: string[];
   /** Per posted event: links and flyer images, held for the upload once the API takes them. */
   enrichment: { sourceId: string; links: LinkEntry[]; images: string[] }[];
+  /** --images: folder images matched to an announcement, added to that event's images. */
+  imagesMatched: { sourceId: string; file: string }[];
 };
 
 /**
@@ -272,6 +301,7 @@ function parseArgs(argv: string[]) {
     since: val("--since"),
     config: val("--config"),
     syncConfig: val("--sync-config") ?? DEFAULT_SYNC_CONFIG,
+    images: val("--images"),
   };
 }
 
@@ -296,17 +326,39 @@ export async function main(argv: string[]): Promise<number> {
   const reviewPath = syncCfg.reviewFile ?? DEFAULT_REVIEW_FILE;
   const flyerDir = expandHome(syncCfg.flyerDir ?? DEFAULT_FLYER_DIR);
   const state = loadSyncState(statePath);
-  const summary: SyncSummary = { waRead: 0, flyersMatched: 0, flyersUnmatched: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] };
+  const summary: SyncSummary = { waRead: 0, flyersMatched: 0, flyersUnmatched: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [], imagesMatched: [] };
   const enrichmentPath = expandHome("~/.local/share/midna-ucscmsa/ucscmsa-sync-enrichment.json");
 
   // --- 1. SCRAPE WhatsApp + match flyers from the folder ---
   const since = args.since ? new Date(args.since) : state.lastWaUnix ? new Date(state.lastWaUnix * 1000 + 1000) : new Date("2025-11-01T00:00:00-07:00");
   const items: SourceItem[] = [];
   let maxWaUnix = state.lastWaUnix ?? 0;
+  // --images: the folder's new or changed images, and every announcement near their dates.
+  let newImages: DatedImage[] = [];
+  let imageCandidates: Candidate[] = [];
+  const imageKey = (f: string) => {
+    const st = statSync(f);
+    return `${st.size}:${Math.floor(st.mtimeMs)}`;
+  };
+  if (args.images) {
+    try {
+      const folder = indexImageFolder(expandHome(args.images));
+      newImages = folder.images.filter((i) => state.images?.[i.file]?.key !== imageKey(i.file));
+      for (const f of folder.unsupported) summary.needsReview.push({ sourceId: `image:${f}`, notes: ["not a JPEG/PNG/WebP image; export it as JPEG to match it"] });
+    } catch (e) {
+      summary.errors.push(`--images ${args.images}: ${(e as Error).message}`);
+    }
+  }
   try {
-    const { messages } = await withDbCopy(expandHome(waConfig.dbDir), openWithBunSqlite, (db) =>
-      Promise.resolve(readMessages(db, { chatJid, since, state: null, mediaDir: join(expandHome(waConfig.dbDir), "Message") })),
+    const mediaDir = join(expandHome(waConfig.dbDir), "Message");
+    const imagesSince = newImages.length ? new Date((Math.min(...newImages.map((i) => i.unix)) - 14 * 86400) * 1000) : null;
+    const { messages, nearImages } = await withDbCopy(expandHome(waConfig.dbDir), openWithBunSqlite, (db) =>
+      Promise.resolve({
+        messages: readMessages(db, { chatJid, since, state: null, mediaDir }).messages,
+        nearImages: imagesSince ? readMessages(db, { chatJid, since: imagesSince, state: null, mediaDir }).messages : [],
+      }),
     );
+    imageCandidates = nearImages.filter(fromAnnouncer).map((m) => ({ sourceId: m.sourceId, unix: m.time.unix, text: m.text ?? m.caption ?? "" })).filter((c) => c.text.trim());
     summary.waRead = messages.length;
     const announcements = messages.filter(fromAnnouncer);
     // Match Justin's saved flyers to announcements by timestamp.
@@ -344,7 +396,7 @@ export async function main(argv: string[]): Promise<number> {
 
   // --- 2. EVENTIFY ---
   let ops: Record<string, unknown>[] = [];
-  if (items.length) {
+  if (items.length || newImages.length) {
     let ai: { baseUrl: string; apiKey: string };
     try {
       ai = loadAiEnv(syncCfg);
@@ -360,6 +412,19 @@ export async function main(argv: string[]): Promise<number> {
     }
     const call = yagamiCall({ baseUrl: ai.baseUrl, apiKey: ai.apiKey, effort: syncCfg.aiEffort });
     ops = await eventifyItems(items, state, { call, primaryModel: syncCfg.aiModel, verifierModel: syncCfg.aiVerifierModel, confidenceFloor: syncCfg.confidenceFloor, summary });
+    if (newImages.length) {
+      const res = await matchImages(newImages, imageCandidates, { call, model: syncCfg.aiModel, load: imageForPath });
+      state.images ??= {};
+      for (const m of res.matched) {
+        summary.imagesMatched.push({ sourceId: m.sourceId, file: m.file });
+        state.images[m.file] = { key: imageKey(m.file), sourceId: m.sourceId };
+      }
+      for (const r of res.review) {
+        summary.needsReview.push({ sourceId: `image:${r.file}`, notes: [r.note] });
+        state.images[r.file] = { key: imageKey(r.file), sourceId: null };
+      }
+      for (const e of res.errors) summary.errors.push(`image ${e.file}: ${e.error}`);
+    }
   }
 
   // --- 3. POST ---
@@ -391,9 +456,13 @@ export async function main(argv: string[]): Promise<number> {
   if (summary.needsReview.length) {
     writeFileSync(expandHome(reviewPath), JSON.stringify(summary.needsReview, null, 2), { mode: 0o600 });
   }
-  if (!args.dryRun && summary.enrichment.length) {
+  if (!args.dryRun && (summary.enrichment.length || summary.imagesMatched.length)) {
     const prior: Record<string, { links: LinkEntry[]; images: string[] }> = existsSync(enrichmentPath) ? JSON.parse(readFileSync(enrichmentPath, "utf8")) : {};
     for (const e of summary.enrichment) prior[e.sourceId] = { links: e.links, images: e.images };
+    for (const m of summary.imagesMatched) {
+      const entry = (prior[m.sourceId] ??= { links: [], images: [] });
+      if (!entry.images.includes(m.file)) entry.images.push(m.file); // added after the event's own flyers
+    }
     writeFileSync(enrichmentPath, JSON.stringify(prior, null, 2), { mode: 0o600 });
   }
 
@@ -406,6 +475,7 @@ function printSummary(s: SyncSummary, dryRun: boolean, write: (b: string) => voi
     "",
     `MSA sync summary${dryRun ? " (dry run)" : ""}:`,
     `  WhatsApp messages read: ${s.waRead}; flyers matched: ${s.flyersMatched} (${s.flyersUnmatched} unmatched); candidates: ${s.candidates}`,
+    ...(s.imagesMatched.length ? [`  --images matched: ${s.imagesMatched.length} (${s.imagesMatched.map((m) => `${m.file.split("/").pop()} -> ${m.sourceId}`).join(", ")})`] : []),
     `  created: ${s.created.length}  updated: ${s.updated.length}  unchanged: ${s.unchanged.length}  needs-review: ${s.needsReview.length}  skipped: ${s.skipped.length}  errors: ${s.errors.length}`,
   ];
   if (s.needsReview.length) {

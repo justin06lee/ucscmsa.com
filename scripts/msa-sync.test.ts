@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -12,7 +13,7 @@ function mockCall(byText: (text: string) => unknown): CallModel {
   return async (req) => JSON.stringify(byText(req.text));
 }
 
-const emptySummary = (): SyncSummary => ({ waRead: 0, flyersMatched: 0, flyersUnmatched: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] });
+const emptySummary = (): SyncSummary => ({ waRead: 0, flyersMatched: 0, flyersUnmatched: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [], imagesMatched: [] });
 const emptyState = (): SyncState => ({ version: 1, lastWaUnix: null, processed: {} });
 
 describe("eventifyItems", () => {
@@ -111,6 +112,17 @@ describe("yagamiCall", () => {
     expect(content[1].type).toBe("text");
   });
 
+  it("gives up without a retry when yagami doesn't answer in time", async () => {
+    let n = 0;
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+      n++;
+      return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+    }) as typeof fetch;
+    const call = yagamiCall({ baseUrl: "http://127.0.0.1:8787", apiKey: "k".repeat(32), sleep: noSleep, timeoutMs: 50 });
+    await expect(call({ model: "m", system: "s", text: "t" })).rejects.toThrow(/no answer from yagami in 0.05s/);
+    expect(n).toBe(1);
+  });
+
   it("retries a 529 then succeeds", async () => {
     let n = 0;
     globalThis.fetch = (async () => {
@@ -158,22 +170,22 @@ describe("yagamiCall", () => {
 });
 
 describe("yagamiUp", () => {
-  let originalFetch: typeof fetch;
-  beforeEach(() => {
-    originalFetch = globalThis.fetch;
-  });
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-  it("is up when the port answers (even with 401)", async () => {
-    globalThis.fetch = (async () => new Response("no", { status: 401 })) as typeof fetch;
-    expect(await yagamiUp("http://127.0.0.1:8787")).toBe(true);
+  it("is up when something accepts on the port, even if it never answers HTTP", async () => {
+    const server = createServer(() => {}); // accepts, never replies: a busy yagami
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const { port } = server.address() as AddressInfo;
+    try {
+      expect(await yagamiUp(`http://127.0.0.1:${port}`)).toBe(true);
+    } finally {
+      server.close();
+    }
   });
   it("is down when the connection is refused", async () => {
-    globalThis.fetch = (async () => {
-      throw new TypeError("fetch failed");
-    }) as typeof fetch;
-    expect(await yagamiUp("http://127.0.0.1:8787")).toBe(false);
+    const server = createServer();
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const { port } = server.address() as AddressInfo;
+    await new Promise<void>((r) => server.close(() => r()));
+    expect(await yagamiUp(`http://127.0.0.1:${port}`)).toBe(false);
   });
 });
 
