@@ -109,7 +109,12 @@ async function main() {
     {
       id: "ev-sisters",
       title: "Sisters' Circle",
-      description: "A relaxed space for sisters to catch up, study together and plan events.",
+      // A Game Night-style RSVP link, and a long one that must wrap at 375px
+      // (e2e/event-description.spec.ts).
+      description:
+        "A relaxed space for sisters to catch up, study together and plan events.\n\n" +
+        "RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9.\n" +
+        "Reading list (PDF): https://drive.google.com/file/d/1aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT1uV2wX3yZ4/view?usp=sharing",
       location: "Cantú Queer Center Lounge",
       startTime: at("2026-09-29", "18:00"),
       endTime: at("2026-09-29", "19:15"),
@@ -214,6 +219,32 @@ async function main() {
       endTime: at("2026-11-12", "19:30"),
     },
   ];
+  // A year of past one-off events, dated relative to now so they are always
+  // past: the landing's Past events, the calendar going back, and the phone
+  // month list's "Earlier this month" (e2e/past-events.spec.ts). Like the
+  // WhatsApp history import, most are imported.
+  const HISTORY: [title: string, location: string, start: string, minutes: number, description: string][] = [
+    ["Game Night", "Cowell College Fireside Lounge", "18:30", 150, "Board games, cards and chai. Bring a friend."],
+    ["Halaqa: Patience in Hard Times", "Merrill College Room 102", "19:00", 75, "A short talk and open discussion."],
+    ["Community Iftar", "Stevenson Event Center", "18:45", 120, "Break your fast with us. Dates, water and dinner provided."],
+    ["Beach Day at Seabright", "Seabright State Beach", "13:00", 180, "Volleyball, snacks and Asr on the beach."],
+    ["Study Night", "Science & Engineering Library", "19:00", 180, "Quiet study with snack breaks every hour."],
+    ["Eid Dinner", "College Nine Multipurpose Room", "18:00", 150, "Celebrate Eid with the MSA. Families welcome."],
+    ["Sisters' Brunch", "Kresge Town Hall", "11:00", 90, "Brunch and catch-up for sisters."],
+    ["Charity Car Wash", "Base of Campus", "10:00", 240, "All proceeds go to local food banks."],
+  ];
+  const now = Date.now();
+  const pastDay = (daysAgo: number) => toLocalYmd(new Date(now - daysAgo * DAY));
+  const history = Array.from({ length: 48 }, (_, i) => {
+    const [title, location, hm, minutes, description] = HISTORY[i % HISTORY.length];
+    const startTime = at(pastDay(2 + Math.floor(i * 6.8)), hm);
+    return { title, location, description, startTime, endTime: new Date(startTime.getTime() + minutes * 60_000) };
+  });
+  // One busy past day, to see chips and dots under load.
+  for (const [hm, title] of [["10:00", "Quran Competition"], ["12:30", "Lunch & Learn"], ["16:00", "Volunteer Fair"], ["19:30", "Nasheed Night"]]) {
+    const startTime = at(pastDay(47), hm);
+    history.push({ title, location: "Quarry Plaza", description: `${title} during Islamic Awareness Week.`, startTime, endTime: new Date(startTime.getTime() + 90 * 60_000) });
+  }
   await db.insert(events).values(
     ev.map((e) => ({
       recurrenceFreq: null,
@@ -224,6 +255,18 @@ async function main() {
       createdAt: new Date("2026-09-20T18:00:00.000Z"),
       updatedAt: new Date("2026-10-01T18:00:00.000Z"),
       ...e,
+    })),
+  );
+  await db.insert(events).values(
+    history.map((e, i): typeof events.$inferInsert => ({
+      id: `ev-past-${String(i + 1).padStart(2, "0")}`,
+      ...e,
+      createdByAdminId: 1,
+      createdAt: e.endTime,
+      updatedAt: e.endTime,
+      ...(i % 3 === 0
+        ? {}
+        : { source: "whatsapp", sourceId: `wa-hist-${i + 1}`, importedAt: e.endTime, lastImportedAt: e.endTime }),
     })),
   );
   await db.insert(eventCancellations).values([
