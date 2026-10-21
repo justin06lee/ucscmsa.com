@@ -47,7 +47,7 @@ The key is read but never printed. Requests are sent one at a time (under yagami
 
 ### Flyers
 
-Flyers come from Justin's saved folder, `~/.local/share/midna-ucscmsa/flyers/Msa events/` (set `flyerDir` in the sync config to change it). WhatsApp saves photos as `PHOTO-YYYY-MM-DD-HH-MM-SS.jpg` in Santa Cruz wall-clock time — the instant the announcement was sent — so each flyer is matched to the announcement it was posted with, within 90 seconds. An album sent at once (`PHOTO-…-SS.jpg`, `…(1).jpg`, `…(2).jpg`) stays together and in order. A folder flyer takes precedence over WhatsApp's own downloaded copy. Flyers that match no announcement are counted in the summary (`unmatched`) and left alone. The matched flyers are the event's images for the Blob upload (a later step, once that endpoint is live).
+Flyers come from Justin's saved folder, `~/.local/share/midna-ucscmsa/flyers/Msa events/` (set `flyerDir` in the sync config to change it). WhatsApp saves photos as `PHOTO-YYYY-MM-DD-HH-MM-SS.jpg` in Santa Cruz wall-clock time — the instant the announcement was sent — so each flyer is matched to the announcement it was posted with, within 90 seconds. An album sent at once (`PHOTO-…-SS.jpg`, `…(1).jpg`, `…(2).jpg`) stays together and in order. A folder flyer takes precedence over WhatsApp's own downloaded copy. Messages are grouped into posts the way they were sent: an uncaptioned image joins the same sender's nearest text (or captioned image) within 10 minutes, and uncaptioned images with no text nearby, sent within a minute of each other, are one post. So an album is one event with all its flyers in order, not one event per image. Flyers that match no announcement are counted in the summary (`unmatched`) and left alone. The matched flyers are the event's images for the Blob upload (a later step, once that endpoint is live).
 
 ### Another image folder: `--images <folder>`
 
@@ -59,7 +59,7 @@ bun scripts/msa-sync.ts --images ~/Pictures/msa-flyers             # record them
 ```
 
 - **Read only.** The folder is listed and its images read; nothing in it is moved, renamed or written. Subfolders are ignored.
-- **Dating.** Each image is dated by a timestamp in its filename (`PHOTO-…`, `WhatsApp Image 2025-10-08 at 12.34.56`, `IMG_20251008_123456`; 24-hour only), else its EXIF capture date (JPEG), else the file's modified time. A filename timestamp must be within 90 seconds of an announcement; any other date, within 14 days.
+- **Dating.** Each image is dated by a timestamp in its filename (`PHOTO-…`, `WhatsApp Image 2025-10-08 at 12.34.56`, `IMG_20251008_123456`; 24-hour only), else its EXIF capture date (JPEG), else the file's modified time. A filename timestamp must be within 10 minutes of an announcement (a flyer can follow its text by minutes); any other date, within 14 days.
 - **Confirming.** The primary model (Haiku) reads the image against those announcements (nearest 8, numbered) and picks one. A pick with confidence 0.8 or more is attached; no candidate, no pick or a lower score goes to `ucscmsa-sync-review.json` as `image:<path>`. Never a guess.
 - **What a match does.** The image is added to that event's images in `ucscmsa-sync-enrichment.json`, for the Blob upload. It doesn't change the event's text or times, and doesn't re-post the event.
 - **Formats.** JPEG, PNG and WebP. Anything else (HEIC from an iPhone, say) goes to review: export it as JPEG.
