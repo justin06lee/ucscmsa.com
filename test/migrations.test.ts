@@ -200,3 +200,17 @@ describe("migrations 0005 and 0006 (links, images)", () => {
     }
   });
 });
+
+describe("drizzle journal", () => {
+  // drizzle's migrator skips a migration stamped earlier than the last one
+  // applied, so after a branch merge every `when` must still increase.
+  it("lists migrations in order, each stamped later than the one before", () => {
+    const { entries } = JSON.parse(fs.readFileSync("drizzle/meta/_journal.json", "utf8"));
+    entries.forEach((e: { idx: number; when: number; tag: string }, i: number) => {
+      expect(e.idx).toBe(i);
+      expect(e.tag.startsWith(String(i).padStart(4, "0"))).toBe(true);
+      expect(fs.existsSync(`drizzle/${e.tag}.sql`)).toBe(true);
+      if (i > 0) expect(e.when).toBeGreaterThan(entries[i - 1].when);
+    });
+  });
+});
