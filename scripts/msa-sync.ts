@@ -14,10 +14,10 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { z } from "zod";
 import { draftToOperation, eventify, type CallModel, type LinkEntry, type SourceItem } from "./eventify";
-import { fetchInstagramPosts, IgStop, type IgPost } from "./ig-posts";
+import { fetchInstagramPosts, IgStop, readInstagramExport, type IgPost } from "./ig-posts";
 import {
   expandHome,
   loadConfig,
@@ -194,7 +194,9 @@ function parseArgs(argv: string[]) {
   };
   return {
     dryRun: has("--dry-run"),
-    noInstagram: has("--no-instagram"),
+    // Instagram is off by default; --instagram scrapes, --instagram-export reads a folder.
+    instagram: has("--instagram"),
+    instagramExport: val("--instagram-export"),
     since: val("--since"),
     config: val("--config"),
     syncConfig: val("--sync-config") ?? DEFAULT_SYNC_CONFIG,
@@ -258,12 +260,16 @@ export async function main(argv: string[]): Promise<number> {
     summary.errors.push(`whatsapp scrape: ${(e as Error).message}`);
   }
 
-  // --- 1b. SCRAPE Instagram (secondary, degrade gracefully) ---
+  // --- 1b. Instagram (secondary, off by default, degrade gracefully) ---
+  // --instagram scrapes the live site; --instagram-export reads a local
+  // "Download your information" folder (no browser, no network).
   let maxIgTakenAt = state.lastIgTakenAt ?? 0;
-  if (!args.noInstagram) {
+  if (args.instagram || args.instagramExport) {
     const igSince = state.lastIgTakenAt ? new Date(state.lastIgTakenAt * 1000 + 1000) : new Date("2025-09-01T00:00:00-07:00");
     try {
-      const posts = await fetchInstagramPosts({ username: syncCfg.instagramUsername, since: igSince, outDir: igDir, log: (s) => err(`  ig: ${s}`) });
+      const posts = args.instagramExport
+        ? readInstagramExport(args.instagramExport, igSince)
+        : await fetchInstagramPosts({ username: syncCfg.instagramUsername, since: igSince, outDir: igDir, log: (s) => err(`  ig: ${s}`) });
       summary.igRead = posts.length;
       for (const post of posts) {
         maxIgTakenAt = Math.max(maxIgTakenAt, post.takenAt);
@@ -275,7 +281,7 @@ export async function main(argv: string[]): Promise<number> {
       }
     } catch (e) {
       if (e instanceof IgStop) summary.errors.push(`instagram stopped (not retried): ${e.message}`);
-      else summary.errors.push(`instagram scrape: ${(e as Error).message}`);
+      else summary.errors.push(`instagram ${args.instagramExport ? "export" : "scrape"}: ${(e as Error).message}`);
     }
   }
 
@@ -336,8 +342,9 @@ function igPostToItem(post: IgPost, igDir: string, state: SyncState): SourceItem
   const sourceId = `ig:${post.shortcode}`;
   const h = contentHash(post.caption, post.images.length > 0);
   if (state.processed[sourceId]?.hash === h) return null; // unchanged
-  const imgPath = post.images[0] ? join(igDir, post.images[0]) : null;
-  const img = imageForPath(imgPath);
+  // Scraped posts store bare filenames under igDir; an export stores absolute paths.
+  const full = (f: string) => (isAbsolute(f) ? f : join(igDir, f));
+  const img = imageForPath(post.images[0] ? full(post.images[0]) : null);
   return {
     sourceId,
     sourceRef: post.url,
@@ -345,7 +352,7 @@ function igPostToItem(post: IgPost, igDir: string, state: SyncState): SourceItem
     text: post.caption,
     imageBase64: img?.imageBase64 ?? null,
     imageMediaType: img?.imageMediaType ?? null,
-    imagePaths: post.images.map((f) => join(igDir, f)),
+    imagePaths: post.images.map(full),
   };
 }
 

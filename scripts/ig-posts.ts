@@ -10,9 +10,9 @@
 // the big T7 disk; the profile copy stays on the (encrypted) internal disk.
 
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 export const HELIUM_BIN = "/Applications/Helium.app/Contents/MacOS/Helium";
@@ -80,6 +80,82 @@ export function shapeItem(it: IgFeedItem, cutoff: number): { post: IgPost; media
     },
     mediaNodes: imageNodes,
   };
+}
+
+// ---- Local "Download your information" export (no scraping) ----
+
+type ExportMedia = { uri?: string; creation_timestamp?: number; title?: string };
+type ExportPost = { media?: ExportMedia[]; creation_timestamp?: number; title?: string };
+
+/** Find the posts JSON files in a DYI export (posts_1.json, etc.), to depth 6. */
+function findPostsJson(dir: string, depth = 6): string[] {
+  const found: string[] = [];
+  const walk = (d: string, left: number) => {
+    let entries: string[];
+    try {
+      entries = readdirSync(d);
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      const p = join(d, name);
+      let isDir = false;
+      try {
+        isDir = statSync(p).isDirectory();
+      } catch {
+        continue;
+      }
+      if (isDir) {
+        if (left > 0) walk(p, left - 1);
+      } else if (/^posts(_\d+)?\.json$/i.test(name)) {
+        found.push(p);
+      }
+    }
+  };
+  walk(dir, depth);
+  return found.sort();
+}
+
+/**
+ * Read image posts from a local Instagram "Download your information" export
+ * folder. No network, no browser: the media files are already on disk. Posts
+ * with only video are skipped. The id is derived from the post's timestamp
+ * (the export carries no shortcode), so re-reading the same export is stable.
+ */
+export function readInstagramExport(dir: string, since: Date): IgPost[] {
+  const cutoff = Math.floor(since.getTime() / 1000);
+  const posts: IgPost[] = [];
+  const seen = new Set<string>();
+  for (const file of findPostsJson(dir)) {
+    let data: unknown;
+    try {
+      data = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      continue;
+    }
+    const arr: ExportPost[] = Array.isArray(data) ? data : ((data as Record<string, unknown>).ig_posts as ExportPost[]) ?? ((data as Record<string, unknown>).posts as ExportPost[]) ?? [];
+    for (const post of arr) {
+      const media = post.media ?? [];
+      const images = media.filter((m) => m.uri && /\.(jpe?g|png|webp)$/i.test(m.uri)).map((m) => resolve(dir, m.uri!));
+      if (images.length === 0) continue; // video-only
+      const takenAt = post.creation_timestamp ?? media[0]?.creation_timestamp ?? 0;
+      if (takenAt < cutoff) continue;
+      const code = `ts${takenAt}`;
+      if (seen.has(code)) continue;
+      seen.add(code);
+      posts.push({
+        shortcode: code,
+        url: `instagram-export:${code}`,
+        takenAt,
+        date: fmtDate(takenAt),
+        caption: post.title ?? media[0]?.title ?? "",
+        mediaType: images.length > 1 ? "carousel" : "image",
+        images,
+        pinned: false,
+      });
+    }
+  }
+  return posts.sort((a, b) => a.takenAt - b.takenAt);
 }
 
 type CdpMessage = { id?: number; error?: { message: string }; result?: unknown };

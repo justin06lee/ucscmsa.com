@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { bestImage, fetchInstagramPosts, IgStop, shapeItem, type IgFeedItem } from "./ig-posts";
+import { bestImage, fetchInstagramPosts, IgStop, readInstagramExport, shapeItem, type IgFeedItem } from "./ig-posts";
 
 describe("bestImage", () => {
   it("picks the largest candidate by area", () => {
@@ -79,6 +79,38 @@ function fakeCdp(pages: Record<string, unknown>[], profile: unknown, onImage?: (
       close: () => {},
     });
 }
+
+describe("readInstagramExport", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "ig-export-"));
+    mkdirSync(join(dir, "content"), { recursive: true });
+    mkdirSync(join(dir, "media"), { recursive: true });
+    writeFileSync(join(dir, "media", "a.jpg"), "jpg");
+    writeFileSync(join(dir, "media", "b.jpg"), "jpg");
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("reads image posts, resolves media paths, and skips video-only posts", () => {
+    const posts = [
+      { creation_timestamp: 2000, title: "Flyer one", media: [{ uri: "media/a.jpg", creation_timestamp: 2000 }] },
+      { creation_timestamp: 3000, title: "A reel", media: [{ uri: "media/clip.mp4", creation_timestamp: 3000 }] },
+      { title: "Carousel", media: [{ uri: "media/a.jpg", creation_timestamp: 4000, title: "Carousel" }, { uri: "media/b.jpg" }] },
+    ];
+    writeFileSync(join(dir, "content", "posts_1.json"), JSON.stringify(posts));
+    const read = readInstagramExport(dir, new Date(1000 * 1000));
+    expect(read.map((p) => p.shortcode)).toEqual(["ts2000", "ts4000"]); // reel skipped
+    expect(read[0].url).toBe("instagram-export:ts2000");
+    expect(read[0].images[0]).toBe(join(dir, "media", "a.jpg"));
+    expect(read[1].mediaType).toBe("carousel");
+    expect(read[1].images).toHaveLength(2);
+  });
+
+  it("honours the since cutoff", () => {
+    writeFileSync(join(dir, "content", "posts_1.json"), JSON.stringify([{ creation_timestamp: 500, media: [{ uri: "media/a.jpg" }] }]));
+    expect(readInstagramExport(dir, new Date(1000 * 1000))).toEqual([]);
+  });
+});
 
 describe("fetchInstagramPosts (mocked CDP)", () => {
   let out: string;

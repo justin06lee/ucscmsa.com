@@ -12,12 +12,13 @@ One command does three steps and prints a summary:
 
 ```bash
 umask 077
-bun scripts/msa-sync.ts            # scrape, eventify, post; writes a summary
-bun scripts/msa-sync.ts --dry-run  # same, but the import is previewed and rolled back; state is not advanced
-bun scripts/msa-sync.ts --no-instagram   # WhatsApp only (use when Instagram is rate-limiting)
+bun scripts/msa-sync.ts                       # WhatsApp only (Instagram is off by default); scrape, eventify, post
+bun scripts/msa-sync.ts --dry-run             # same, but the import is previewed and rolled back; state is not advanced
+bun scripts/msa-sync.ts --instagram           # also scrape the live Instagram (slow, stops on any challenge)
+bun scripts/msa-sync.ts --instagram-export <dir>   # also read Instagram from a "Download your information" folder (no browser)
 ```
 
-Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--config <path>` and `--sync-config <path>` point at non-default config files.
+Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--config <path>` and `--sync-config <path>` point at non-default config files. Instagram is a secondary input, **off unless `--instagram` or `--instagram-export` is given**.
 
 The summary lists created, updated, unchanged, needs-review, skipped and errors. **The exit code is non-zero if anything errored** (including an Instagram stop). Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
 
@@ -34,7 +35,10 @@ The eventify step talks to an Anthropic-compatible endpoint. In development that
 
 ### Instagram
 
-Instagram is read through a **throwaway copy** of the signed-in Helium profile, in a separate headless Helium, GET-only and slowly, with a **hard stop on any challenge, login wall or "try again later"**. The profile copy (it holds the session cookies) is made on the internal disk and deleted on every exit; the real browser is never touched, and Safari is never used. Images and captions are public, so they're written to `/Volumes/T7/Stockpile/midna/ucscmsa-ig/` (symlinked from `~/.config/midna/ucscmsa-ig`). `scripts/ig-posts.ts` can be run alone: `bun scripts/ig-posts.ts --since 2025-09-01`.
+Instagram is off by default. Two ways to turn it on:
+
+- **`--instagram` (live scrape).** Read through a **throwaway copy** of the signed-in Helium profile, in a separate headless Helium, GET-only and slowly, with a **hard stop on any challenge, login wall or "try again later"**. The profile copy (it holds the session cookies) is made on the internal disk and deleted on every exit; the real browser is never touched, and Safari is never used. Images and captions are public, so they're written to `/Volumes/T7/Stockpile/midna/ucscmsa-ig/` (symlinked from `~/.config/midna/ucscmsa-ig`). `scripts/ig-posts.ts` can be run alone: `bun scripts/ig-posts.ts --since 2025-09-01`.
+- **`--instagram-export <dir>` (official export).** Point at an unzipped Instagram "Download your information" folder. The posts JSON and media files are read straight off disk — no browser, no network, no rate limits. Posts with only video are skipped; the event id is derived from each post's timestamp (`ig:ts<unix>`), since the export carries no shortcode.
 
 ## Where things are
 
