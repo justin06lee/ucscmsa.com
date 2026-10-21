@@ -35,6 +35,13 @@ function titleLabel(view: View, viewYmd: string, isCurrent: boolean): string {
     : formatLocal(noon, "MMMM yyyy");
 }
 
+// Phones: the long day title ("Wednesday, September 30, 2026") wraps at
+// text-3xl, so day view abbreviates below sm.
+function shortTitleLabel(view: View, viewYmd: string, isCurrent: boolean): string | null {
+  if (isCurrent || view !== "day") return null;
+  return formatLocal(parseHMInLocal(viewYmd, "12:00"), "EEE, MMM d, yyyy");
+}
+
 function subtitleLabel(view: View, viewYmd: string, isCurrent: boolean): string | null {
   if (!isCurrent) return null;
   const noon = parseHMInLocal(viewYmd, "12:00");
@@ -52,6 +59,10 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
   const isCurrent = useMemo(() => matchesNow(viewYmd, view), [viewYmd, view]);
   const title = useMemo(
     () => titleLabel(view, viewYmd, isCurrent),
+    [view, viewYmd, isCurrent]
+  );
+  const shortTitle = useMemo(
+    () => shortTitleLabel(view, viewYmd, isCurrent),
     [view, viewYmd, isCurrent]
   );
   const subtitle = useMemo(
@@ -90,18 +101,27 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
 
   return (
     <header ref={toolbarRef} className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-1 sm:w-auto sm:gap-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => go(stepDate(date, view, -1), view)}
           aria-label="Previous"
-          className="-ml-2 !rounded-full !px-2 !py-2"
+          className="-ml-2 !h-11 !w-11 shrink-0 !rounded-full !p-0"
         >
           <ChevronLeft size={22} />
         </Button>
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-4xl leading-none">{title}</h1>
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 sm:flex-none">
+          <h1 className="text-3xl leading-none sm:text-4xl">
+            {shortTitle ? (
+              <>
+                <span className="sm:hidden">{shortTitle}</span>
+                <span className="hidden sm:inline">{title}</span>
+              </>
+            ) : (
+              title
+            )}
+          </h1>
           {subtitle ? (
             <span className="text-sm text-dim">{subtitle}</span>
           ) : null}
@@ -111,14 +131,14 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
           size="sm"
           onClick={() => go(stepDate(date, view, 1), view)}
           aria-label="Next"
-          className="!rounded-full !px-2 !py-2"
+          className="!h-11 !w-11 shrink-0 !rounded-full !p-0"
         >
           <ChevronRight size={22} />
         </Button>
       </div>
       <div
         role="tablist"
-        className="flex items-center overflow-hidden rounded-full border border-ink/15 text-sm"
+        className="flex w-full items-center overflow-hidden rounded-full border border-ink/15 text-sm sm:w-auto"
       >
         {(["day", "month", "year"] as const).map((v) => (
           <button
@@ -127,7 +147,7 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
             role="tab"
             aria-selected={v === view}
             onClick={() => go(date, v)}
-            className={`px-4 py-1.5 capitalize transition-colors ${
+            className={`min-h-11 flex-1 px-4 capitalize transition-colors sm:flex-none ${
               v === view ? "bg-ink text-paper" : "text-ink/70 hover:bg-ink/5 hover:text-ink"
             }`}
           >
