@@ -548,9 +548,9 @@ export async function runImport(o: ImportOptions): Promise<number> {
   const seen = new Set<string>();
   for (const op of parsed.data.operations) {
     // wa:<message id>, optionally :<YYYY-MM-DD> for one occurrence of a
-    // multi-day announcement, or ig:<shortcode> for an Instagram-only event.
-    if (op.op === "upsert" && !/^(wa:[0-9A-Za-z]+(:\d{4}-\d{2}-\d{2})?|ig:[0-9A-Za-z_-]+)$/.test(op.sourceId)) {
-      err(`warning: sourceId ${op.sourceId} doesn't follow wa:<message id> or ig:<shortcode>`);
+    // multi-day announcement.
+    if (op.op === "upsert" && !/^wa:[0-9A-Za-z]+(:\d{4}-\d{2}-\d{2})?$/.test(op.sourceId)) {
+      err(`warning: sourceId ${op.sourceId} doesn't follow wa:<message id>`);
     }
     const key = `${op.op} ${op.sourceId} ${"occurrenceDate" in op ? op.occurrenceDate ?? "" : ""}`;
     if (seen.has(key)) err(`warning: ${key.trim()} appears twice in this batch`);

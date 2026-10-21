@@ -12,8 +12,8 @@ function mockCall(byText: (text: string) => unknown): CallModel {
   return async (req) => JSON.stringify(byText(req.text));
 }
 
-const emptySummary = (): SyncSummary => ({ waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] });
-const emptyState = (): SyncState => ({ version: 1, lastWaUnix: null, lastIgTakenAt: null, processed: {} });
+const emptySummary = (): SyncSummary => ({ waRead: 0, flyersMatched: 0, flyersUnmatched: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] });
+const emptyState = (): SyncState => ({ version: 1, lastWaUnix: null, processed: {} });
 
 describe("eventifyItems", () => {
   it("turns a clean event into an upsert and marks it created", async () => {
@@ -59,7 +59,7 @@ describe("eventifyItems", () => {
 
   it("counts an already-posted item as updated when it changes", async () => {
     const summary = emptySummary();
-    const state: SyncState = { version: 1, lastWaUnix: null, lastIgTakenAt: null, processed: { "wa:4": { hash: "old", status: "posted" } } };
+    const state: SyncState = { version: 1, lastWaUnix: null, processed: { "wa:4": { hash: "old", status: "posted" } } };
     await eventifyItems([item("wa:4", "Potluck moved to Saturday")], state, {
       call: mockCall(() => ({ isEvent: true, title: "Potluck", date: { value: "2026-02-07" }, confidence: 0.9 })),
       primaryModel: "haiku",
@@ -188,12 +188,12 @@ describe("sync config and state", () => {
     const cfg = loadSyncConfig(join(dir, "missing.json"));
     expect(cfg.aiModel).toBe("claude-haiku-5-5");
     expect(cfg.aiVerifierModel).toBe("claude-sonnet-5-5");
-    expect(cfg.instagramUsername).toBe("ucsc.msa");
+    expect(cfg.flyerDir).toBeUndefined();
   });
 
   it("round-trips state through save and load", () => {
     const p = join(dir, "state.json");
-    const state: SyncState = { version: 1, lastWaUnix: 123, lastIgTakenAt: 456, processed: { "wa:1": { hash: "h", status: "posted" } } };
+    const state: SyncState = { version: 1, lastWaUnix: 123, processed: { "wa:1": { hash: "h", status: "posted" } } };
     saveSyncState(p, state);
     expect(loadSyncState(p)).toEqual(state);
   });

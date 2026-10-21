@@ -12,7 +12,7 @@ import { z } from "zod";
 
 /** One chat/post item to eventify. */
 export type SourceItem = {
-  /** The import sourceId, e.g. wa:<id> or ig:<shortcode>. */
+  /** The import sourceId, e.g. wa:<id> or wa:<id>:<date> for one occurrence. */
   sourceId: string;
   /** Human sourceRef for the batch, e.g. "WhatsApp MSA announcements, 2026-10-18 18:11". */
   sourceRef: string;

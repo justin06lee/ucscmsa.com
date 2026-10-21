@@ -1,23 +1,23 @@
 // The daily MSA sync pipeline. One command:
-//   1. SCRAPE (plain code): new WhatsApp announcements since the last run, and
-//      (secondary) new Instagram image posts. WhatsApp is the primary source.
-//   2. EVENTIFY (an LLM through yagami): turn each new item + its flyer into an
-//      event JSON. Never invents a time; low-confidence items go to review.
-//   3. POST: the import API, idempotent on stable wa:/ig: ids.
-// State, summary and the review file live in ~/.local/share/midna-ucscmsa. A normal run
-// posts; --dry-run previews. Non-zero exit on any error.
+//   1. SCRAPE (plain code): new WhatsApp announcements since the last run, each
+//      with the flyer(s) Justin saved, matched from a folder by timestamp.
+//   2. EVENTIFY (an LLM through yagami): turn each new message + its flyer into
+//      an event JSON. Never invents a time; low-confidence items go to review.
+//   3. POST: the import API, idempotent on stable wa: ids.
+// State, summary and the review file live in ~/.local/share/midna-ucscmsa. A
+// normal run posts; --dry-run previews. Non-zero exit on any error.
 //
 // Usage:
-//   bun scripts/msa-sync.ts [--dry-run] [--no-instagram] [--since <ISO>]
+//   bun scripts/msa-sync.ts [--dry-run] [--since <ISO>]
 //                           [--config <wa.json>] [--sync-config <sync.json>]
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { join } from "node:path";
 import { z } from "zod";
 import { draftToOperation, eventify, type CallModel, type LinkEntry, type SourceItem } from "./eventify";
-import { fetchInstagramPosts, IgStop, readInstagramExport, type IgPost } from "./ig-posts";
+import { assignFlyers, indexFlyers } from "./flyers";
 import {
   expandHome,
   loadConfig,
@@ -33,7 +33,7 @@ import {
 const DEFAULT_SYNC_CONFIG = "~/.local/share/midna-ucscmsa/ucscmsa-sync.json";
 const DEFAULT_SYNC_STATE = "~/.local/share/midna-ucscmsa/ucscmsa-sync-state.json";
 const DEFAULT_REVIEW_FILE = "~/.local/share/midna-ucscmsa/ucscmsa-sync-review.json";
-const DEFAULT_IG_DIR = "~/.local/share/midna-ucscmsa/ucscmsa-ig";
+const DEFAULT_FLYER_DIR = "~/.local/share/midna-ucscmsa/flyers/Msa events";
 
 const DEFAULT_ENV_FILE = "~/.local/share/midna-ucscmsa/msa-sync.env";
 const DEFAULT_BASE_URL = "http://127.0.0.1:8787"; // yagami on this Mac
@@ -45,8 +45,7 @@ const syncConfigSchema = z.object({
   aiVerifierModel: z.string().default("claude-sonnet-5-5"),
   aiEffort: z.string().default("medium"),
   confidenceFloor: z.number().min(0).max(1).optional(),
-  instagramUsername: z.string().default("ucsc.msa"),
-  instagramDir: z.string().optional(),
+  flyerDir: z.string().optional(),
   stateFile: z.string().optional(),
   reviewFile: z.string().optional(),
 });
@@ -55,7 +54,6 @@ export type SyncConfig = z.infer<typeof syncConfigSchema>;
 export type SyncState = {
   version: 1;
   lastWaUnix: number | null;
-  lastIgTakenAt: number | null;
   /** sourceId -> last content hash we eventified, and what became of it. */
   processed: Record<string, { hash: string; status: string }>;
 };
@@ -70,7 +68,7 @@ export function loadSyncConfig(path: string): SyncConfig {
 
 export function loadSyncState(path: string): SyncState {
   const p = expandHome(path);
-  if (!existsSync(p)) return { version: 1, lastWaUnix: null, lastIgTakenAt: null, processed: {} };
+  if (!existsSync(p)) return { version: 1, lastWaUnix: null, processed: {} };
   return JSON.parse(readFileSync(p, "utf8")) as SyncState;
 }
 
@@ -80,8 +78,8 @@ export function saveSyncState(path: string, state: SyncState): void {
   renameSync(`${p}.tmp`, p); // atomic replace
 }
 
-const contentHash = (text: string, hasImage: boolean) =>
-  createHash("sha256").update(JSON.stringify([text, hasImage])).digest("hex").slice(0, 16);
+const contentHash = (text: string, imageKey: string) =>
+  createHash("sha256").update(JSON.stringify([text, imageKey])).digest("hex").slice(0, 16);
 
 const IMG_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 
@@ -202,20 +200,18 @@ function loadAiEnv(cfg: SyncConfig): { baseUrl: string; apiKey: string } {
   return { baseUrl, apiKey };
 }
 
-/** Is this WhatsApp message a candidate to eventify at all? */
-function isCandidate(m: WaMessage): boolean {
+/** Could this WhatsApp message be an announcement worth eventifying? */
+function fromAnnouncer(m: WaMessage): boolean {
   if (m.revoked) return false;
   if (m.replyTo) return false; // a reply under an announcement, not an announcement
   if (m.type === "poll") return false;
-  if (!m.sender.admin) return false; // announcements come from board admins
-  const hasText = !!(m.text && m.text.trim());
-  const hasFlyer = !!m.mediaPath;
-  return hasText || hasFlyer;
+  return m.sender.admin; // announcements come from board admins
 }
 
 export type SyncSummary = {
   waRead: number;
-  igRead: number;
+  flyersMatched: number;
+  flyersUnmatched: number;
   candidates: number;
   created: string[];
   updated: string[];
@@ -228,9 +224,9 @@ export type SyncSummary = {
 };
 
 /**
- * Collect the new/changed source items (WhatsApp, then Instagram), eventify
- * each, and return the operations to post plus the summary. Pure except the
- * injected `call`; the scrape steps are done by the caller and passed in.
+ * Eventify each new/changed source item and return the operations to post,
+ * recording outcomes in the summary. Pure except the injected `call`; the
+ * scrape step is done by the caller and passed in.
  */
 export async function eventifyItems(
   items: SourceItem[],
@@ -263,7 +259,7 @@ export async function eventifyItems(
   return ops;
 }
 
-const itemHash = (item: SourceItem) => contentHash(item.text ?? "", !!item.imageBase64);
+const itemHash = (item: SourceItem) => contentHash(item.text ?? "", (item.imagePaths ?? []).join("|"));
 
 function parseArgs(argv: string[]) {
   const has = (f: string) => argv.includes(f);
@@ -273,9 +269,6 @@ function parseArgs(argv: string[]) {
   };
   return {
     dryRun: has("--dry-run"),
-    // Instagram is off by default; --instagram scrapes, --instagram-export reads a folder.
-    instagram: has("--instagram"),
-    instagramExport: val("--instagram-export"),
     since: val("--since"),
     config: val("--config"),
     syncConfig: val("--sync-config") ?? DEFAULT_SYNC_CONFIG,
@@ -301,12 +294,12 @@ export async function main(argv: string[]): Promise<number> {
   const chatJid = waConfig.chatJid;
   const statePath = syncCfg.stateFile ?? DEFAULT_SYNC_STATE;
   const reviewPath = syncCfg.reviewFile ?? DEFAULT_REVIEW_FILE;
-  const igDir = expandHome(syncCfg.instagramDir ?? DEFAULT_IG_DIR);
+  const flyerDir = expandHome(syncCfg.flyerDir ?? DEFAULT_FLYER_DIR);
   const state = loadSyncState(statePath);
-  const summary: SyncSummary = { waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] };
+  const summary: SyncSummary = { waRead: 0, flyersMatched: 0, flyersUnmatched: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] };
   const enrichmentPath = expandHome("~/.local/share/midna-ucscmsa/ucscmsa-sync-enrichment.json");
 
-  // --- 1. SCRAPE WhatsApp (primary) ---
+  // --- 1. SCRAPE WhatsApp + match flyers from the folder ---
   const since = args.since ? new Date(args.since) : state.lastWaUnix ? new Date(state.lastWaUnix * 1000 + 1000) : new Date("2025-11-01T00:00:00-07:00");
   const items: SourceItem[] = [];
   let maxWaUnix = state.lastWaUnix ?? 0;
@@ -315,53 +308,38 @@ export async function main(argv: string[]): Promise<number> {
       Promise.resolve(readMessages(db, { chatJid, since, state: null, mediaDir: join(expandHome(waConfig.dbDir), "Message") })),
     );
     summary.waRead = messages.length;
-    for (const m of messages) {
-      maxWaUnix = Math.max(maxWaUnix, m.time.unix);
-      if (!isCandidate(m)) continue;
+    const announcements = messages.filter(fromAnnouncer);
+    // Match Justin's saved flyers to announcements by timestamp.
+    const flyers = indexFlyers(flyerDir);
+    const { byMessage, unmatched } = assignFlyers(flyers, announcements.map((m) => m.time.unix));
+    summary.flyersMatched = flyers.length - unmatched.length;
+    summary.flyersUnmatched = unmatched.length;
+
+    for (const m of messages) maxWaUnix = Math.max(maxWaUnix, m.time.unix);
+    for (const m of announcements) {
+      // A folder flyer, else WhatsApp's own downloaded copy if there is one.
+      const flyerPaths = byMessage.get(m.time.unix) ?? (m.mediaPath ? [m.mediaPath] : []);
+      const text = m.text ?? m.caption ?? "";
+      if (!text.trim() && flyerPaths.length === 0) continue; // nothing to read
       summary.candidates++;
-      const h = contentHash(m.text ?? m.caption ?? "", !!m.mediaPath);
+      const h = contentHash(text, flyerPaths.join("|"));
       if (state.processed[m.sourceId]?.hash === h) {
         summary.unchanged.push(m.sourceId);
         continue;
       }
-      const img = imageForPath(m.mediaPath);
+      const img = imageForPath(flyerPaths[0]);
       items.push({
         sourceId: m.sourceId,
         sourceRef: `WhatsApp MSA announcements, ${m.time.santaCruz.slice(0, 16).replace("T", " ")}`,
         sentDate: m.time.santaCruz.slice(0, 10),
-        text: m.text ?? m.caption ?? "",
+        text,
         imageBase64: img?.imageBase64 ?? null,
         imageMediaType: img?.imageMediaType ?? null,
-        imagePaths: m.mediaPath ? [m.mediaPath] : [],
+        imagePaths: flyerPaths,
       });
     }
   } catch (e) {
     summary.errors.push(`whatsapp scrape: ${(e as Error).message}`);
-  }
-
-  // --- 1b. Instagram (secondary, off by default, degrade gracefully) ---
-  // --instagram scrapes the live site; --instagram-export reads a local
-  // "Download your information" folder (no browser, no network).
-  let maxIgTakenAt = state.lastIgTakenAt ?? 0;
-  if (args.instagram || args.instagramExport) {
-    const igSince = state.lastIgTakenAt ? new Date(state.lastIgTakenAt * 1000 + 1000) : new Date("2025-09-01T00:00:00-07:00");
-    try {
-      const posts = args.instagramExport
-        ? readInstagramExport(args.instagramExport, igSince)
-        : await fetchInstagramPosts({ username: syncCfg.instagramUsername, since: igSince, outDir: igDir, log: (s) => err(`  ig: ${s}`) });
-      summary.igRead = posts.length;
-      for (const post of posts) {
-        maxIgTakenAt = Math.max(maxIgTakenAt, post.takenAt);
-        const item = igPostToItem(post, igDir, state);
-        if (item) {
-          summary.candidates++;
-          items.push(item);
-        }
-      }
-    } catch (e) {
-      if (e instanceof IgStop) summary.errors.push(`instagram stopped (not retried): ${e.message}`);
-      else summary.errors.push(`instagram ${args.instagramExport ? "export" : "scrape"}: ${(e as Error).message}`);
-    }
   }
 
   // --- 2. EVENTIFY ---
@@ -408,7 +386,6 @@ export async function main(argv: string[]): Promise<number> {
   // --- persist state (not on dry run) and the review file ---
   if (!args.dryRun) {
     state.lastWaUnix = maxWaUnix || state.lastWaUnix;
-    state.lastIgTakenAt = maxIgTakenAt || state.lastIgTakenAt;
     saveSyncState(statePath, state);
   }
   if (summary.needsReview.length) {
@@ -424,29 +401,11 @@ export async function main(argv: string[]): Promise<number> {
   return exit;
 }
 
-function igPostToItem(post: IgPost, igDir: string, state: SyncState): SourceItem | null {
-  const sourceId = `ig:${post.shortcode}`;
-  const h = contentHash(post.caption, post.images.length > 0);
-  if (state.processed[sourceId]?.hash === h) return null; // unchanged
-  // Scraped posts store bare filenames under igDir; an export stores absolute paths.
-  const full = (f: string) => (isAbsolute(f) ? f : join(igDir, f));
-  const img = imageForPath(post.images[0] ? full(post.images[0]) : null);
-  return {
-    sourceId,
-    sourceRef: post.url,
-    sentDate: post.date.slice(0, 10),
-    text: post.caption,
-    imageBase64: img?.imageBase64 ?? null,
-    imageMediaType: img?.imageMediaType ?? null,
-    imagePaths: post.images.map(full),
-  };
-}
-
 function printSummary(s: SyncSummary, dryRun: boolean, write: (b: string) => void): void {
   const lines = [
     "",
     `MSA sync summary${dryRun ? " (dry run)" : ""}:`,
-    `  WhatsApp messages read: ${s.waRead}; Instagram posts read: ${s.igRead}; candidates: ${s.candidates}`,
+    `  WhatsApp messages read: ${s.waRead}; flyers matched: ${s.flyersMatched} (${s.flyersUnmatched} unmatched); candidates: ${s.candidates}`,
     `  created: ${s.created.length}  updated: ${s.updated.length}  unchanged: ${s.unchanged.length}  needs-review: ${s.needsReview.length}  skipped: ${s.skipped.length}  errors: ${s.errors.length}`,
   ];
   if (s.needsReview.length) {

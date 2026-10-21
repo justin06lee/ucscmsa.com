@@ -1,26 +1,24 @@
 # MSA sync: announcements → calendar
 
-The MSA site's calendar is kept filled from two sources: the WhatsApp announcements chat (primary) and the public `@ucsc.msa` Instagram (secondary, for flyers WhatsApp doesn't have). `scripts/msa-sync.ts` runs the whole pipeline daily; the pieces are also usable by hand.
+The MSA site's calendar is kept filled from the WhatsApp announcements chat, each announcement paired with the flyer image(s) Justin saved to a folder. `scripts/msa-sync.ts` runs the whole pipeline daily; the pieces are also usable by hand. (There is no Instagram path.)
 
 ## The daily pipeline — `bun scripts/msa-sync.ts`
 
 One command does three steps and prints a summary:
 
-1. **Scrape (plain code, no LLM).** New WhatsApp announcements since the last run, plus their downloaded flyer files; and new Instagram image posts (reels and videos skipped). Incremental: only items newer than the last run.
+1. **Scrape (plain code, no LLM).** New WhatsApp announcements since the last run, each matched to its flyer image(s) from Justin's saved folder by the timestamp in the filename. Incremental: only messages newer than the last run.
 2. **Eventify (an LLM through [yagami](https://github.com/justin06lee/yagami)).** Each new message + its flyer becomes an event JSON. **A time is kept only when it's quoted from the message text, or both the primary (Haiku) and verifier (Sonnet) model read the same time off the flyer** — otherwise the time is dropped (date-only / start-only) or the item is held for review. The description is the full announcement text with its line breaks, opening with "Hosted by …" for other groups' events (phone numbers and private names removed). Links are the URLs that actually appear in the text, classified (`rsvp`/`form`/`donate`/`signup`/`map`/`other`) — a URL only on a flyer, or not in the text, is never used. All flyer images are kept in order. Jummah, polls, deleted messages and non-events are skipped.
-3. **Post.** Valid events go to the [import API](import.md) as idempotent upserts on stable `wa:`/`ig:` ids. Low-confidence or unclear items go to a review file instead of the site.
+3. **Post.** Valid events go to the [import API](import.md) as idempotent upserts on stable `wa:` ids. Low-confidence or unclear items go to a review file instead of the site.
 
 ```bash
 umask 077
-bun scripts/msa-sync.ts                       # WhatsApp only (Instagram is off by default); scrape, eventify, post
-bun scripts/msa-sync.ts --dry-run             # same, but the import is previewed and rolled back; state is not advanced
-bun scripts/msa-sync.ts --instagram           # also scrape the live Instagram (slow, stops on any challenge)
-bun scripts/msa-sync.ts --instagram-export <dir>   # also read Instagram from a "Download your information" folder (no browser)
+bun scripts/msa-sync.ts             # scrape, eventify, post; writes a summary
+bun scripts/msa-sync.ts --dry-run   # same, but the import is previewed and rolled back; state is not advanced
 ```
 
-Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--config <path>` and `--sync-config <path>` point at non-default config files. Instagram is a secondary input, **off unless `--instagram` or `--instagram-export` is given**.
+Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--config <path>` and `--sync-config <path>` point at non-default config files.
 
-The summary lists created, updated, unchanged, needs-review, skipped and errors. **The exit code is non-zero if anything errored** (including an Instagram stop). Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
+The summary lists created, updated, unchanged, needs-review, skipped and errors, plus how many flyers matched an announcement (and how many didn't). **The exit code is non-zero if anything errored.** Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
 
 ### The LLM step (yagami)
 
@@ -45,12 +43,9 @@ chmod 600 ~/.local/share/midna-ucscmsa/msa-sync.env
 
 The key is read but never printed. Requests are sent one at a time (under yagami's concurrency guidance); overloads — which yagami returns as a normal reply, not an HTTP error — and 5xx/429 are retried up to six times with backoff and `Retry-After`, but a refused connection is never retried.
 
-### Instagram
+### Flyers
 
-Instagram is off by default. Two ways to turn it on:
-
-- **`--instagram` (live scrape).** Read through a **throwaway copy** of the signed-in Helium profile, in a separate headless Helium, GET-only and slowly, with a **hard stop on any challenge, login wall or "try again later"**. The profile copy (it holds the session cookies) is made on the internal disk and deleted on every exit; the real browser is never touched, and Safari is never used. Images and captions are public, so they're written to `/Volumes/T7/Stockpile/midna/ucscmsa-ig/` (symlinked from `~/.local/share/midna-ucscmsa/ucscmsa-ig`). `scripts/ig-posts.ts` can be run alone: `bun scripts/ig-posts.ts --since 2025-09-01`.
-- **`--instagram-export <dir>` (official export).** Point at an unzipped Instagram "Download your information" folder. The posts JSON and media files are read straight off disk — no browser, no network, no rate limits. Posts with only video are skipped; the event id is derived from each post's timestamp (`ig:ts<unix>`), since the export carries no shortcode.
+Flyers come from Justin's saved folder, `~/.local/share/midna-ucscmsa/flyers/Msa events/` (set `flyerDir` in the sync config to change it). WhatsApp saves photos as `PHOTO-YYYY-MM-DD-HH-MM-SS.jpg` in Santa Cruz wall-clock time — the instant the announcement was sent — so each flyer is matched to the announcement it was posted with, within 90 seconds. An album sent at once (`PHOTO-…-SS.jpg`, `…(1).jpg`, `…(2).jpg`) stays together and in order. A folder flyer takes precedence over WhatsApp's own downloaded copy. Flyers that match no announcement are counted in the summary (`unmatched`) and left alone. The matched flyers are the event's images for the Blob upload (a later step, once that endpoint is live).
 
 ## Where things are
 
@@ -59,13 +54,13 @@ Everything private lives in `~/.local/share/midna-ucscmsa/` (the directory is `c
 | File | What |
 |---|---|
 | `ucscmsa-wa.json` | Config: `chatJid` (the announcements chat), and optionally `tokenFile`, `stateFile`, `baseUrl`, `dbDir`. |
-| `ucscmsa-sync.json` | Sync config: the yagami endpoint, key file and model ids, and Instagram settings. |
+| `ucscmsa-sync.json` | Sync config: the yagami endpoint, key file, model ids, and `flyerDir`. |
 | `ucscmsa-import-token` | The `EVENT_IMPORT_TOKEN`. The scripts read it and never print it. |
 | `ucscmsa-wa-state.json` | A hash per message, so `read` can tell when a message was edited. |
-| `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time, last-seen Instagram post, and per-id status. |
+| `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time and per-id status. |
 | `ucscmsa-sync-review.json` | Items the sync held back for a human to check. |
 | `ucscmsa-sync-enrichment.json` | Per posted event: its links and flyer images, held until the import API accepts those fields. |
-| `ucscmsa-ig/` | Instagram images and `manifest.json` (a symlink to the T7 disk). |
+| `flyers/Msa events/` | Justin's saved announcement flyers (`PHOTO-…` images). |
 | `ucscmsa-batch-<date>.json` | The hand-written batches you send. |
 
 ## The manual flow (`scripts/wa-announcements.ts`)
