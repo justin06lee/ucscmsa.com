@@ -9,6 +9,7 @@ import { requireAdminId } from "@/lib/auth";
 import { eventInputSchema, nominateSchema } from "./_schemas";
 import { parseHMInLocal, toLocalYmd } from "@/lib/time";
 import { approveNominationTx, createNomination } from "./_governance";
+import { deleteEventRecordingImport } from "@/lib/import/apply";
 
 function resolveDates(p: {
   startDate: string;
@@ -92,6 +93,8 @@ export async function updateEvent(id: string, fd: FormData) {
     recurrenceInterval: p.recurrenceInterval,
     recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
     updatedAt: new Date(),
+    // Tells the event importer not to overwrite this admin's changes.
+    adminEditedAt: new Date(),
   }).where(eq(events.id, id));
   revalidateEventPages(id);
   return { ok: true as const };
@@ -99,7 +102,8 @@ export async function updateEvent(id: string, fd: FormData) {
 
 export async function deleteEvent(id: string) {
   await requireAdminId();
-  await db.delete(events).where(eq(events.id, id));
+  // Imported events leave a tombstone so the importer doesn't re-create them.
+  await deleteEventRecordingImport(db, id);
   revalidateEventPages(id);
   return { ok: true as const };
 }
