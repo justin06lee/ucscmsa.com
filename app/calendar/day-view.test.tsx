@@ -23,6 +23,7 @@ function occ(id: string, title: string, ymd: string, start: string, end: string)
     location: "",
     occurrenceStart: parseHMInLocal(ymd, start),
     occurrenceEnd: parseHMInLocal(ymd, end),
+    timing: "timed",
   };
 }
 

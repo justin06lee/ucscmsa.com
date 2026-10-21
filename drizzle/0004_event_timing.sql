@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `timing` text DEFAULT 'timed' NOT NULL;

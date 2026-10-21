@@ -20,7 +20,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getOccurrencesInRange } from "@/lib/db/queries";
-import { deleteEvent, updateEvent } from "@/app/admin/_actions";
+import { createEvent, deleteEvent, updateEvent } from "@/app/admin/_actions";
 import { POST } from "./route";
 
 const TOKEN = "test-import-token-0123456789-abcdefghij";
@@ -346,6 +346,77 @@ describe("dry run", () => {
     expect(real.json.results!.map((x) => [x.sourceId, x.status, x.dryRun])).toEqual(
       preview.json.results!.map((x) => [x.sourceId, x.status, undefined])
     );
+  });
+});
+
+describe("optional times", () => {
+  const untimed = { startTime: undefined, endTime: undefined, recurrence: undefined };
+
+  it("imports a date-only event; the same request is unchanged; adding a start time updates it", async () => {
+    const first = await post(req(upsert("t-date", untimed)));
+    expect(first.json.results![0].status).toBe("created");
+    let row = await eventBySourceId("t-date");
+    expect(row.timing).toBe("date_only");
+    expect(row.startTime.toISOString()).toBe("2026-10-23T07:00:00.000Z"); // midnight PDT
+    expect(row.endTime.toISOString()).toBe("2026-10-24T06:59:59.999Z");
+
+    expect((await post(req(upsert("t-date", untimed)))).json.results![0].status).toBe("unchanged");
+
+    const later = await post(req(upsert("t-date", { ...untimed, startTime: "18:00" })));
+    expect(later.json.results![0].status).toBe("updated");
+    row = await eventBySourceId("t-date");
+    expect(row.timing).toBe("start_only");
+    expect(row.startTime.toISOString()).toBe("2026-10-24T01:00:00.000Z");
+    expect(row.endTime.toISOString()).toBe("2026-10-24T06:59:59.999Z");
+  });
+
+  it("rejects an end time without a start time, and an end date before the date", async () => {
+    const endOnly = await post(req(upsert("t-bad", { ...untimed, endTime: "18:00" })));
+    expect(endOnly.status).toBe(400);
+    expect(endOnly.json.issues?.map((i) => i.path)).toContain("operations.0.event.startTime");
+    const backwards = await post(req(upsert("t-bad", { ...untimed, endDate: "2026-10-22" })));
+    expect(backwards.status).toBe(400);
+    expect(backwards.json.issues?.map((i) => i.path)).toContain("operations.0.event.endDate");
+    expect(await eventBySourceId("t-bad")).toBeUndefined();
+  });
+
+  it("checks DST only for the times that are given", async () => {
+    const springForward = { ...untimed, date: "2026-03-08" };
+    expect((await post(req(upsert("t-dst", springForward)))).json.results![0].status).toBe("created");
+    const skipped = await post(req(upsert("t-dst-2", { ...springForward, startTime: "02:30" })));
+    expect(skipped.status).toBe(400);
+    expect(skipped.json.issues?.map((i) => i.path)).toContain("operations.0.event.startTime");
+  });
+
+  it("previews a date-only event with dryRun and writes nothing", async () => {
+    const r = await post({ ...req(upsert("t-dry", untimed)), dryRun: true });
+    expect(r.json.results![0]).toMatchObject({ status: "created", dryRun: true });
+    expect(await eventBySourceId("t-dry")).toBeUndefined();
+  });
+
+  it("lets the admin form save date-only and start-only events", async () => {
+    const fd = adminForm("Potluck");
+    fd.set("startTime", "");
+    fd.set("endTime", "");
+    fd.set("recurrenceFreq", "none");
+    const made = await createEvent(fd);
+    expect(made.ok).toBe(true);
+    const id = (made as { id: string }).id;
+    const one = async () => (await db.select().from(events).where(eq(events.id, id)))[0];
+    expect(await one()).toMatchObject({
+      timing: "date_only",
+      startTime: new Date("2026-10-23T07:00:00.000Z"),
+      endTime: new Date("2026-10-24T06:59:59.999Z"),
+    });
+
+    fd.set("startTime", "18:00");
+    expect((await updateEvent(id, fd)).ok).toBe(true);
+    expect(await one()).toMatchObject({ timing: "start_only", startTime: new Date("2026-10-24T01:00:00.000Z") });
+
+    fd.set("startTime", "");
+    fd.set("endTime", "19:00");
+    expect(await updateEvent(id, fd)).toMatchObject({ ok: false });
+    expect((await one()).timing).toBe("start_only");
   });
 });
 

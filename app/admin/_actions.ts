@@ -6,8 +6,9 @@ import { db } from "@/lib/db/client";
 import { adminNominations, events } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminId } from "@/lib/auth";
-import { eventInputSchema, nominateSchema } from "./_schemas";
+import { eventInputSchema, nominateSchema, type EventInputForm } from "./_schemas";
 import { parseHMInLocal, toLocalYmd } from "@/lib/time";
+import { eventInstants } from "@/lib/event-rules";
 import { approveNominationTx, createNomination } from "./_governance";
 import { deleteEventRecordingImport } from "@/lib/import/apply";
 
@@ -23,6 +24,17 @@ function resolveDates(p: {
   const startDate = p.startDate || today;
   const endDate = p.endDate || startDate;
   return { startDate, endDate };
+}
+
+// The timing and stored start/end for the form's dates and optional times.
+function formInstants(p: EventInputForm) {
+  const { startDate, endDate } = resolveDates(p);
+  return eventInstants({
+    date: startDate,
+    endDate,
+    startTime: p.startTime || undefined,
+    endTime: p.endTime || undefined,
+  });
 }
 
 // Everywhere an event shows up, including the landing page's upcoming list.
@@ -50,17 +62,13 @@ export async function createEvent(fd: FormData) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
   const p = parsed.data;
-  const { startDate, endDate } = resolveDates(p);
-  const startTime = parseHMInLocal(startDate, p.startTime);
-  const endTime = parseHMInLocal(endDate, p.endTime);
   const id = ulid();
   await db.insert(events).values({
     id,
     title: p.title,
     description: p.description,
     location: p.location,
-    startTime,
-    endTime,
+    ...formInstants(p),
     recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
     recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
     recurrenceInterval: p.recurrenceInterval,
@@ -81,13 +89,11 @@ export async function updateEvent(id: string, fd: FormData) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   }
   const p = parsed.data;
-  const { startDate, endDate } = resolveDates(p);
   await db.update(events).set({
     title: p.title,
     description: p.description,
     location: p.location,
-    startTime: parseHMInLocal(startDate, p.startTime),
-    endTime: parseHMInLocal(endDate, p.endTime),
+    ...formInstants(p),
     recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
     recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
     recurrenceInterval: p.recurrenceInterval,
