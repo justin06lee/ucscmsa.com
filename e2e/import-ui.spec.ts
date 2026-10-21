@@ -20,6 +20,11 @@ test("an event that isn't cancelled keeps RSVP and EventScheduled", async ({ pag
   await page.goto("/calendar/events/ev-potluck");
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "RSVP" })).toBeVisible();
+  // Signed out: the sign-in page, coming back to this event.
+  await expect(page.getByRole("link", { name: "Sign in with UCSC to RSVP" })).toHaveAttribute(
+    "href",
+    "/login?callbackUrl=%2Fcalendar%2Fevents%2Fev-potluck",
+  );
   const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
   expect(ld.join("")).toContain("https://schema.org/EventScheduled");
 });

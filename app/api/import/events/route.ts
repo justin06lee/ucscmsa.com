@@ -86,6 +86,8 @@ export async function POST(req: Request) {
       revalidatePath("/");
       revalidatePath("/calendar");
       revalidatePath("/admin");
+      // Works on `next start`; on Vercel the sitemap waited for its hourly
+      // revalidate anyway (2026-10-21). See docs/import.md.
       revalidatePath("/sitemap.xml");
       for (const id of changedEventIds) revalidatePath(`/calendar/events/${id}`);
     }

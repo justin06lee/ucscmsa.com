@@ -45,7 +45,11 @@ export function WiggleLetters() {
             aria-hidden="true"
             draggable={false}
             style={{
-              height: "clamp(48px, 10vw, 96px)",
+              // Eight square glyphs plus 60px of fixed spacing (seven 4px
+              // gaps, two 16px margins) must fit inside the landing page's
+              // 24px side padding: a 48px floor ran the last "SC" off a
+              // 375-390px phone.
+              height: "clamp(28px, calc((100vw - 108px) / 8), 96px)",
               width: "auto",
               marginLeft: g.marginLeft,
             }}

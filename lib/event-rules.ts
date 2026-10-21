@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { SITE_TZ } from "./time";
+import { endOfLocalDayUtc, SITE_TZ, startOfLocalDayUtc } from "./time";
 
 // Field rules shared by the admin event form and the event import API, so an
 // event that gets in either way can't break the calendar.
@@ -59,4 +59,45 @@ export function localTimeKind(ymd: string, hm: string): "ok" | "nonexistent" | "
 /** The instant of a Santa Cruz wall-clock date and time. */
 export function localInstant(ymd: string, hm: string): Date {
   return fromZonedTime(`${ymd}T${hm}:00`, SITE_TZ);
+}
+
+// How much of an event's time is known. Announcements often give only a date,
+// or a start with no end, and nothing is invented to fill the gap:
+//  - "timed":      start and end times are known;
+//  - "start_only": the start time is known, the end isn't;
+//  - "date_only":  only the date (or dates) are known.
+// The stored instants stay complete so ranges, sorting and RSVPs need no
+// special cases: an unknown start is the start of the Santa Cruz day (so a
+// date-only event sorts first in its day), and an unknown end is the end of
+// the event's last Santa Cruz day (so it stays upcoming through that day).
+export const EVENT_TIMINGS = ["timed", "start_only", "date_only"] as const;
+export type EventTiming = (typeof EVENT_TIMINGS)[number];
+
+/** The timing that a start and end time (each optional) describe, or null when only an end time is given. */
+export function timingOf(startTime?: string, endTime?: string): EventTiming | null {
+  if (startTime && endTime) return "timed";
+  if (startTime) return "start_only";
+  if (endTime) return null;
+  return "date_only";
+}
+
+/**
+ * The stored start and end instants for an event's local date and optional
+ * times. `endDate` defaults to `date`. Throws if only an end time is given;
+ * callers validate that first.
+ */
+export function eventInstants(p: {
+  date: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+}): { timing: EventTiming; startTime: Date; endTime: Date } {
+  const timing = timingOf(p.startTime, p.endTime);
+  if (!timing) throw new Error("An end time needs a start time");
+  const endDate = p.endDate || p.date;
+  return {
+    timing,
+    startTime: p.startTime ? localInstant(p.date, p.startTime) : startOfLocalDayUtc(p.date),
+    endTime: p.endTime ? localInstant(endDate, p.endTime) : endOfLocalDayUtc(endDate),
+  };
 }

@@ -70,7 +70,7 @@ export function SiteCard({ a }: { a: Assets }) {
         Muslim Student Association at UC Santa Cruz
       </div>
       <div style={{ marginTop: 14, fontSize: 26, color: DIM }}>
-        Jummah, halaqas, events and daily prayer times · ucscmsa.com
+        Events and prayer times · ucscmsa.com
       </div>
     </div>
   );

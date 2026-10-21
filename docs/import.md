@@ -42,6 +42,7 @@ Migrations `drizzle/0002_melodic_redwing.sql` (from the audit) and `drizzle/0003
 
 - **0003 is safe on live data:** it only adds columns, two tables and an index.
 - **Existing events become `source: "manual"`.**
+- **`drizzle/0004_event_timing.sql` (optional times)** adds the `timing` column; existing events become `timed`. It must run before the code that sends or stores date-only events is deployed.
 - **To apply them,** run this with the production URL and token:
 
   ```bash
@@ -108,12 +109,23 @@ These are the same rules as the admin event form.
 | `description` | string | no | Up to 10,000 characters. Default `""`. |
 | `location` | string | no | Up to 200 characters after trimming. Default `""`. |
 | `date` | string | yes | The start date, `YYYY-MM-DD`. Must be a real date in the years 2000–2100. |
-| `startTime` | string | yes | `HH:mm`, 24-hour, `00:00`–`23:59`. |
-| `endTime` | string | yes | `HH:mm`, 24-hour. |
+| `startTime` | string | no | `HH:mm`, 24-hour, `00:00`–`23:59`. Leave it out when the announcement gives no time. |
+| `endTime` | string | no | `HH:mm`, 24-hour. Only together with `startTime`. |
 | `endDate` | string | no | `YYYY-MM-DD`, for events that end on a later day. Defaults to `date`. |
 | `recurrence` | object | no | Omit for a one-off event. See below. |
 
 **Times are Santa Cruz wall-clock times** (America/Los_Angeles), exactly as the announcement says them. `"date": "2026-10-23", "startTime": "13:30"` means 1:30 PM in Santa Cruz on that day, whether it's PDT or PST; the server works out the offset. A recurring event keeps that wall-clock time on both sides of a DST change.
+
+**Times are optional; never invent one.** Send only what the announcement says:
+
+| Sent | Meaning | Stored `timing` |
+|---|---|---|
+| `startTime` and `endTime` | Start and end are known. | `timed` |
+| `startTime` only | The start is known, the end isn't. The site shows no end time. | `start_only` |
+| Neither | Only the date (or dates, with `endDate`) is known. The site shows the date only, first in its day. | `date_only` |
+| `endTime` only | Not allowed: `400`. | — |
+
+An event without an end time counts as upcoming until the end of its last Santa Cruz day. Date-only and start-only events can recur like any other.
 
 Two kinds of time are rejected rather than guessed:
 
@@ -122,7 +134,7 @@ Two kinds of time are rejected rather than guessed:
 
 Other date and time rules:
 
-- **The end must be after the start.**
+- **With both times, the end must be after the start.** Without both, `endDate` may equal `date` but not come before it.
 - **An event that ends past midnight needs `endDate`.**
 
 #### `event.recurrence`
@@ -218,6 +230,16 @@ A real run made later can still get different results if an admin or another imp
 - **A batch is applied in one transaction:** all of it or none of it.
 - **The same request again** returns `unchanged` for every item, creates nothing and writes nothing.
 - **After a timeout, a network error or a `500`,** resend the same request. Items that already applied come back `unchanged`.
+
+### When changes show on the site
+
+- **The calendar, event pages and the admin dashboard:** at once. They are rendered on every request.
+- **The home page's "Upcoming" list:** within 5 minutes. The page is re-rendered at most every 5 minutes.
+- **`/sitemap.xml`: within an hour.**
+  - The import asks Next.js to refresh the sitemap, and that works on a self-hosted `next start`.
+  - On Vercel it didn't: after a real import on 2026-10-21, the live sitemap kept serving its cached copy until its hourly refresh.
+  - Search engines re-read sitemaps much less often than hourly, so this is accepted.
+- **An event's share image:** within an hour.
 
 ## Errors
 
@@ -377,6 +399,15 @@ curl -sS "$URL" \
           "endDate": "2026-11-01"
         }
       },
+      {
+        "op": "upsert",
+        "sourceId": "2026-11-07-hike",
+        "event": {
+          "title": "Sisters'\'' Hike",
+          "location": "Wilder Ranch",
+          "date": "2026-11-07"
+        }
+      },
       { "op": "cancel", "sourceId": "weekly-jummah-fall-2026", "occurrenceDate": "2026-10-30" }
     ]
   }'
@@ -390,7 +421,8 @@ A response to that batch:
   "results": [
     { "index": 0, "op": "upsert", "sourceId": "wa-3EB0C431F8A2", "status": "created", "eventId": "01JAE7…" },
     { "index": 1, "op": "upsert", "sourceId": "2026-10-31-quran-night", "status": "created", "eventId": "01JAE7…" },
-    { "index": 2, "op": "cancel", "sourceId": "weekly-jummah-fall-2026", "status": "cancelled", "eventId": "01JA9Q…", "occurrenceDate": "2026-10-30" }
+    { "index": 2, "op": "upsert", "sourceId": "2026-11-07-hike", "status": "created", "eventId": "01JAE8…" },
+    { "index": 3, "op": "cancel", "sourceId": "weekly-jummah-fall-2026", "status": "cancelled", "eventId": "01JA9Q…", "occurrenceDate": "2026-10-30" }
   ]
 }
 ```
@@ -431,6 +463,7 @@ New columns on `events`:
 | `last_imported_at` | When an import last changed it |
 | `admin_edited_at` | Set when an admin saves the event in the admin form |
 | `cancelled_at` | Set while the whole event is cancelled |
+| `timing` | `timed`, `start_only` or `date_only` (migration 0004). An unknown start is stored as the start of the Santa Cruz day, an unknown end as the end of the last day |
 
 New tables:
 

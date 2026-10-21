@@ -6,6 +6,11 @@ import { seed, signIn } from "./fixtures";
 
 const WIDTHS = [375, 390, 768] as const;
 
+// A month the seed's past events fill (scripts/seed-local.ts), three back from today.
+const MONTHS_BACK = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+  timeZone: "America/Los_Angeles",
+});
+
 const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "landing", path: "/" },
   { name: "calendar month", path: "/calendar?view=month&date=2026-10-20" },
@@ -13,6 +18,10 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "calendar year", path: "/calendar?view=year&date=2026-10-20" },
   { name: "event", path: "/calendar/events/ev-gbm" },
   { name: "recurring event", path: "/calendar/events/ev-jummah" },
+  { name: "event with links", path: "/calendar/events/ev-sisters" },
+  { name: "past event", path: "/calendar/events/ev-past-01" },
+  { name: "calendar month, 3 back", path: `/calendar?view=month&date=${MONTHS_BACK}` },
+  { name: "calendar this month", path: "/calendar?view=month" },
   { name: "event signed in", path: "/calendar/events/ev-gbm", as: "member" },
   { name: "login", path: "/login" },
   { name: "404", path: "/this-page-does-not-exist" },
@@ -68,11 +77,11 @@ for (const width of WIDTHS) {
         await page.waitForLoadState("networkidle");
         expect(new URL(page.url()).pathname).toBe(new URL(p.path, baseURL).pathname);
 
-        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
-          scrollWidth: document.documentElement.scrollWidth,
-          innerWidth: window.innerWidth,
-        }));
-        expect(scrollWidth, "page scrolls sideways").toBeLessThanOrEqual(innerWidth);
+        // Against the configured width, not window.innerWidth: with isMobile,
+        // Chrome widens the layout viewport to fit overflowing content, so
+        // that comparison could never fail (it missed the landing wordmark).
+        const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+        expect(scrollWidth, "page scrolls sideways").toBeLessThanOrEqual(width);
         expect(await smallTargets(page, 24, true), "under the WCAG 24px minimum").toEqual([]);
         expect(await smallTargets(page, 44, false), "under 44px").toEqual([]);
       });

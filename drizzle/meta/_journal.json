@@ -29,6 +29,13 @@
       "when": 1792541068734,
       "tag": "0003_event_import",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792606311290,
+      "tag": "0004_event_timing",
+      "breakpoints": true
     }
   ]
 }
