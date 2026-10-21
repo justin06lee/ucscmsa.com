@@ -79,9 +79,9 @@ export default async function NominationsPage() {
               return (
                 <li
                   key={n.id}
-                  className="border border-ink/10 rounded p-4 flex items-center justify-between gap-4"
+                  className="border border-ink/10 rounded p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <div>
+                  <div className="min-w-0 break-words">
                     <div className="font-medium">
                       {n.action === "promote" ? "Promote" : "Demote"} {target}
                     </div>
@@ -108,7 +108,7 @@ export default async function NominationsPage() {
           )}
         </ul>
         <h2 className="text-lg font-medium mt-10 mb-2">History</h2>
-        <ul className="text-sm text-dim flex flex-col gap-1">
+        <ul className="text-sm text-dim flex flex-col gap-1 break-words">
           {noms
             .filter((n) => n.status !== "pending")
             .map((n) => (

@@ -14,30 +14,57 @@ export default async function AdminEvents() {
         <h1 className="text-3xl">Events</h1>
         <Link
           href="/admin/events/new"
-          className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-paper transition-colors hover:bg-burgundy"
+          className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-paper transition-colors hover:bg-burgundy"
         >
           New event
         </Link>
       </div>
-      <table className="w-full text-sm">
+      {/* Phones: one card per event; the four-column table needs ~560px. */}
+      <ul className="flex flex-col gap-3 sm:hidden">
+        {rows.map((r) => (
+          <li key={r.id}>
+            <Link
+              href={`/admin/events/${r.id}/edit`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-4 py-3 transition-colors hover:border-ink/25"
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="font-medium break-words">{r.title}</span>
+                <span className="text-sm text-dim">
+                  {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
+                  {r.recurrenceFreq ? ` · ${r.recurrenceFreq}` : ""}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm text-burgundy">Edit</span>
+            </Link>
+          </li>
+        ))}
+        {rows.length === 0 && (
+          <li className="py-8 text-center text-dim">No events yet. Create one to get started.</li>
+        )}
+      </ul>
+      <table className="hidden w-full text-sm sm:table">
         <thead>
           <tr className="text-left text-dim">
             <th className="py-2">Title</th>
             <th className="py-2">Start</th>
             <th className="py-2">Recurrence</th>
-            <th className="py-2"></th>
+            <th className="py-2"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t border-ink/10">
-              <td className="py-2">{r.title}</td>
-              <td className="py-2 text-dim">
+              <td className="py-2 pr-3">{r.title}</td>
+              <td className="py-2 pr-3 text-dim">
                 {formatLocal(r.startTime, "MMM d, yyyy h:mm a")}
               </td>
-              <td className="py-2 text-dim">{r.recurrenceFreq ?? "—"}</td>
-              <td className="py-2 text-right">
-                <Link href={`/admin/events/${r.id}/edit`} className="text-burgundy hover:underline">
+              <td className="py-2 pr-3 text-dim">{r.recurrenceFreq ?? "—"}</td>
+              <td className="py-1 text-right">
+                <Link
+                  href={`/admin/events/${r.id}/edit`}
+                  aria-label={`Edit ${r.title}`}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-burgundy hover:underline"
+                >
                   Edit
                 </Link>
               </td>

@@ -51,7 +51,7 @@ export default async function EditEventPage({ params }: Props) {
         }}
       />
       <form action={del} className="mt-8">
-        <Button type="submit" variant="danger-outline">
+        <Button type="submit" variant="danger-outline" size="lg">
           Delete event
         </Button>
       </form>

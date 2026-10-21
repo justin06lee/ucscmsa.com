@@ -16,10 +16,10 @@ export function ActionsRow({
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {!iAmNominator && (
         <Button
-          size="sm"
+          size="lg"
           disabled={pending || iApproved}
           onClick={() => {
             setErr(null);
@@ -34,7 +34,7 @@ export function ActionsRow({
       )}
       {iAmNominator && (
         <Button
-          size="sm"
+          size="lg"
           variant="outline"
           disabled={pending}
           onClick={() => {
