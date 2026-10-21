@@ -1,8 +1,10 @@
 // @vitest-environment node
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   APPLE_EPOCH_UNIX,
@@ -216,6 +218,23 @@ describe("read", () => {
       // the system row at 00:00 is skipped; the type-75 row exactly at until is excluded
     ]);
   });
+
+  it("writes a read bigger than a pipe buffer in full before exiting", () => {
+    for (let i = 0; i < 300; i++) {
+      const at = new Date(Date.parse("2026-12-03T00:00:00Z") + i * 60_000).toISOString();
+      insertMessage(writer, { pk: 1000 + i, id: `3AF000000000000E${String(i).padStart(4, "0")}`, at, text: "x".repeat(1000) });
+    }
+    const config = join(src, "config.json");
+    writeFileSync(config, JSON.stringify({ chatJid: ANNOUNCEMENTS, dbDir: src }));
+    const script = fileURLToPath(new URL("./wa-announcements.ts", import.meta.url));
+    const r = spawnSync("bun", [script, "read", "--since", "2026-12-03T00:00:00Z", "--no-state", "--config", config], {
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout.length).toBeGreaterThan(128 * 1024);
+    expect(JSON.parse(r.stdout)).toHaveLength(300);
+  }, 30_000);
 
   it("reads rows that exist only in the WAL", async () => {
     const before = await read({ since: "2026-12-01T00:00:00Z" });

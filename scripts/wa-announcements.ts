@@ -741,7 +741,11 @@ export async function main(argv: string[], openDb: OpenDb = openWithBunSqlite): 
   }
 }
 
-// Run as a script under bun; importing it (the tests) runs nothing.
+// Run as a script under bun; importing it (the tests) runs nothing. Setting
+// exitCode rather than calling exit() lets stdout drain: exit() cut piped
+// output off at 128 KiB.
 if ((import.meta as { main?: boolean }).main) {
-  main(process.argv.slice(2)).then((code) => process.exit(code));
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
 }
