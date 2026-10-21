@@ -25,6 +25,9 @@ function occ(id: string, title: string, ymd: string, start: string, end: string)
     occurrenceStart: parseHMInLocal(ymd, start),
     occurrenceEnd: parseHMInLocal(ymd, end),
     timing: "timed",
+    links: [],
+    cover: null,
+    imageCount: 0,
   };
 }
 

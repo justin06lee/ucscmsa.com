@@ -142,6 +142,13 @@ describe("validation", () => {
     ["an unknown op", req({ op: "delete", sourceId: "v" })],
     ["a title over 200 characters", req(upsert("v", { title: "x".repeat(201) }))],
     ["a dryRun that isn't a boolean", { ...req(upsert("v")), dryRun: "yes" }],
+    ["a javascript: link", req(upsert("v", { links: [{ kind: "rsvp", url: "javascript:alert(1)" }] }))],
+    ["a relative link", req(upsert("v", { links: [{ kind: "rsvp", url: "/rsvp" }] }))],
+    ["a link with a password in it", req(upsert("v", { links: [{ kind: "rsvp", url: "https://u:p@forms.gle/x" }] }))],
+    ["a link label over 40 characters", req(upsert("v", { links: [{ kind: "rsvp", label: "x".repeat(41), url: "https://forms.gle/x" }] }))],
+    ["a link without a kind", req(upsert("v", { links: [{ label: "RSVP", url: "https://forms.gle/x" }] }))],
+    ["an unknown link kind", req(upsert("v", { links: [{ kind: "tickets", url: "https://forms.gle/x" }] }))],
+    ["more than 5 links", req(upsert("v", { links: Array.from({ length: 6 }, () => ({ kind: "rsvp", url: "https://forms.gle/x" })) }))],
   ];
 
   it.each(bad)("rejects %s with 400 invalid_request and applies nothing", async (_, body) => {
@@ -447,5 +454,57 @@ describe("revalidation", () => {
     h.revalidatePath.mockClear();
     await post(req(upsert("rv-1")));
     expect(h.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("links", () => {
+  const rsvp = { kind: "rsvp", label: "RSVP", url: "https://forms.gle/abc123" };
+  const form = { kind: "form", label: "Volunteer form", url: "https://docs.google.com/forms/d/e/xyz/viewform" };
+
+  it("stores links, sees a resend as unchanged, and clears them when left out", async () => {
+    const first = await post(req(upsert("wa-links", { links: [rsvp, form] })));
+    expect(first.json.results![0].status).toBe("created");
+    expect((await eventBySourceId("wa-links")).links).toEqual([rsvp, form]);
+
+    // A missing or blank label is filled in from the kind, so this is the same list.
+    const unlabelled = { kind: "rsvp", label: " ", url: rsvp.url };
+    expect((await post(req(upsert("wa-links", { links: [unlabelled, form] })))).json.results![0].status).toBe("unchanged");
+    const donate = { kind: "donate", url: "https://launchgood.com/msa" };
+    expect((await post(req(upsert("wa-links", { links: [donate] })))).json.results![0].status).toBe("updated");
+    expect((await eventBySourceId("wa-links")).links).toEqual([{ ...donate, label: "Donate" }]);
+    expect((await post(req(upsert("wa-links", { links: [rsvp, form] })))).json.results![0].status).toBe("updated");
+    expect((await post(req(upsert("wa-links", { links: [form, rsvp] })))).json.results![0].status).toBe("updated");
+
+    expect((await post(req(upsert("wa-links")))).json.results![0].status).toBe("updated");
+    expect((await eventBySourceId("wa-links")).links).toBeNull();
+  });
+
+  it("the admin form sets links from linkKind/linkLabel/linkUrl rows and keeps them when it sends none", async () => {
+    const fd = adminForm("Links from the form");
+    for (const [kind, label, url] of [["rsvp", "", " https://forms.gle/abc123 "], ["other", "", ""], ["form", "Volunteer form", form.url]]) {
+      fd.append("linkKind", kind);
+      fd.append("linkLabel", label);
+      fd.append("linkUrl", url);
+    }
+    const created = await createEvent(fd);
+    expect(created.ok).toBe(true);
+    const id = (created as { id: string }).id;
+    const read = async () => (await db.select().from(events).where(eq(events.id, id)))[0].links;
+    expect(await read()).toEqual([rsvp, form]);
+
+    expect((await updateEvent(id, adminForm("Links from the form"))).ok).toBe(true);
+    expect(await read()).toEqual([rsvp, form]);
+
+    const bad = adminForm("Links from the form");
+    bad.append("linkKind", "donate");
+    bad.append("linkLabel", "Pay");
+    bad.append("linkUrl", "data:text/html,hi");
+    expect(await updateEvent(id, bad)).toEqual({ ok: false, error: "Links must be full http:// or https:// URLs" });
+
+    const cleared = adminForm("Links from the form");
+    cleared.append("linkLabel", "");
+    cleared.append("linkUrl", "");
+    expect((await updateEvent(id, cleared)).ok).toBe(true);
+    expect(await read()).toBeNull();
   });
 });
