@@ -380,7 +380,7 @@ async function main(argv: string[]): Promise<number> {
     process.stderr.write("usage: bun scripts/ig-posts.ts --since <ISO date> [--max-pages N] [--out <dir>] [--username <name>]\n");
     return 2;
   }
-  const out = val("--out") ?? join(process.env.HOME!, ".config", "midna", "ucscmsa-ig");
+  const out = val("--out") ?? join(process.env.HOME!, ".local", "share", "midna-ucscmsa", "ucscmsa-ig");
   try {
     const posts = await fetchInstagramPosts({
       username: val("--username") ?? "ucsc.msa",

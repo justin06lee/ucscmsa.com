@@ -4,7 +4,7 @@
 //   2. EVENTIFY (an LLM through yagami): turn each new item + its flyer into an
 //      event JSON. Never invents a time; low-confidence items go to review.
 //   3. POST: the import API, idempotent on stable wa:/ig: ids.
-// State, summary and the review file live in ~/.config/midna. A normal run
+// State, summary and the review file live in ~/.local/share/midna-ucscmsa. A normal run
 // posts; --dry-run previews. Non-zero exit on any error.
 //
 // Usage:
@@ -30,12 +30,12 @@ import {
   type WaMessage,
 } from "./wa-announcements";
 
-const DEFAULT_SYNC_CONFIG = "~/.config/midna/ucscmsa-sync.json";
-const DEFAULT_SYNC_STATE = "~/.config/midna/ucscmsa-sync-state.json";
-const DEFAULT_REVIEW_FILE = "~/.config/midna/ucscmsa-sync-review.json";
-const DEFAULT_IG_DIR = "~/.config/midna/ucscmsa-ig";
+const DEFAULT_SYNC_CONFIG = "~/.local/share/midna-ucscmsa/ucscmsa-sync.json";
+const DEFAULT_SYNC_STATE = "~/.local/share/midna-ucscmsa/ucscmsa-sync-state.json";
+const DEFAULT_REVIEW_FILE = "~/.local/share/midna-ucscmsa/ucscmsa-sync-review.json";
+const DEFAULT_IG_DIR = "~/.local/share/midna-ucscmsa/ucscmsa-ig";
 
-const DEFAULT_ENV_FILE = "~/.config/midna/msa-sync.env";
+const DEFAULT_ENV_FILE = "~/.local/share/midna-ucscmsa/msa-sync.env";
 const DEFAULT_BASE_URL = "http://127.0.0.1:8787"; // yagami on this Mac
 
 const syncConfigSchema = z.object({
@@ -188,7 +188,7 @@ function parseEnvFile(path: string): Record<string, string> {
   return out;
 }
 
-/** The AI endpoint and key: env first, then ~/.config/midna/msa-sync.env, then config. */
+/** The AI endpoint and key: env first, then ~/.local/share/midna-ucscmsa/msa-sync.env, then config. */
 function loadAiEnv(cfg: SyncConfig): { baseUrl: string; apiKey: string } {
   const envFile = expandHome(cfg.envFile ?? DEFAULT_ENV_FILE);
   let fileEnv: Record<string, string> = {};
@@ -288,7 +288,7 @@ export async function main(argv: string[]): Promise<number> {
   let waConfig: Config;
   let syncCfg: SyncConfig;
   try {
-    waConfig = loadConfig(args.config ?? process.env.WA_ANNOUNCEMENTS_CONFIG ?? "~/.config/midna/ucscmsa-wa.json");
+    waConfig = loadConfig(args.config ?? process.env.WA_ANNOUNCEMENTS_CONFIG ?? "~/.local/share/midna-ucscmsa/ucscmsa-wa.json");
     syncCfg = loadSyncConfig(args.syncConfig);
   } catch (e) {
     err((e as Error).message);
@@ -304,7 +304,7 @@ export async function main(argv: string[]): Promise<number> {
   const igDir = expandHome(syncCfg.instagramDir ?? DEFAULT_IG_DIR);
   const state = loadSyncState(statePath);
   const summary: SyncSummary = { waRead: 0, igRead: 0, candidates: 0, created: [], updated: [], unchanged: [], needsReview: [], skipped: [], errors: [], enrichment: [] };
-  const enrichmentPath = expandHome("~/.config/midna/ucscmsa-sync-enrichment.json");
+  const enrichmentPath = expandHome("~/.local/share/midna-ucscmsa/ucscmsa-sync-enrichment.json");
 
   // --- 1. SCRAPE WhatsApp (primary) ---
   const since = args.since ? new Date(args.since) : state.lastWaUnix ? new Date(state.lastWaUnix * 1000 + 1000) : new Date("2025-11-01T00:00:00-07:00");

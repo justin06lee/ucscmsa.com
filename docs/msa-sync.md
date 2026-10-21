@@ -34,13 +34,13 @@ The eventify step talks to an Anthropic-compatible endpoint. In development that
 | Verifier model | `aiVerifierModel`, default `claude-sonnet-5-5` (retry / second flyer reader only) |
 | Effort | `aiEffort`, default `medium` (sent as yagami's top-level `effort`) |
 
-The **env file** is `~/.config/midna/msa-sync.env` (`chmod 600`), holding `KEY=VALUE` lines. Fill it from yagami:
+The **env file** is `~/.local/share/midna-ucscmsa/msa-sync.env` (`chmod 600`), holding `KEY=VALUE` lines. Fill it from yagami:
 
 ```bash
 umask 077
 yagami key    # prints ANTHROPIC_BASE_URL=… and ANTHROPIC_API_KEY=ygm_…
-# paste both lines into ~/.config/midna/msa-sync.env, then:
-chmod 600 ~/.config/midna/msa-sync.env
+# paste both lines into ~/.local/share/midna-ucscmsa/msa-sync.env, then:
+chmod 600 ~/.local/share/midna-ucscmsa/msa-sync.env
 ```
 
 The key is read but never printed. Requests are sent one at a time (under yagami's concurrency guidance); overloads — which yagami returns as a normal reply, not an HTTP error — and 5xx/429 are retried up to six times with backoff and `Retry-After`, but a refused connection is never retried.
@@ -49,12 +49,12 @@ The key is read but never printed. Requests are sent one at a time (under yagami
 
 Instagram is off by default. Two ways to turn it on:
 
-- **`--instagram` (live scrape).** Read through a **throwaway copy** of the signed-in Helium profile, in a separate headless Helium, GET-only and slowly, with a **hard stop on any challenge, login wall or "try again later"**. The profile copy (it holds the session cookies) is made on the internal disk and deleted on every exit; the real browser is never touched, and Safari is never used. Images and captions are public, so they're written to `/Volumes/T7/Stockpile/midna/ucscmsa-ig/` (symlinked from `~/.config/midna/ucscmsa-ig`). `scripts/ig-posts.ts` can be run alone: `bun scripts/ig-posts.ts --since 2025-09-01`.
+- **`--instagram` (live scrape).** Read through a **throwaway copy** of the signed-in Helium profile, in a separate headless Helium, GET-only and slowly, with a **hard stop on any challenge, login wall or "try again later"**. The profile copy (it holds the session cookies) is made on the internal disk and deleted on every exit; the real browser is never touched, and Safari is never used. Images and captions are public, so they're written to `/Volumes/T7/Stockpile/midna/ucscmsa-ig/` (symlinked from `~/.local/share/midna-ucscmsa/ucscmsa-ig`). `scripts/ig-posts.ts` can be run alone: `bun scripts/ig-posts.ts --since 2025-09-01`.
 - **`--instagram-export <dir>` (official export).** Point at an unzipped Instagram "Download your information" folder. The posts JSON and media files are read straight off disk — no browser, no network, no rate limits. Posts with only video are skipped; the event id is derived from each post's timestamp (`ig:ts<unix>`), since the export carries no shortcode.
 
 ## Where things are
 
-Everything private lives in `~/.config/midna/`, never in the repo. Each file is `chmod 600`.
+Everything private lives in `~/.local/share/midna-ucscmsa/` (the directory is `chmod 700`, each file `chmod 600`), never in the repo. **Never put anything under `~/.config/`** — it is a symlink into Justin's dotfiles git repo, so a file written there can be committed and pushed.
 
 | File | What |
 |---|---|
@@ -85,7 +85,7 @@ Run these from the repo root.
 
 ```bash
 umask 077
-M=~/.config/midna
+M=~/.local/share/midna-ucscmsa
 
 # 1. New messages since the last run (keep the time you started this run for tomorrow's --since)
 bun scripts/wa-announcements.ts read --since 2026-10-21T09:00:00-07:00 > $M/wa-2026-10-22.json

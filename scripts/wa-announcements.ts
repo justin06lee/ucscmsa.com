@@ -10,7 +10,7 @@
 // and deleted. Only the configured chat's messages are read. The only network
 // call is the import request, and the token is never printed.
 //
-// Settings live outside the repo, in ~/.config/midna/ucscmsa-wa.json (or
+// Settings live outside the repo, in ~/.local/share/midna-ucscmsa/ucscmsa-wa.json (or
 // --config <path>): chatJid, plus optional dbDir, tokenFile, stateFile, baseUrl.
 
 import { createHash } from "node:crypto";
@@ -33,10 +33,10 @@ import { z } from "zod";
 import { importRequestSchema } from "@/lib/import/schema";
 import { SITE_TZ, startOfLocalDayUtc } from "@/lib/time";
 
-export const DEFAULT_CONFIG_PATH = "~/.config/midna/ucscmsa-wa.json";
+export const DEFAULT_CONFIG_PATH = "~/.local/share/midna-ucscmsa/ucscmsa-wa.json";
 export const DEFAULT_DB_DIR = "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared";
-export const DEFAULT_TOKEN_FILE = "~/.config/midna/ucscmsa-import-token";
-export const DEFAULT_STATE_FILE = "~/.config/midna/ucscmsa-wa-state.json";
+export const DEFAULT_TOKEN_FILE = "~/.local/share/midna-ucscmsa/ucscmsa-import-token";
+export const DEFAULT_STATE_FILE = "~/.local/share/midna-ucscmsa/ucscmsa-wa-state.json";
 export const DEFAULT_BASE_URL = "https://ucscmsa.com";
 export const DB_FILES = ["ChatStorage.sqlite", "ChatStorage.sqlite-wal", "ChatStorage.sqlite-shm"] as const;
 export const TEMP_PREFIX = "wa-announcements-";
