@@ -135,7 +135,7 @@ export async function getPastOccurrences(
   const rows = await database
     .select()
     .from(events)
-    .where(and(isNull(events.cancelledAt), isNull(events.recurrenceFreq), lte(events.endTime, now)))
+    .where(and(notDraft, isNull(events.cancelledAt), isNull(events.recurrenceFreq), lte(events.endTime, now)))
     .orderBy(sql`${events.startTime} desc`)
     .limit(limit);
   return rows.flatMap((r) => expandEvents([toEventInput(r, [])], r.startTime, r.endTime));

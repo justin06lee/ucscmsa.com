@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 // A draft event is the board's work in progress: no public read may return it.
 // Seeds a draft and a published event side by side and checks each public
-// path: calendar range, landing "Upcoming", RSVP check, event page (and its
+// path: calendar range, landing "Upcoming" and "Past events", RSVP check, event page (and its
 // metadata, JSON-LD and share image) and the sitemap.
 
 vi.mock("@/lib/db/client", async () => {
@@ -22,6 +22,7 @@ import { parseHMInLocal } from "@/lib/time";
 import {
   findOccurrence,
   getOccurrencesInRange,
+  getPastOccurrences,
   getPublicEventRow,
   getUpcomingOccurrences,
 } from "@/lib/db/queries";
@@ -30,6 +31,7 @@ import sitemap from "@/app/sitemap";
 import EventDetail, { generateMetadata } from "@/app/calendar/events/[id]/page";
 import Image from "@/app/calendar/events/[id]/opengraph-image";
 import { UpcomingEvents } from "@/components/upcoming-events";
+import { PastEvents } from "@/components/past-events";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -37,6 +39,7 @@ const inDays = (n: number) => ymd(new Date(Date.now() + n * 86_400_000));
 const DAY = inDays(5);
 const start = parseHMInLocal(DAY, "18:00");
 const end = parseHMInLocal(DAY, "20:00");
+const PAST = inDays(-5);
 
 beforeAll(async () => {
   await db.insert(events).values([
@@ -49,6 +52,14 @@ beforeAll(async () => {
       endTime: end,
       recurrenceFreq: "weekly",
       recurrenceByWeekday: "MO,TU,WE,TH,FR,SA,SU",
+      draft: true,
+    },
+    { id: "ev-past", title: "Fall Picnic", startTime: parseHMInLocal(PAST, "12:00"), endTime: parseHMInLocal(PAST, "14:00") },
+    {
+      id: "ev-past-draft",
+      title: "Secret Past Draft",
+      startTime: parseHMInLocal(PAST, "12:00"),
+      endTime: parseHMInLocal(PAST, "14:00"),
       draft: true,
     },
   ]);
@@ -68,6 +79,13 @@ describe("draft events stay off every public path", () => {
     const html = renderToStaticMarkup(await UpcomingEvents({ limit: 10 }));
     expect(html).toContain("Game Night");
     expect(html).not.toMatch(/Secret|Draft Series|ev-draft/);
+  });
+
+  it("landing page Past events", async () => {
+    expect((await getPastOccurrences(10)).map((o) => o.eventId)).toEqual(["ev-past"]);
+    const html = renderToStaticMarkup(await PastEvents({ limit: 10 }));
+    expect(html).toContain("Fall Picnic");
+    expect(html).not.toMatch(/Secret|ev-past-draft/);
   });
 
   it("the admin's planning reads can ask for drafts", async () => {
