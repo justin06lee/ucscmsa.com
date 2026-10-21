@@ -45,22 +45,23 @@ function revalidateEventPages(id?: string) {
   if (id) revalidatePath(`/calendar/events/${id}`);
 }
 
-// Links come as rows of linkLabel/linkUrl fields, paired by position; rows
-// with both blank are dropped. No linkUrl fields at all means the form
-// doesn't edit links.
-function formLinks(fd: FormData): { label: string; url: string }[] | undefined {
+// Links come as rows of linkKind/linkLabel/linkUrl fields, paired by
+// position; rows with a blank URL and label are dropped, and a blank kind is
+// "other". No linkUrl fields at all means the form doesn't edit links.
+function formLinks(fd: FormData): { kind: string; label: string; url: string }[] | undefined {
   if (!fd.has("linkUrl")) return undefined;
+  const kinds = fd.getAll("linkKind").map(String);
   const labels = fd.getAll("linkLabel").map(String);
   const urls = fd.getAll("linkUrl").map(String);
   return urls
-    .map((url, i) => ({ label: labels[i] ?? "", url }))
+    .map((url, i) => ({ kind: kinds[i] || "other", label: labels[i] ?? "", url }))
     .filter((l) => l.label.trim() || l.url.trim());
 }
 
 function formToObject(fd: FormData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of fd.entries()) {
-    if (k === "recurrenceByWeekday" || k === "linkLabel" || k === "linkUrl") continue;
+    if (k === "recurrenceByWeekday" || k.startsWith("link")) continue;
     out[k] = v;
   }
   out.recurrenceByWeekday = fd.getAll("recurrenceByWeekday").join(",");

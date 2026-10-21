@@ -39,12 +39,23 @@ export const location = z.string().trim().max(LOCATION_MAX, "Location is too lon
 export const description = z.string().max(DESCRIPTION_MAX, "Description is too long");
 export const interval = z.number().int().min(1).max(INTERVAL_MAX);
 
-// Buttons on the event page, such as an RSVP form or a sign-up sheet. Only
+// Buttons on the event page, such as an RSVP form or a donation page. Only
 // http(s) URLs with a host: no javascript:, data: or mailto: links, and no
-// credentials in the URL. Stored as JSON in events.links.
-export const LINKS_MAX = 3;
+// credentials in the URL. Stored as JSON in events.links, label filled in.
+export const LINKS_MAX = 5;
 export const LINK_LABEL_MAX = 40;
 export const LINK_URL_MAX = 500;
+export const LINK_KINDS = ["rsvp", "form", "donate", "signup", "map", "other"] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
+// The label a link gets when none is given.
+export const LINK_KIND_LABELS: Record<LinkKind, string> = {
+  rsvp: "RSVP",
+  form: "Form",
+  donate: "Donate",
+  signup: "Sign up",
+  map: "Map",
+  other: "Link",
+};
 
 export function isSafeLinkUrl(s: string): boolean {
   let u: URL;
@@ -57,23 +68,26 @@ export function isSafeLinkUrl(s: string): boolean {
     u.hostname.includes(".") && !u.username && !u.password;
 }
 
-export const eventLink = z.strictObject({
-  label: z
-    .string()
-    .trim()
-    .min(1, "Link label required")
-    .max(LINK_LABEL_MAX, `Link labels are at most ${LINK_LABEL_MAX} characters`)
-    .regex(/^[^\p{Cc}]*$/u, "Link labels can't contain control characters"),
-  url: z
-    .string()
-    .trim()
-    .max(LINK_URL_MAX, `Link URLs are at most ${LINK_URL_MAX} characters`)
-    .refine(isSafeLinkUrl, "Links must be full http:// or https:// URLs"),
-});
+export const eventLink = z
+  .strictObject({
+    kind: z.enum(LINK_KINDS, `Link kind must be one of ${LINK_KINDS.join(", ")}`),
+    label: z
+      .string()
+      .trim()
+      .max(LINK_LABEL_MAX, `Link labels are at most ${LINK_LABEL_MAX} characters`)
+      .regex(/^[^\p{Cc}]*$/u, "Link labels can't contain control characters")
+      .optional(),
+    url: z
+      .string()
+      .trim()
+      .max(LINK_URL_MAX, `Link URLs are at most ${LINK_URL_MAX} characters`)
+      .refine(isSafeLinkUrl, "Links must be full http:// or https:// URLs"),
+  })
+  .transform((l) => ({ kind: l.kind, label: l.label || LINK_KIND_LABELS[l.kind], url: l.url }));
 export const eventLinks = z
   .array(eventLink)
   .max(LINKS_MAX, `At most ${LINKS_MAX} links`);
-export type EventLink = z.infer<typeof eventLink>;
+export type EventLink = z.output<typeof eventLink>;
 
 /**
  * How a Santa Cruz wall-clock time maps to real time on that date: "ok", or

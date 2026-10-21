@@ -114,7 +114,7 @@ These are the same rules as the admin event form.
 | `endTime` | string | no | `HH:mm`, 24-hour. Only together with `startTime`. |
 | `endDate` | string | no | `YYYY-MM-DD`, for events that end on a later day. Defaults to `date`. |
 | `recurrence` | object | no | Omit for a one-off event. See below. |
-| `links` | array | no | Up to 3 buttons for the event page, such as an RSVP form. See below. Leaving it out removes any links the event had. |
+| `links` | array | no | Up to 5 buttons for the event page, such as an RSVP form. See below. Leaving it out removes any links the event had. |
 
 **Times are Santa Cruz wall-clock times** (America/Los_Angeles), exactly as the announcement says them. `"date": "2026-10-23", "startTime": "13:30"` means 1:30 PM in Santa Cruz on that day, whether it's PDT or PST; the server works out the offset. A recurring event keeps that wall-clock time on both sides of a DST change.
 
@@ -156,12 +156,14 @@ Each link is an object; order is kept.
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `label` | string | yes | The button text, e.g. `"RSVP"`, `"Volunteer form"`, `"Donate"`. 1–40 characters after trimming, no control characters. |
+| `kind` | `"rsvp"` \| `"form"` \| `"donate"` \| `"signup"` \| `"map"` \| `"other"` | yes | What the link is for; the site may pick an icon by it. |
+| `label` | string | no | The button text, e.g. `"Volunteer form"`. Up to 40 characters after trimming, no control characters. Left out or blank, it's the kind's default: `RSVP`, `Form`, `Donate`, `Sign up`, `Map` or `Link`. |
 | `url` | string | yes | A full `https://` or `http://` URL with a host, up to 500 characters. Other schemes (`javascript:`, `data:`, `mailto:`), relative URLs and URLs with a user or password are rejected: `400`. |
 
 ```json
 "links": [
-  { "label": "RSVP", "url": "https://forms.gle/thkacLx82yYcgxjt9" }
+  { "kind": "rsvp", "url": "https://forms.gle/thkacLx82yYcgxjt9" },
+  { "kind": "donate", "label": "Donate to the food drive", "url": "https://www.launchgood.com/…" }
 ]
 ```
 
@@ -483,7 +485,7 @@ New columns on `events`:
 | `admin_edited_at` | Set when an admin saves the event in the admin form |
 | `cancelled_at` | Set while the whole event is cancelled |
 | `timing` | `timed`, `start_only` or `date_only` (migration 0004). An unknown start is stored as the start of the Santa Cruz day, an unknown end as the end of the last day |
-| `links` | JSON array of `{ "label", "url" }`, or null when there are none (migration 0005). Set by imports and by the admin form |
+| `links` | JSON array of `{ "kind", "label", "url" }` with the label always filled in, or null when there are none (migration 0005). Set by imports and by the admin form |
 
 New tables:
 
