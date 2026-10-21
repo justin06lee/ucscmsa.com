@@ -2,6 +2,9 @@ import { z } from "zod";
 import { description, hm, location, realYmd, title, INTERVAL_MAX, WEEKDAY_CODES } from "@/lib/event-rules";
 
 const ymd = realYmd.or(z.literal("")).default("");
+// Both times are optional (see EVENT_TIMINGS in lib/event-rules.ts): blank
+// times make a date-only event, a start time alone a start-only one.
+const optionalHm = (message: string) => hm(message).or(z.literal("")).default("");
 
 const WEEKDAY = `(${WEEKDAY_CODES.join("|")})`;
 
@@ -11,9 +14,9 @@ export const eventInputSchema = z
     description: description.default(""),
     location: location.default(""),
     startDate: ymd,
-    startTime: hm("Invalid start time"),
+    startTime: optionalHm("Invalid start time"),
     endDate: ymd,
-    endTime: hm("Invalid end time"),
+    endTime: optionalHm("Invalid end time"),
     recurrenceFreq: z
       .enum(["none", "daily", "weekly", "monthly", "yearly"])
       .default("none"),
@@ -28,12 +31,19 @@ export const eventInputSchema = z
     (d) => d.recurrenceFreq !== "none" || (d.startDate && d.endDate),
     { message: "Start and end dates are required for non-recurring events", path: ["startDate"] },
   )
+  .refine((d) => !d.endTime || d.startTime, {
+    message: "An end time needs a start time; clear both for a date-only event",
+    path: ["startTime"],
+  })
   .refine(
     (d) => {
       // Blank dates are filled in by resolveDates: a blank start is today
       // (can't compare here), a blank end is the start date.
       if (!d.startDate && d.endDate) return true;
       const endDate = d.endDate || d.startDate;
+      // Without both times the event spans whole days, so the end date may
+      // equal the start date.
+      if (!d.startTime || !d.endTime) return endDate >= d.startDate;
       return `${endDate}T${d.endTime}` > `${d.startDate}T${d.startTime}`;
     },
     { message: "End must be after start", path: ["endDate"] },

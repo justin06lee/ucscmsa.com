@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import { eventCancellations, eventImportTombstones, events } from "@/lib/db/schema";
 import type { DB } from "@/lib/db/client";
-import { localInstant } from "@/lib/event-rules";
+import { eventInstants, localInstant } from "@/lib/event-rules";
 import { expandEvents } from "@/lib/rrule-lite";
 import { endOfLocalDayUtc, startOfLocalDayUtc, toLocalYmd } from "@/lib/time";
 import type { ImportEvent, ImportOperation, ImportRequest } from "./schema";
@@ -46,8 +46,7 @@ function toEventValues(e: ImportEvent, sourceRef: string | undefined) {
     title: e.title,
     description: e.description ?? "",
     location: e.location ?? "",
-    startTime: localInstant(e.date, e.startTime),
-    endTime: localInstant(e.endDate ?? e.date, e.endTime),
+    ...eventInstants(e),
     recurrenceFreq: freq,
     recurrenceByWeekday:
       freq === "weekly" && e.recurrence?.byWeekday ? e.recurrence.byWeekday.join(",") : null,
@@ -67,6 +66,7 @@ function sameContent(row: EventRow, v: EventValues): boolean {
     row.title === v.title &&
     row.description === v.description &&
     row.location === v.location &&
+    row.timing === v.timing &&
     time(row.startTime) === time(v.startTime) &&
     time(row.endTime) === time(v.endTime) &&
     row.recurrenceFreq === v.recurrenceFreq &&

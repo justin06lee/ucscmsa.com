@@ -61,6 +61,7 @@ function toEventInput(r: typeof events.$inferSelect, cancellations: string[]): E
     recurrenceByWeekday: r.recurrenceByWeekday,
     recurrenceInterval: r.recurrenceInterval,
     recurrenceUntil: r.recurrenceUntil,
+    timing: r.timing,
     cancellations,
   };
 }

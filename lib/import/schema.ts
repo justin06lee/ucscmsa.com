@@ -54,25 +54,31 @@ const recurrence = z
 
 // Times are Santa Cruz wall-clock times (America/Los_Angeles), exactly as an
 // announcement states them. Times that don't exist or happen twice at a DST
-// change are rejected rather than guessed.
+// change are rejected rather than guessed. Both times are optional (see
+// EVENT_TIMINGS): no times is a date-only event, a start time alone a
+// start-only one; an end time alone is an error.
 const event = z
   .strictObject({
     title,
     description: description.optional(),
     location: location.optional(),
     date: realYmd,
-    startTime: hm("Invalid start time"),
-    endTime: hm("Invalid end time"),
+    startTime: hm("Invalid start time").optional(),
+    endTime: hm("Invalid end time").optional(),
     endDate: realYmd.optional(),
     recurrence: recurrence.optional(),
   })
   .superRefine((e, ctx) => {
     const endDate = e.endDate ?? e.date;
+    if (e.endTime && !e.startTime) {
+      ctx.addIssue({ code: "custom", path: ["startTime"], message: "An end time needs a start time; leave both out for a date-only event" });
+    }
     const checks = [
       { date: e.date, time: e.startTime, path: "startTime" },
       { date: endDate, time: e.endTime, path: "endTime" },
     ];
     for (const c of checks) {
+      if (!c.time) continue;
       const kind = localTimeKind(c.date, c.time);
       if (kind === "nonexistent") {
         ctx.addIssue({ code: "custom", path: [c.path], message: `${c.date} ${c.time} doesn't exist in Santa Cruz (clocks spring forward)` });
@@ -80,8 +86,12 @@ const event = z
         ctx.addIssue({ code: "custom", path: [c.path], message: `${c.date} ${c.time} happens twice in Santa Cruz (clocks fall back); use another time` });
       }
     }
-    if (`${endDate}T${e.endTime}` <= `${e.date}T${e.startTime}`) {
-      ctx.addIssue({ code: "custom", path: ["endTime"], message: "End must be after start" });
+    if (e.startTime && e.endTime) {
+      if (`${endDate}T${e.endTime}` <= `${e.date}T${e.startTime}`) {
+        ctx.addIssue({ code: "custom", path: ["endTime"], message: "End must be after start" });
+      }
+    } else if (endDate < e.date) {
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "endDate is before date" });
     }
     if (e.recurrence?.until && e.recurrence.until < e.date) {
       ctx.addIssue({ code: "custom", path: ["recurrence", "until"], message: "until is before the event's date" });
