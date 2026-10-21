@@ -12,10 +12,12 @@ import {
 } from "@/lib/site";
 import "./globals.css";
 
+// Headings only, at weight 400 (globals.css); every italic on the site is
+// Inter. Bold and italic Amiri were three extra preloaded files on every page.
 const amiri = Amiri({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  style: ["normal", "italic"],
+  weight: "400",
+  style: "normal",
   display: "swap",
   variable: "--font-amiri",
 });

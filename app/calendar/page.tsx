@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import {
   startOfLocalDayUtc,
   endOfLocalDayUtc,
@@ -13,6 +14,7 @@ import { getPrayerTimes } from "@/lib/aladhan";
 import { db } from "@/lib/db/client";
 import { calendarMetadata } from "@/lib/seo";
 import { CalendarNav } from "./calendar-nav";
+import { CalendarSkeleton } from "./calendar-skeleton";
 import { DayView } from "./day-view";
 import { MonthView } from "./month-view";
 import { YearView } from "./year-view";
@@ -52,8 +54,20 @@ export default async function CalendarPage({
   const date = parseDate(sp.date);
   const ymd = formatInTimeZone(date, SITE_TZ, "yyyy-MM-dd");
 
-  let content: React.ReactNode;
+  // The title bar is in the first bytes sent (it's the page's largest text,
+  // so it sets LCP); only the view waits for events and prayer times. A
+  // route-level loading.tsx held the title back with the data.
+  return (
+    <main id="main" tabIndex={-1} className="max-w-6xl mx-auto px-4 py-8 w-full flex-1 sm:px-6 sm:py-12">
+      <CalendarNav view={view} date={date} />
+      <Suspense key={`${view}:${ymd}`} fallback={<CalendarSkeleton />}>
+        <CalendarBody view={view} ymd={ymd} />
+      </Suspense>
+    </main>
+  );
+}
 
+async function CalendarBody({ view, ymd }: { view: "day" | "month" | "year"; ymd: string }) {
   if (view === "day") {
     const start = startOfLocalDayUtc(ymd);
     const end = endOfLocalDayUtc(ymd);
@@ -61,24 +75,17 @@ export default async function CalendarPage({
       getOccurrencesInRange(start, end),
       getPrayerTimes(ymd, db),
     ]);
-    content = <DayView ymd={ymd} occurrences={occurrences} prayer={prayer} />;
-  } else if (view === "month") {
+    return <DayView ymd={ymd} occurrences={occurrences} prayer={prayer} />;
+  }
+  if (view === "month") {
     const grid = monthGridDays(ymd);
     const start = startOfLocalDayUtc(grid[0].ymd);
     const end = endOfLocalDayUtc(grid[grid.length - 1].ymd);
     const occurrences = await getOccurrencesInRange(start, end);
-    content = <MonthView ymd={ymd} occurrences={occurrences} />;
-  } else {
-    const start = startOfLocalYearUtc(ymd);
-    const end = endOfLocalYearUtc(ymd);
-    const occurrences = await getOccurrencesInRange(start, end);
-    content = <YearView ymd={ymd} occurrences={occurrences} />;
+    return <MonthView ymd={ymd} occurrences={occurrences} />;
   }
-
-  return (
-    <main id="main" tabIndex={-1} className="max-w-6xl mx-auto px-4 py-8 w-full flex-1 sm:px-6 sm:py-12">
-      <CalendarNav view={view} date={date} />
-      {content}
-    </main>
-  );
+  const start = startOfLocalYearUtc(ymd);
+  const end = endOfLocalYearUtc(ymd);
+  const occurrences = await getOccurrencesInRange(start, end);
+  return <YearView ymd={ymd} occurrences={occurrences} />;
 }
