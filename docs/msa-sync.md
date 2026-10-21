@@ -1,6 +1,40 @@
-# WhatsApp announcements → calendar: daily runbook
+# MSA sync: announcements → calendar
 
-midna reads new messages from the MSA WhatsApp announcements chat, picks out the events, and sends them to the site's [event import API](import.md). `scripts/wa-announcements.ts` does the reading and the sending. midna does the event extraction; the script uses no LLM.
+The MSA site's calendar is kept filled from two sources: the WhatsApp announcements chat (primary) and the public `@ucsc.msa` Instagram (secondary, for flyers WhatsApp doesn't have). `scripts/msa-sync.ts` runs the whole pipeline daily; the pieces are also usable by hand.
+
+## The daily pipeline — `bun scripts/msa-sync.ts`
+
+One command does three steps and prints a summary:
+
+1. **Scrape (plain code, no LLM).** New WhatsApp announcements since the last run, plus their downloaded flyer files; and new Instagram image posts (reels and videos skipped). Incremental: only items newer than the last run.
+2. **Eventify (an LLM through [yagami](https://github.com/justin06lee/yagami)).** Each new message + its flyer becomes an event JSON. **A time is kept only when it's quoted from the message text, or both the primary (Haiku) and verifier (Sonnet) model read the same time off the flyer** — otherwise the time is dropped (date-only / start-only) or the item is held for review. Other groups' events get a "Hosted by …" description. Jummah, polls, deleted messages and non-events are skipped.
+3. **Post.** Valid events go to the [import API](import.md) as idempotent upserts on stable `wa:`/`ig:` ids. Low-confidence or unclear items go to a review file instead of the site.
+
+```bash
+umask 077
+bun scripts/msa-sync.ts            # scrape, eventify, post; writes a summary
+bun scripts/msa-sync.ts --dry-run  # same, but the import is previewed and rolled back; state is not advanced
+bun scripts/msa-sync.ts --no-instagram   # WhatsApp only (use when Instagram is rate-limiting)
+```
+
+Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--config <path>` and `--sync-config <path>` point at non-default config files.
+
+The summary lists created, updated, unchanged, needs-review, skipped and errors. **The exit code is non-zero if anything errored** (including an Instagram stop). Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
+
+### The LLM step (yagami)
+
+The eventify step talks to an Anthropic-compatible endpoint. In development that's yagami on this Mac; run `yagami start` first (it must be up). Settings come from the environment or `ucscmsa-sync.json`, never hardcoded:
+
+| Setting | Env | Default |
+|---|---|---|
+| Endpoint | `ANTHROPIC_BASE_URL` | `aiBaseUrl`, else `https://api.anthropic.com` |
+| Key | `ANTHROPIC_API_KEY` | `aiKeyFile` (a `chmod 600` file) |
+| Primary model | — | `aiModel`, default `claude-haiku-5-5` |
+| Verifier model | — | `aiVerifierModel`, default `claude-sonnet-5-5` |
+
+### Instagram
+
+Instagram is read through a **throwaway copy** of the signed-in Helium profile, in a separate headless Helium, GET-only and slowly, with a **hard stop on any challenge, login wall or "try again later"**. The profile copy (it holds the session cookies) is made on the internal disk and deleted on every exit; the real browser is never touched, and Safari is never used. Images and captions are public, so they're written to `/Volumes/T7/Stockpile/midna/ucscmsa-ig/` (symlinked from `~/.config/midna/ucscmsa-ig`). `scripts/ig-posts.ts` can be run alone: `bun scripts/ig-posts.ts --since 2025-09-01`.
 
 ## Where things are
 
@@ -9,9 +43,17 @@ Everything private lives in `~/.config/midna/`, never in the repo. Each file is 
 | File | What |
 |---|---|
 | `ucscmsa-wa.json` | Config: `chatJid` (the announcements chat), and optionally `tokenFile`, `stateFile`, `baseUrl`, `dbDir`. |
-| `ucscmsa-import-token` | The `EVENT_IMPORT_TOKEN`. The script reads it and never prints it. |
+| `ucscmsa-sync.json` | Sync config: the yagami endpoint, key file and model ids, and Instagram settings. |
+| `ucscmsa-import-token` | The `EVENT_IMPORT_TOKEN`. The scripts read it and never print it. |
 | `ucscmsa-wa-state.json` | A hash per message, so `read` can tell when a message was edited. |
-| `ucscmsa-batch-<date>.json` | The batches you send. |
+| `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time, last-seen Instagram post, and per-id status. |
+| `ucscmsa-sync-review.json` | Items the sync held back for a human to check. |
+| `ucscmsa-ig/` | Instagram images and `manifest.json` (a symlink to the T7 disk). |
+| `ucscmsa-batch-<date>.json` | The hand-written batches you send. |
+
+## The manual flow (`scripts/wa-announcements.ts`)
+
+When you want to read the chat or send a batch by hand — or add a reviewed item the pipeline held back — use `scripts/wa-announcements.ts` directly. It does the reading and the sending; the event extraction is yours (no LLM).
 
 The script reads WhatsApp's database at `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite`, but only from a copy:
 

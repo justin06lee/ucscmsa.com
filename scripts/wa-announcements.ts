@@ -1,5 +1,5 @@
 // The MSA WhatsApp announcements chat → the event import API. The daily
-// runbook is docs/whatsapp-import.md; the API is docs/import.md.
+// runbook is docs/msa-sync.md; the API is docs/import.md.
 //
 //   bun scripts/wa-announcements.ts read --since <ISO|unix> [--until <ISO|unix>] [--no-state]
 //   bun scripts/wa-announcements.ts import <batch.json> [--check | --dry-run] [--base-url <url>]
@@ -547,8 +547,10 @@ export async function runImport(o: ImportOptions): Promise<number> {
   }
   const seen = new Set<string>();
   for (const op of parsed.data.operations) {
-    if (op.op === "upsert" && !/^wa:[0-9A-Za-z]+$/.test(op.sourceId)) {
-      err(`warning: sourceId ${op.sourceId} doesn't follow wa:<message id>`);
+    // wa:<message id>, optionally :<YYYY-MM-DD> for one occurrence of a
+    // multi-day announcement, or ig:<shortcode> for an Instagram-only event.
+    if (op.op === "upsert" && !/^(wa:[0-9A-Za-z]+(:\d{4}-\d{2}-\d{2})?|ig:[0-9A-Za-z_-]+)$/.test(op.sourceId)) {
+      err(`warning: sourceId ${op.sourceId} doesn't follow wa:<message id> or ig:<shortcode>`);
     }
     const key = `${op.op} ${op.sourceId} ${"occurrenceDate" in op ? op.occurrenceDate ?? "" : ""}`;
     if (seen.has(key)) err(`warning: ${key.trim()} appears twice in this batch`);
@@ -645,7 +647,7 @@ const USAGE = `usage:
   bun scripts/wa-announcements.ts read --since <ISO|unix|YYYY-MM-DD> [--until <...>] [--no-state] [--config <path>]
   bun scripts/wa-announcements.ts import <batch.json> [--check | --dry-run] [--base-url <url>] [--config <path>]
   bun scripts/wa-announcements.ts chats [--name <chat name>] [--config <path>]
-See docs/whatsapp-import.md.`;
+See docs/msa-sync.md.`;
 
 type Args = { command: string | undefined; positional: string[]; flags: Map<string, string | true> };
 
