@@ -20,6 +20,8 @@ Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run); `--
 
 The summary lists created, updated, unchanged, needs-review, skipped and errors, plus how many flyers matched an announcement (and how many didn't). **The exit code is non-zero if anything errored.** Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
 
+> **Until optional times (migration 0004) is live in production,** a dry run reports `HTTP 400 … event.endTime: expected string` for any event without an end time — the current production schema still requires one. That's expected; it clears once that release deploys. Keep runs on `--dry-run` until then.
+
 ### The LLM step (yagami)
 
 The eventify step talks to an Anthropic-compatible endpoint. In development that's **yagami** on this Mac; only midna starts it (`yagami start`), never the sync. msa-sync checks the port first and, **if yagami is down, stops before posting anything** — it eventifies and posts nothing, says so in the summary, and exits non-zero. Settings come from the environment or config, never hardcoded:
