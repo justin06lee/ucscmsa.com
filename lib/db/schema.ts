@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  blob,
   check,
   index,
   integer,
@@ -9,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { EVENT_TIMINGS, type EventLink } from "../event-rules";
+import { EVENT_IMAGE_VARIANTS, type EventImageMeta } from "../event-image";
 
 // ---------- Auth.js (Drizzle adapter) ----------
 
@@ -195,6 +197,9 @@ export const events = sqliteTable(
     // Up to LINKS_MAX buttons ({ label, url }, checked by eventLinks in
     // lib/event-rules.ts), such as an RSVP form. Null when there are none.
     links: text("links", { mode: "json" }).$type<EventLink[]>(),
+    // The flyer's version and sizes (lib/event-image.ts); null when there is
+    // none. Written together with its event_images rows.
+    image: text("image", { mode: "json" }).$type<EventImageMeta>(),
   },
   (t) => ({
     createdByIdx: index("events_created_by_admin_id_idx").on(
@@ -204,6 +209,22 @@ export const events = sqliteTable(
       t.source,
       t.sourceId
     ),
+  })
+);
+
+// The bytes of an event's flyer, one WebP per variant. Read only by the
+// image route; pages use events.image for the version and sizes.
+export const eventImages = sqliteTable(
+  "event_images",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    variant: text("variant", { enum: EVENT_IMAGE_VARIANTS }).notNull(),
+    data: blob("data", { mode: "buffer" }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.eventId, t.variant] }),
   })
 );
 

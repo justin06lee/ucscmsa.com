@@ -26,12 +26,19 @@ export const IMPORT_RATE_LIMITS: Record<"tokenAndIp" | "token", RateLimitRule> =
   token: { limit: 120, windowMs: 60 * 60_000 },
 };
 
-const source = z
+// Image uploads (PUT/DELETE /api/import/events/image) count separately, so a
+// backfill of flyers can't starve event batches.
+export const IMAGE_RATE_LIMITS: Record<"tokenAndIp" | "token", RateLimitRule> = {
+  tokenAndIp: { limit: 60, windowMs: 10 * 60_000 },
+  token: { limit: 300, windowMs: 60 * 60_000 },
+};
+
+export const source = z
   .string()
   .regex(/^[a-z][a-z0-9_-]{0,31}$/, "Lowercase letters, digits, - and _; 1-32 characters")
   .refine((s) => s !== "manual", '"manual" is reserved for events made in the admin form');
 
-const sourceId = z
+export const sourceId = z
   .string()
   .min(1)
   .max(200)

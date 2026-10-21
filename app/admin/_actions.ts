@@ -11,6 +11,7 @@ import { parseHMInLocal, toLocalYmd } from "@/lib/time";
 import { eventInstants } from "@/lib/event-rules";
 import { approveNominationTx, createNomination } from "./_governance";
 import { deleteEventRecordingImport } from "@/lib/import/apply";
+import { clearEventImage } from "@/lib/event-image-store";
 
 function resolveDates(p: {
   startDate: string;
@@ -117,6 +118,20 @@ export async function updateEvent(id: string, fd: FormData) {
     // Tells the event importer not to overwrite this admin's changes.
     adminEditedAt: new Date(),
   }).where(eq(events.id, id));
+  revalidateEventPages(id);
+  return { ok: true as const };
+}
+
+// Counts as an admin edit, so the importer won't put the image back.
+export async function removeEventImage(id: string) {
+  await requireAdminId();
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    const [row] = await tx.select({ image: events.image }).from(events).where(eq(events.id, id)).limit(1);
+    if (!row?.image) return;
+    await clearEventImage(tx, id, now);
+    await tx.update(events).set({ adminEditedAt: now }).where(eq(events.id, id));
+  });
   revalidateEventPages(id);
   return { ok: true as const };
 }

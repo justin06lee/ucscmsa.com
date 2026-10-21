@@ -1,9 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db/client";
-import { checkImportToken, IMPORT_TOKEN_ENV } from "@/lib/import/auth";
 import { IMPORT_RATE_LIMITS, importRequestSchema, MAX_BODY_BYTES } from "@/lib/import/schema";
 import { applyImport } from "@/lib/import/apply";
-import { hitRateLimit } from "@/lib/rate-limit";
+import { guardImport, importFail as fail } from "@/lib/import/http";
 
 // POST /api/import/events — the event import API. Request and response
 // formats, error codes and the conflict policy are in docs/import.md.
@@ -11,50 +10,10 @@ import { hitRateLimit } from "@/lib/rate-limit";
 // Bearer-token auth only: no session or cookie is read, and proxy.ts only
 // matches /admin, so it never runs here.
 
-function fail(
-  status: number,
-  error: string,
-  message: string,
-  extra: Record<string, unknown> = {},
-  headers: Record<string, string> = {}
-) {
-  return Response.json(
-    { ok: false, error, message, ...extra },
-    { status, headers: { "Cache-Control": "no-store", ...headers } }
-  );
-}
-
-function clientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || req.headers.get("x-real-ip")?.trim() || "unknown";
-}
-
 export async function POST(req: Request) {
-  // Authenticate before touching the database, so anonymous traffic costs
-  // no writes. A 32+ character random token can't be guessed by retrying.
-  const auth = checkImportToken(req.headers.get("authorization"), process.env[IMPORT_TOKEN_ENV]);
-  if (!auth.ok) {
-    if (auth.reason === "disabled") {
-      return fail(503, "import_disabled", `Import is turned off: ${IMPORT_TOKEN_ENV} is not set (or is shorter than 32 characters).`);
-    }
-    return fail(401, "unauthorized", "Missing or wrong bearer token.", {}, {
-      "WWW-Authenticate": 'Bearer realm="event-import"',
-    });
-  }
-
   try {
-    const ip = clientIp(req);
-    for (const [key, rule] of [
-      [`import:${auth.tokenId}:${ip}`, IMPORT_RATE_LIMITS.tokenAndIp],
-      [`import:${auth.tokenId}`, IMPORT_RATE_LIMITS.token],
-    ] as const) {
-      const r = await hitRateLimit(db, key, rule);
-      if (!r.allowed) {
-        return fail(429, "rate_limited", "Too many import requests; retry later.", {
-          retryAfter: r.retryAfterSec,
-        }, { "Retry-After": String(r.retryAfterSec) });
-      }
-    }
+    const denied = await guardImport(req, "import", IMPORT_RATE_LIMITS);
+    if (denied) return denied;
 
     if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
       return fail(415, "unsupported_media_type", "Send Content-Type: application/json.");
