@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { endOfLocalDayUtc, SITE_TZ, startOfLocalDayUtc } from "./time";
+import { IMAGE_ALT_MAX } from "./event-image";
 
 // Field rules shared by the admin event form and the event import API, so an
 // event that gets in either way can't break the calendar.
@@ -88,6 +89,15 @@ export const eventLinks = z
   .array(eventLink)
   .max(LINKS_MAX, `At most ${LINKS_MAX} links`);
 export type EventLink = z.output<typeof eventLink>;
+
+// Image alt text, and the id of an image an event already has (see
+// lib/event-image.ts). A blank alt removes it.
+export const imageAlt = z
+  .string()
+  .trim()
+  .max(IMAGE_ALT_MAX, `Alt text is at most ${IMAGE_ALT_MAX} characters`)
+  .regex(/^[^\p{Cc}]*$/u, "Alt text can't contain control characters");
+export const imageId = z.string().regex(/^[0-9a-f]{16}$/, "Not an image id");
 
 /**
  * How a Santa Cruz wall-clock time maps to real time on that date: "ok", or

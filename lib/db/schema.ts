@@ -9,6 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { EVENT_TIMINGS, type EventLink } from "../event-rules";
+import type { EventImage } from "../event-image";
 
 // ---------- Auth.js (Drizzle adapter) ----------
 
@@ -195,6 +196,10 @@ export const events = sqliteTable(
     // Up to LINKS_MAX buttons ({ label, url }, checked by eventLinks in
     // lib/event-rules.ts), such as an RSVP form. Null when there are none.
     links: text("links", { mode: "json" }).$type<EventLink[]>(),
+    // Flyers, in order (lib/event-image.ts): the variant URLs and sizes in
+    // the Blob store. Null when there are none. Kept on the row so list
+    // pages get them with no extra query.
+    images: text("images", { mode: "json" }).$type<EventImage[]>(),
   },
   (t) => ({
     createdByIdx: index("events_created_by_admin_id_idx").on(

@@ -44,6 +44,7 @@ Migrations `drizzle/0002_melodic_redwing.sql` (from the audit) and `drizzle/0003
 - **Existing events become `source: "manual"`.**
 - **`drizzle/0004_event_timing.sql` (optional times)** adds the `timing` column; existing events become `timed`. It must run before the code that sends or stores date-only events is deployed.
 - **`drizzle/0005_event_links.sql` (links)** adds the nullable `links` column. It must run before the code that sends or stores `links` is deployed.
+- **`drizzle/0006_event_images.sql` (images)** adds the nullable `images` column. Same rule.
 - **To apply them,** run this with the production URL and token:
 
   ```bash
@@ -60,7 +61,7 @@ Authorization: Bearer <EVENT_IMPORT_TOKEN>
 Content-Type: application/json
 ```
 
-Every other method gets `405`.
+Every other method gets `405`. Images have their own endpoint, `PUT /api/import/events/images`, with the same token; see "Images".
 
 **No session or cookie is involved.** The only credential is the bearer token. The admin login (`/login`, `proxy.ts`) doesn't apply to this route.
 
@@ -284,7 +285,7 @@ Errors have this shape, with the matching HTTP status:
 
 ## Conflicts: admins come first
 
-**Imported events are normal events.** Admins can edit or delete them in the admin dashboard; the admin list marks them as imported. When an admin has changed one, the importer doesn't silently undo that:
+**Imported events are normal events.** Admins can edit or delete them in the admin dashboard; the admin list marks them as imported. When an admin has changed one, the importer doesn't silently undo that. Any admin save counts: the details, description and links in the event form, and adding, replacing, reordering, re-captioning or removing images.
 
 - **Admin edited it:** an `upsert` with different details returns `conflict` / `edited_by_admin` and changes nothing. An `upsert` that already matches the admin's version returns `unchanged`.
 - **Admin deleted it:** an `upsert` returns `conflict` / `deleted_by_admin` and does not re-create it. So do `cancel` and `restore`.
@@ -292,7 +293,56 @@ Errors have this shape, with the matching HTTP status:
   - Use it only when the announcement really should win.
   - `cancel` and `restore` don't take `override`, and don't need it: they change only the cancelled state, never the details.
 
-midna can change this policy later. It lives in `lib/import/apply.ts`.
+- **Images follow the same rule** (`PUT /api/import/events/images`): on an admin-edited event they return `conflict` / `edited_by_admin` unless `override: true`. Unlike an upsert's, that override doesn't clear the edited mark: the admin's other edits still stand, so later upserts still conflict.
+
+midna can change this policy later. It lives in `lib/import/apply.ts` and `lib/import/images.ts`.
+
+## Images
+
+Up to 10 images (flyers) per event, in order. They live in the site's public Vercel Blob store; the site only ever serves WebP copies the server made, in three widths, with all metadata (EXIF, GPS) removed. Setup: `BLOB_READ_WRITE_TOKEN` on Vercel (Production) and, for the importer, in `~/.local/share/midna-ucscmsa/blob-token` (`chmod 600`). Without it this endpoint returns `503` / `images_disabled`.
+
+**Attaching images to an imported event takes two steps:**
+
+1. **Upload each original to the Blob store** with the token, at `flyers/<eventId>/<id>.jpg`, where `eventId` comes from the upsert's result and `<id>` is the first 16 hex digits of the file's SHA-256. Strip metadata first anyway. Upload only images the event doesn't already have (compare `<id>` with the ids in the event's current images, from the last response): the server deletes every upload once it has read it, so there's nothing to find in the store later.
+2. **`PUT /api/import/events/images`** with the event's whole image list, in order:
+
+```json
+{
+  "source": "whatsapp",
+  "sourceId": "wa-2026-11-06-halaqa",
+  "images": [
+    { "url": "https://<store>.public.blob.vercel-storage.com/flyers/01J…/3f9a0c1d2b4e5f60.jpg", "alt": "Halaqa flyer: Friday 6 PM, Stevenson 175" },
+    { "id": "a1b2c3d4e5f60718" }
+  ]
+}
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `source`, `sourceId` | string | yes | As in an upsert: which imported event. |
+| `images` | array | yes | 0–10 items; `[]` removes all images. Each is `{ "url" }` for a new upload, or `{ "id" }` for an image the event already has. Either may have `alt`. |
+| `images[].url` | string | | A URL in our Blob store under `flyers/<eventId>/` of this event. Any other URL is `400` / `invalid_image_url`. Resending an upload's URL after it was attached is fine: it's recognised, not fetched. |
+| `images[].id` | string | | 16 hex digits. An id the event doesn't have is `400` / `unknown_image`. |
+| `images[].alt` | string | no | Alt text, up to 300 characters. Left out, an existing image keeps its alt; `""` removes it. |
+| `override` | boolean | no | See "Conflicts". |
+| `dryRun` | boolean | no | Reports the status without fetching, storing or deleting anything. |
+
+**Uploads are JPEG, PNG, WebP or GIF (first frame), up to 15 MB and 50 megapixels.** An unreadable one is `422` / `invalid_image`; one that isn't in the store is `422` / `image_missing`. Error responses carry `index`, the position in `images`. On any error nothing changes, and the request's uploads are still deleted.
+
+The same picture listed twice, or uploaded again under another name, is kept once. Sending the same list again returns `unchanged`.
+
+**The response:**
+
+```json
+{ "ok": true, "status": "updated", "eventId": "01J…", "images": [ { "id": "3f9a0c1d2b4e5f60", "w": 1080, "h": 1350, "alt": "…", "origin": "import", "src": "flyers/01J…/3f9a0c1d2b4e5f60.jpg",
+  "card": { "url": "https://…/flyers/01J…/3f9a0c1d2b4e5f60-card.webp", "w": 480, "h": 600 },
+  "page": { "url": "…-page.webp", "w": 1080, "h": 1350 },
+  "full": { "url": "…-full.webp", "w": 1080, "h": 1350 } } ] }
+```
+
+`status` is `updated`, `unchanged`, `conflict` (with `reason`) or `not_found`; `images` is the event's list afterwards. `w` and `h` are the original's upright size. The variants are at most 480 (`card`), 1200 (`page`) and 2000 (`full`) pixels wide, never enlarged, and at most three times as tall as wide.
+
+**Upserts never touch images,** and deleting an event deletes its images from the store.
 
 ## Rate limits
 
@@ -302,6 +352,8 @@ Only requests with a valid token are counted; anonymous requests are refused bef
 - **Per token overall:** 120 requests per hour.
 
 A daily batch of announcements needs one request. Going over either limit gets `429` with `Retry-After`.
+
+`PUT /api/import/events/images` has its own, separate windows: 60 requests per 10 minutes per token and IP, and 300 per hour per token.
 
 ## Examples
 
@@ -486,6 +538,7 @@ New columns on `events`:
 | `cancelled_at` | Set while the whole event is cancelled |
 | `timing` | `timed`, `start_only` or `date_only` (migration 0004). An unknown start is stored as the start of the Santa Cruz day, an unknown end as the end of the last day |
 | `links` | JSON array of `{ "kind", "label", "url" }` with the label always filled in, or null when there are none (migration 0005). Set by imports and by the admin form |
+| `images` | JSON array of images as in the images response, in order, or null (migration 0006). Set by `PUT /api/import/events/images` and the admin form; the files are in Blob under `flyers/<eventId>/` |
 
 New tables:
 

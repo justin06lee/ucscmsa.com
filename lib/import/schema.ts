@@ -3,6 +3,8 @@ import {
   description,
   eventLinks,
   hm,
+  imageAlt,
+  imageId,
   interval,
   localTimeKind,
   location,
@@ -11,6 +13,7 @@ import {
   WEEKDAY_CODES,
 } from "@/lib/event-rules";
 import type { RateLimitRule } from "@/lib/rate-limit";
+import { EVENT_IMAGES_MAX } from "@/lib/event-image";
 
 // The request body of POST /api/import/events. Documented field by field in
 // docs/import.md; keep the two in step. Every object is strict: unknown
@@ -26,12 +29,19 @@ export const IMPORT_RATE_LIMITS: Record<"tokenAndIp" | "token", RateLimitRule> =
   token: { limit: 120, windowMs: 60 * 60_000 },
 };
 
-const source = z
+// PUT /api/import/events/images counts separately, so a backfill of flyers
+// can't starve event batches.
+export const IMAGES_RATE_LIMITS: Record<"tokenAndIp" | "token", RateLimitRule> = {
+  tokenAndIp: { limit: 60, windowMs: 10 * 60_000 },
+  token: { limit: 300, windowMs: 60 * 60_000 },
+};
+
+export const source = z
   .string()
   .regex(/^[a-z][a-z0-9_-]{0,31}$/, "Lowercase letters, digits, - and _; 1-32 characters")
   .refine((s) => s !== "manual", '"manual" is reserved for events made in the admin form');
 
-const sourceId = z
+export const sourceId = z
   .string()
   .min(1)
   .max(200)
@@ -134,3 +144,21 @@ export const importRequestSchema = z.strictObject({
 export type ImportRequest = z.infer<typeof importRequestSchema>;
 export type ImportOperation = ImportRequest["operations"][number];
 export type ImportEvent = z.infer<typeof event>;
+
+// The body of PUT /api/import/events/images: the event's whole image list,
+// in order. Each item is a new upload in the Blob store ({ url }) or an
+// image the event already has ({ id }).
+export const imagesRequestSchema = z.strictObject({
+  source,
+  sourceId,
+  images: z
+    .array(z.union([
+      z.strictObject({ url: z.string().max(1000), alt: imageAlt.optional() }),
+      z.strictObject({ id: imageId, alt: imageAlt.optional() }),
+    ]))
+    .max(EVENT_IMAGES_MAX, `At most ${EVENT_IMAGES_MAX} images`),
+  override: z.boolean().optional(),
+  dryRun: z.boolean().optional(),
+});
+
+export type ImagesRequest = z.infer<typeof imagesRequestSchema>;
