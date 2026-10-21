@@ -1,32 +1,15 @@
 import { z } from "zod";
-
-// A real calendar date in a sane range. The pattern alone let "2026-02-31"
-// and "0001-01-01" through: the first became an Invalid Date at insert time,
-// the second made every page view expand two thousand years of recurrences.
-function isRealYmd(s: string): boolean {
-  const d = new Date(`${s}T12:00:00.000Z`);
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s) return false;
-  const year = d.getUTCFullYear();
-  return year >= 2000 && year <= 2100;
-}
-
-const realYmd = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
-  .refine(isRealYmd, "Invalid date");
+import { description, hm, location, realYmd, title, INTERVAL_MAX, WEEKDAY_CODES } from "@/lib/event-rules";
 
 const ymd = realYmd.or(z.literal("")).default("");
 
-const hm = (message: string) =>
-  z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, message);
-
-const WEEKDAY = "(SU|MO|TU|WE|TH|FR|SA)";
+const WEEKDAY = `(${WEEKDAY_CODES.join("|")})`;
 
 export const eventInputSchema = z
   .object({
-    title: z.string().trim().min(1, "Title required").max(200, "Title is too long"),
-    description: z.string().max(10_000, "Description is too long").default(""),
-    location: z.string().trim().max(200, "Location is too long").default(""),
+    title,
+    description: description.default(""),
+    location: location.default(""),
     startDate: ymd,
     startTime: hm("Invalid start time"),
     endDate: ymd,
@@ -38,7 +21,7 @@ export const eventInputSchema = z
       .string()
       .regex(new RegExp(`^(${WEEKDAY}(,${WEEKDAY})*)?$`), "Invalid weekdays")
       .default(""),
-    recurrenceInterval: z.coerce.number().int().min(1).max(99).default(1),
+    recurrenceInterval: z.coerce.number().int().min(1).max(INTERVAL_MAX).default(1),
     recurrenceUntil: ymd,
   })
   .refine(
