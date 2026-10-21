@@ -27,7 +27,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
 import { importRequestSchema } from "@/lib/import/schema";
@@ -261,6 +261,7 @@ const MESSAGE_TYPES: Record<number, string> = {
 };
 const SYSTEM_TYPES = [6, 10];
 const CAPTIONED = new Set(["image", "video", "document", "gif"]);
+const WITH_MEDIA = new Set([...CAPTIONED, "audio", "sticker"]);
 
 // ZWAMESSAGE.ZFLAGS bit set on a message an admin deleted for everyone; ZTEXT
 // then holds the admin's JID instead of text.
@@ -279,6 +280,8 @@ export type WaMessage = {
   /** The latest text, after any edits. Null for media, polls and revoked messages. */
   text: string | null;
   caption: string | null;
+  /** The downloaded media file in WhatsApp's folder, or null if it isn't downloaded. */
+  mediaPath: string | null;
   /** A link message's preview title. */
   linkTitle: string | null;
   /** The id of the message this one replies to, under an announcement. */
@@ -301,7 +304,7 @@ export type ReadState = {
 const MESSAGES_SQL = `
   select m.Z_PK as pk, m.ZSTANZAID as id, m.ZMESSAGETYPE as type, m.ZFLAGS as flags,
          m.ZISFROMME as fromMe, m.ZMESSAGEDATE as date, m.ZSENTDATE as sentDate, m.ZTEXT as text,
-         mi.ZTITLE as title,
+         mi.ZTITLE as title, mi.ZMEDIALOCALPATH as localPath,
          gm.ZMEMBERJID as memberJid, gm.ZISADMIN as isAdmin,
          nullif(gm.ZCONTACTNAME, '') as contactName, nullif(gm.ZFIRSTNAME, '') as firstName,
          (select nullif(pn.ZPUSHNAME, '') from ZWAPROFILEPUSHNAME pn
@@ -332,6 +335,8 @@ export type ReadOptions = {
   until?: Date | null;
   state?: ReadState | null;
   now?: Date;
+  /** Where WhatsApp keeps downloaded media: <dbDir>/Message. */
+  mediaDir?: string | null;
 };
 
 /**
@@ -356,6 +361,13 @@ export function readMessages(db: SqliteDb, opts: ReadOptions): { messages: WaMes
     const title = str(r.title);
     const text = revoked ? null : str(r.text);
     const caption = CAPTIONED.has(type) ? title : null;
+    // Only the path is given out; the file is checked for, never opened.
+    let mediaPath: string | null = null;
+    const localPath = str(r.localPath);
+    if (WITH_MEDIA.has(type) && opts.mediaDir && localPath) {
+      const file = resolve(opts.mediaDir, localPath);
+      if (file.startsWith(resolve(opts.mediaDir) + sep) && existsSync(file)) mediaPath = file;
+    }
     const sent = appleToDate(Number(r.date));
     const revokedAt = revoked && r.sentDate != null ? appleToDate(Number(r.sentDate)) : null;
 
@@ -390,6 +402,7 @@ export function readMessages(db: SqliteDb, opts: ReadOptions): { messages: WaMes
       waType,
       text,
       caption,
+      mediaPath,
       linkTitle: type === "link" ? title : null,
       replyTo: str(r.parentId),
       edited: Boolean(editSeenAt),
@@ -680,7 +693,13 @@ export async function main(argv: string[], openDb: OpenDb = openWithBunSqlite): 
       const useState = !flags.has("--no-state");
       const chatJid = config.chatJid;
       const { messages, state } = await withDbCopy(config.dbDir, openDb, (db) =>
-        readMessages(db, { chatJid, since, until, state: useState ? loadState(config.stateFile) : null })
+        readMessages(db, {
+          chatJid,
+          since,
+          until,
+          state: useState ? loadState(config.stateFile) : null,
+          mediaDir: join(config.dbDir, "Message"),
+        })
       );
       if (useState) saveState(config.stateFile, state);
       process.stdout.write(`${JSON.stringify(messages, null, 2)}\n`);

@@ -85,6 +85,7 @@ A time without an offset is refused rather than guessed.
   "waType": 1,
   "text": null,
   "caption": "Potluck this Friday, Oct 23, 6-8 PM at the lounge. Bring a dish!",
+  "mediaPath": null,
   "linkTitle": null,
   "replyTo": null,
   "edited": false,
@@ -105,6 +106,7 @@ A time without an offset is refused rather than guessed.
 | `waType` | WhatsApp's raw type number. |
 | `text` | The latest text, after any edits. `null` for media, polls and revoked messages. |
 | `caption` | The caption of an image, video, document or GIF. Flyers often carry the whole announcement here. |
+| `mediaPath` | The downloaded media file in WhatsApp's folder (`…/group.net.whatsapp.WhatsApp.shared/Message/Media/…`), or `null` if it isn't downloaded. When a flyer holds the details, download it in WhatsApp and read the image from there. |
 | `linkTitle` | The link preview's title, for `link` messages. |
 | `replyTo` | The `id` of the announcement this message replies to. Members' replies show up under announcements. They're rarely events, but an admin's reply can carry a change ("moved to 5:30"). |
 | `edited`, `editSeenAt` | The text changed since a previous `read`. `editSeenAt` is when `read` noticed; WhatsApp keeps no edit time. |
@@ -113,7 +115,7 @@ A time without an offset is refused rather than guessed.
 **What the database doesn't have:**
 
 - **Poll questions and options** aren't stored.
-- **Images** are usually not downloaded, so a flyer's text exists only if it was put in the caption.
+- **Images** are only on this Mac once downloaded in WhatsApp; `mediaPath` says where.
 - **Type `unknown`, `waType` 75,** is admin activity that points at an earlier announcement. It has no content; ignore it.
 - **Another unknown `waType`** is new. Tell whoever owns this script.
 

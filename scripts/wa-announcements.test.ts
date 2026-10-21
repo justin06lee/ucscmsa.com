@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,7 +47,7 @@ const SCHEMA = `
   create table ZWAGROUPMEMBER (Z_PK integer primary key, ZCHATSESSION integer, ZMEMBERJID varchar,
     ZCONTACTNAME varchar, ZFIRSTNAME varchar, ZISADMIN integer);
   create table ZWAPROFILEPUSHNAME (Z_PK integer primary key, ZJID varchar, ZPUSHNAME varchar);
-  create table ZWAMEDIAITEM (Z_PK integer primary key, ZMESSAGE integer, ZTITLE varchar);
+  create table ZWAMEDIAITEM (Z_PK integer primary key, ZMESSAGE integer, ZTITLE varchar, ZMEDIALOCALPATH varchar);
   create table ZWAMESSAGE (Z_PK integer primary key, ZCHATSESSION integer, ZSTANZAID varchar,
     ZMESSAGETYPE integer, ZFLAGS integer, ZISFROMME integer, ZMESSAGEDATE timestamp, ZSENTDATE timestamp,
     ZTEXT varchar, ZGROUPMEMBER integer, ZMEDIAITEM integer, ZPARENTMESSAGE integer);
@@ -61,6 +61,7 @@ type Msg = {
   at: string;
   text?: string | null;
   title?: string | null;
+  localPath?: string;
   member?: number | null;
   parent?: number | null;
   flags?: number;
@@ -69,8 +70,14 @@ type Msg = {
 };
 
 function insertMessage(db: NodeDb, m: Msg) {
-  if (m.title !== undefined) {
-    db.prepare("insert into ZWAMEDIAITEM (Z_PK, ZMESSAGE, ZTITLE) values (?, ?, ?)").run(m.pk, m.pk, m.title);
+  const hasMedia = m.title !== undefined || m.localPath !== undefined;
+  if (hasMedia) {
+    db.prepare("insert into ZWAMEDIAITEM (Z_PK, ZMESSAGE, ZTITLE, ZMEDIALOCALPATH) values (?, ?, ?, ?)").run(
+      m.pk,
+      m.pk,
+      m.title ?? null,
+      m.localPath ?? null
+    );
   }
   db.prepare(
     `insert into ZWAMESSAGE (Z_PK, ZCHATSESSION, ZSTANZAID, ZMESSAGETYPE, ZFLAGS, ZISFROMME, ZMESSAGEDATE,
@@ -86,7 +93,7 @@ function insertMessage(db: NodeDb, m: Msg) {
     m.sentAt ? apple(m.sentAt) : null,
     m.text ?? null,
     m.member === undefined ? 1 : m.member,
-    m.title !== undefined ? m.pk : null,
+    hasMedia ? m.pk : null,
     m.parent ?? null
   );
 }
@@ -158,6 +165,7 @@ const read = (opts: { since: string; until?: string; state?: ReadState | null; n
       until: opts.until ? new Date(opts.until) : null,
       state: opts.state,
       now: opts.now,
+      mediaDir: join(src, "Message"),
     })
   );
 
@@ -230,6 +238,7 @@ describe("read", () => {
         waType: 0,
         text: "Halaqa Thursday 7 PM in the lounge",
         caption: null,
+        mediaPath: null,
         linkTitle: null,
         replyTo: null,
         edited: false,
@@ -250,6 +259,20 @@ describe("read", () => {
       replyTo: "3AF0000000000000A002",
       sender: { name: "A Student", admin: false },
     });
+  });
+
+  it("gives a media message's downloaded file, and null when there is none", async () => {
+    const flyer = "Media/100000000000000001@g.us/a/c/flyer.jpg";
+    mkdirSync(join(src, "Message", "Media", "100000000000000001@g.us", "a", "c"), { recursive: true });
+    writeFileSync(join(src, "Message", flyer), "jpg");
+    writeFileSync(join(src, "outside.jpg"), "jpg");
+    const at = (n: number) => `2026-12-02T18:0${n}:00Z`;
+    insertMessage(writer, { pk: 60, id: "3AF0000000000000E001", type: 1, at: at(0), title: "Game night!", localPath: flyer });
+    insertMessage(writer, { pk: 61, id: "3AF0000000000000E002", type: 1, at: at(1), localPath: "Media/x/0/0/not-downloaded.jpg" });
+    insertMessage(writer, { pk: 62, id: "3AF0000000000000E003", at: at(2), text: "a reply", parent: 60, localPath: flyer });
+    insertMessage(writer, { pk: 63, id: "3AF0000000000000E004", type: 1, at: at(3), localPath: "../outside.jpg" });
+    const { messages } = await read({ since: "2026-12-01T00:00:00Z" });
+    expect(messages.map((m) => m.mediaPath)).toEqual([join(src, "Message", flyer), null, null, null]);
   });
 
   it("marks the Mac owner's own messages without a sender", async () => {
