@@ -84,10 +84,28 @@ describe("event form planning fields", () => {
     expect(await publishEvent(id)).toEqual({ ok: true });
     const [ev] = await db.select().from(events).where(eq(events.id, id));
     expect(ev.draft).toBe(false);
-    for (const p of ["/", "/calendar", `/calendar/events/${id}`]) {
+    for (const p of ["/", "/calendar", "/sitemap.xml"]) {
       expect(h.revalidatePath).toHaveBeenCalledWith(p);
     }
+    // "layout" takes the event's share image with its page.
+    expect(h.revalidatePath).toHaveBeenCalledWith(`/calendar/events/${id}`, "layout");
     expect(await publishEvent("missing")).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("putting a published event back to draft refreshes its page, share image and the sitemap", async () => {
+    const r = await createEvent(form({ ...base(ymd(20)), planning: "1" }));
+    const id = (r as { id: string }).id;
+    h.revalidatePath.mockClear();
+    await updateEvent(id, form({ ...base(ymd(20)), planning: "1", draft: "on" }));
+    expect(h.revalidatePath).toHaveBeenCalledWith(`/calendar/events/${id}`, "layout");
+    expect(h.revalidatePath).toHaveBeenCalledWith("/sitemap.xml");
+  });
+
+  it("saving an event that no longer exists changes nothing", async () => {
+    const r = await updateEvent("01JAAAAAAAAAAAAAAAAAAAAAAA", form({ ...base(ymd(20)), planning: "1", tags: ["room"] }));
+    expect(r).toEqual({ ok: false, error: "not_found" });
+    const tags = await db.select().from(eventTags).where(eq(eventTags.eventId, "01JAAAAAAAAAAAAAAAAAAAAAAA"));
+    expect(tags).toEqual([]);
   });
 
   it("unticking Draft in the form publishes it too", async () => {

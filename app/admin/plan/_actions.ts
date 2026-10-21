@@ -52,7 +52,7 @@ export async function publishEvent(eventId: string) {
   // Everywhere the event now shows up.
   revalidatePath("/");
   revalidatePath("/calendar");
-  revalidatePath(`/calendar/events/${row.id}`);
+  revalidatePath(`/calendar/events/${row.id}`, "layout");
   revalidatePath("/sitemap.xml");
   revalidatePath("/admin");
   revalidatePlan(row.id);

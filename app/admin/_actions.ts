@@ -39,15 +39,17 @@ function formInstants(p: EventInputForm) {
   });
 }
 
-// Everywhere an event shows up, including the landing page's upcoming list
-// and the board's planning pages.
+// Everywhere an event shows up, including the landing page's upcoming list,
+// the sitemap and the board's planning pages. "layout" takes the event page's
+// share image with it, so one that went back to draft stops showing there too.
 function revalidateEventPages(id?: string) {
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/calendar");
+  revalidatePath("/sitemap.xml");
   revalidatePath("/admin/plan");
   if (id) {
-    revalidatePath(`/calendar/events/${id}`);
+    revalidatePath(`/calendar/events/${id}`, "layout");
     revalidatePath(`/admin/plan/${id}`);
   }
 }
@@ -82,23 +84,26 @@ export async function createEvent(fd: FormData) {
   const p = parsed.data;
   const planning = planningFields(fd);
   const id = ulid();
-  await db.insert(events).values({
-    id,
-    title: p.title,
-    description: p.description,
-    location: p.location,
-    ...formInstants(p),
-    recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
-    recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
-    recurrenceInterval: p.recurrenceInterval,
-    recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
-    createdByAdminId: adminId,
-    draft: planning?.draft ?? false,
+  // The event and its checklist land together or not at all.
+  await db.transaction(async (tx) => {
+    await tx.insert(events).values({
+      id,
+      title: p.title,
+      description: p.description,
+      location: p.location,
+      ...formInstants(p),
+      recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
+      recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
+      recurrenceInterval: p.recurrenceInterval,
+      recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
+      createdByAdminId: adminId,
+      draft: planning?.draft ?? false,
+    });
+    // A one-off event that hasn't happened yet gets its planning checklist.
+    if (planning) {
+      await planFromForm(tx, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
+    }
   });
-  // A one-off event that hasn't happened yet gets its planning checklist.
-  if (planning) {
-    await planFromForm(db, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
-  }
   revalidateEventPages(id);
   return { ok: true as const, id, planned: await hasPlan(db, id) };
 }
@@ -114,26 +119,36 @@ export async function updateEvent(id: string, fd: FormData) {
   }
   const p = parsed.data;
   const planning = planningFields(fd);
-  await db.update(events).set({
-    title: p.title,
-    description: p.description,
-    location: p.location,
-    ...formInstants(p),
-    recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
-    recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
-    recurrenceInterval: p.recurrenceInterval,
-    recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
-    updatedAt: new Date(),
-    // Tells the event importer not to overwrite this admin's changes.
-    adminEditedAt: new Date(),
-    ...(planning ? { draft: planning.draft } : {}),
-  }).where(eq(events.id, id));
-  // Moving the date moves the open tasks; done ones stay (lib/planning.ts).
-  if (planning) {
-    await planFromForm(db, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
-  } else if (await hasPlan(db, id)) {
-    await syncPlan(db, id);
-  }
+  // The event and its checklist change together; a missing event changes neither.
+  const found = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(events)
+      .set({
+        title: p.title,
+        description: p.description,
+        location: p.location,
+        ...formInstants(p),
+        recurrenceFreq: p.recurrenceFreq === "none" ? null : p.recurrenceFreq,
+        recurrenceByWeekday: p.recurrenceFreq === "weekly" ? p.recurrenceByWeekday : null,
+        recurrenceInterval: p.recurrenceInterval,
+        recurrenceUntil: p.recurrenceUntil ? parseHMInLocal(p.recurrenceUntil, "23:59") : null,
+        updatedAt: new Date(),
+        // Tells the event importer not to overwrite this admin's changes.
+        adminEditedAt: new Date(),
+        ...(planning ? { draft: planning.draft } : {}),
+      })
+      .where(eq(events.id, id))
+      .returning({ id: events.id });
+    if (!row) return false;
+    // Moving the date moves the open tasks; done ones stay (lib/planning.ts).
+    if (planning) {
+      await planFromForm(tx, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
+    } else if (await hasPlan(tx, id)) {
+      await syncPlan(tx, id);
+    }
+    return true;
+  });
+  if (!found) return { ok: false as const, error: "not_found" };
   revalidateEventPages(id);
   return { ok: true as const, id, planned: await hasPlan(db, id) };
 }
