@@ -18,6 +18,7 @@ export async function getOccurrencesInRange(
     .from(events)
     .where(
       and(
+        isNull(events.cancelledAt),
         lt(events.startTime, rangeEnd),
         or(
           and(isNull(events.recurrenceFreq), gt(events.endTime, rangeStart)),
@@ -68,7 +69,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The occurrence of `eventId` that starts exactly at `occurrenceStart`, or
- * null when the event doesn't exist or has no (uncancelled) occurrence then.
+ * null when the event doesn't exist, is cancelled, or has no (uncancelled)
+ * occurrence then.
  * Used to check start times that arrive from the client.
  */
 export async function findOccurrence(
@@ -79,7 +81,7 @@ export async function findOccurrence(
   const t = occurrenceStart.getTime();
   if (Number.isNaN(t)) return null;
   const [row] = await database.select().from(events).where(eq(events.id, eventId)).limit(1);
-  if (!row) return null;
+  if (!row || row.cancelledAt) return null;
   const cancelRows = await database
     .select()
     .from(eventCancellations)

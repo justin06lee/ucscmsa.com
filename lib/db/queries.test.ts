@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestDb } from "@/test/db";
 import { admins, eventCancellations, events, users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { findOccurrence } from "./queries";
 
 async function setup() {
@@ -37,6 +38,16 @@ describe("findOccurrence", () => {
     expect(await findOccurrence("jummah", new Date("2026-04-10T20:30:00.000Z"), db)).toBeNull();
     expect(await findOccurrence("nope", new Date("2026-04-03T20:30:00.000Z"), db)).toBeNull();
     expect(await findOccurrence("jummah", new Date("garbage"), db)).toBeNull();
+    client.close();
+  });
+});
+
+describe("cancelled events", () => {
+  it("have no occurrences to RSVP to (the calendar side is tested in the import route tests)", async () => {
+    const { db, client } = await setup();
+    const start = new Date("2026-04-03T20:30:00.000Z");
+    await db.update(events).set({ cancelledAt: new Date() }).where(eq(events.id, "jummah"));
+    expect(await findOccurrence("jummah", start, db)).toBeNull();
     client.close();
   });
 });

@@ -6,6 +6,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 // ---------- Auth.js (Drizzle adapter) ----------
@@ -173,11 +174,59 @@ export const events = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
+    // Where the event came from: "manual" for the admin form, or an import
+    // source such as "whatsapp" with that source's stable id for it.
+    source: text("source").notNull().default("manual"),
+    sourceId: text("source_id"),
+    sourceRef: text("source_ref"), // free text: a link or a note on the origin
+    importedAt: integer("imported_at", { mode: "timestamp_ms" }),
+    lastImportedAt: integer("last_imported_at", { mode: "timestamp_ms" }),
+    // Set when an admin saves the event in the admin form. The importer won't
+    // overwrite an event with this set unless told to (override), which
+    // clears it again.
+    adminEditedAt: integer("admin_edited_at", { mode: "timestamp_ms" }),
+    // The whole event is cancelled; it drops off the public calendar.
+    cancelledAt: integer("cancelled_at", { mode: "timestamp_ms" }),
   },
   (t) => ({
     createdByIdx: index("events_created_by_admin_id_idx").on(
       t.createdByAdminId
     ),
+    sourceIdUnique: uniqueIndex("events_source_source_id_unique").on(
+      t.source,
+      t.sourceId
+    ),
+  })
+);
+
+// An imported event an admin deleted. The importer must not bring it back
+// unless it says so explicitly (override).
+export const eventImportTombstones = sqliteTable(
+  "event_import_tombstones",
+  {
+    source: text("source").notNull(),
+    sourceId: text("source_id").notNull(),
+    eventId: text("event_id").notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.source, t.sourceId] }),
+  })
+);
+
+// Fixed-window request counters (see lib/rate-limit.ts).
+export const rateLimits = sqliteTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    windowStart: integer("window_start").notNull(), // ms since epoch
+    count: integer("count").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.key, t.windowStart] }),
+    windowIdx: index("rate_limits_window_start_idx").on(t.windowStart),
   })
 );
 

@@ -30,22 +30,19 @@ describe("migration 0002 (events.created_by_admin_id nullable, admin_removals)",
     try {
       await migrate(db, { migrationsFolder: migrationsUpTo(2) });
 
-      await db.insert(schema.users).values({ id: "u1", email: "a@ucsc.edu" });
-      const [admin] = await db.insert(schema.admins).values({ userId: "u1" }).returning();
-      await db.insert(schema.events).values({
-        id: "ev1",
-        title: "Halaqa",
-        startTime: new Date("2026-10-21T02:00:00.000Z"),
-        endTime: new Date("2026-10-21T03:00:00.000Z"),
-        createdByAdminId: admin.id,
-      });
-      await db.insert(schema.eventRsvps).values({
-        eventId: "ev1",
-        occurrenceStart: new Date("2026-10-21T02:00:00.000Z"),
-        userId: "u1",
-        status: "yes",
-      });
-      await db.insert(schema.eventCancellations).values({ eventId: "ev1", occurrenceDate: "2026-10-28" });
+      // Raw SQL: the schema object describes the latest tables, not 0001's.
+      await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
+      await client.execute("INSERT INTO admins (user_id) VALUES ('u1')");
+      const admin = { id: 1 };
+      await client.execute(
+        "INSERT INTO events (id, title, start_time, end_time, created_by_admin_id) VALUES ('ev1', 'Halaqa', 1792548000000, 1792551600000, 1)"
+      );
+      await client.execute(
+        "INSERT INTO event_rsvps (event_id, occurrence_start, user_id, status) VALUES ('ev1', 1792548000000, 'u1', 'yes')"
+      );
+      await client.execute(
+        "INSERT INTO event_cancellations (event_id, occurrence_date) VALUES ('ev1', '2026-10-28')"
+      );
 
       await migrate(db, { migrationsFolder: "./drizzle" });
 
@@ -59,6 +56,60 @@ describe("migration 0002 (events.created_by_admin_id nullable, admin_removals)",
       const [ev] = await db.select().from(schema.events);
       expect(ev.createdByAdminId).toBeNull();
       expect(await db.select().from(schema.eventRsvps)).toHaveLength(1);
+    } finally {
+      client.close();
+      fs.rmSync(file, { force: true });
+    }
+  });
+});
+
+describe("migration 0003 (event import columns, tombstones, rate limits)", () => {
+  it("keeps existing events as manual ones and enforces one event per source id", async () => {
+    const file = path.join(os.tmpdir(), `ucscmsa-migtest-${crypto.randomUUID()}.db`);
+    const client = createClient({ url: `file:${file}` });
+    const db = drizzle(client);
+    try {
+      await migrate(db, { migrationsFolder: migrationsUpTo(3) });
+      // Raw SQL: the current schema object already has the new columns.
+      await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
+      await client.execute("INSERT INTO admins (user_id) VALUES ('u1')");
+      await client.execute(
+        "INSERT INTO events (id, title, start_time, end_time, created_by_admin_id) VALUES ('ev1', 'Halaqa', 1792000000000, 1792003600000, 1)"
+      );
+      await client.execute(
+        "INSERT INTO event_rsvps (event_id, occurrence_start, user_id, status) VALUES ('ev1', 1792000000000, 'u1', 'yes')"
+      );
+
+      await migrate(db, { migrationsFolder: "./drizzle" });
+
+      const typed = drizzle(client, { schema });
+      const [ev] = await typed.select().from(schema.events);
+      expect(ev).toMatchObject({
+        id: "ev1",
+        title: "Halaqa",
+        source: "manual",
+        sourceId: null,
+        importedAt: null,
+        adminEditedAt: null,
+        cancelledAt: null,
+      });
+      expect(await typed.select().from(schema.eventRsvps)).toHaveLength(1);
+      expect(await typed.select().from(schema.eventImportTombstones)).toEqual([]);
+      expect(await typed.select().from(schema.rateLimits)).toEqual([]);
+
+      const imported = (id: string) => ({
+        id,
+        title: "Jummah",
+        startTime: new Date("2026-10-23T20:30:00.000Z"),
+        endTime: new Date("2026-10-23T21:30:00.000Z"),
+        source: "whatsapp",
+        sourceId: "msg-1",
+      });
+      await typed.insert(schema.events).values(imported("ev2"));
+      await expect(typed.insert(schema.events).values(imported("ev3"))).rejects.toThrow();
+      // Manual events (no source id) don't collide with each other.
+      await typed.insert(schema.events).values({ ...imported("ev4"), source: "manual", sourceId: null });
+      await typed.insert(schema.events).values({ ...imported("ev5"), source: "manual", sourceId: null });
     } finally {
       client.close();
       fs.rmSync(file, { force: true });
