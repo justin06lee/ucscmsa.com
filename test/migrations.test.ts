@@ -164,3 +164,39 @@ describe("migration 0004 (event timing)", () => {
     }
   });
 });
+
+describe("migrations 0005 and 0006 (links, images)", () => {
+  it("add empty links and images to existing events, which then round-trip as JSON", async () => {
+    const file = path.join(os.tmpdir(), `ucscmsa-migtest-${crypto.randomUUID()}.db`);
+    const client = createClient({ url: `file:${file}` });
+    const db = drizzle(client);
+    try {
+      await migrate(db, { migrationsFolder: migrationsUpTo(5) });
+      await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
+      await client.execute(
+        "INSERT INTO events (id, title, start_time, end_time, timing) VALUES ('ev1', 'Halaqa', 1792000000000, 1792003600000, 'start_only')"
+      );
+      await client.execute(
+        "INSERT INTO event_rsvps (event_id, occurrence_start, user_id, status) VALUES ('ev1', 1792000000000, 'u1', 'yes')"
+      );
+
+      await migrate(db, { migrationsFolder: "./drizzle" });
+
+      const typed = drizzle(client, { schema });
+      const [ev] = await typed.select().from(schema.events);
+      expect(ev).toMatchObject({ id: "ev1", timing: "start_only", links: null, images: null });
+      expect(await typed.select().from(schema.eventRsvps)).toHaveLength(1);
+
+      const links = [{ kind: "rsvp" as const, label: "RSVP", url: "https://forms.gle/x" }];
+      const file1 = { url: "https://s.public.blob.vercel-storage.com/flyers/ev1/0123456789abcdef-card.webp", w: 480, h: 600 };
+      const images = [{ id: "0123456789abcdef", w: 1080, h: 1350, origin: "import" as const, card: file1, page: file1, full: file1 }];
+      await typed.update(schema.events).set({ links, images }).where(eq(schema.events.id, "ev1"));
+      const [after] = await typed.select().from(schema.events);
+      expect(after.links).toEqual(links);
+      expect(after.images).toEqual(images);
+    } finally {
+      client.close();
+      fs.rmSync(file, { force: true });
+    }
+  });
+});

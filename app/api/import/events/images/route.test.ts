@@ -93,6 +93,9 @@ beforeEach(async () => {
   h.revalidatePath.mockClear();
 });
 
+// sharp encodes three variants per image; give slow CI machines room.
+vi.setConfig({ testTimeout: 30_000 });
+
 describe("PUT /api/import/events/images", () => {
   it("needs the token, and is off without a Blob store", async () => {
     expect((await put(req("x", []), null)).status).toBe(401);

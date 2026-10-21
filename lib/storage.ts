@@ -55,6 +55,7 @@ function vercelBlob(token: string, host: string): ObjectStorage {
         return null;
       }
       if (parsed.protocol !== "https:" || parsed.host !== host || parsed.search || parsed.hash) return null;
+      if (parsed.username || parsed.password) return null;
       const path = parsed.pathname.slice(1);
       return /^[A-Za-z0-9._/-]+$/.test(path) && !path.split("/").some((s) => s === "" || s === "..") ? path : null;
     },

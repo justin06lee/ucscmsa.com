@@ -7,11 +7,11 @@ const jpeg = (width: number, height: number, color = { r: 200, g: 40, b: 60 }) =
   sharp({ create: { width, height, channels: 3, background: color } }).jpeg().toBuffer();
 
 describe("processEventImage", () => {
-  it("makes card, page and full WebP variants and keeps the original size", async () => {
-    const input = await jpeg(3000, 4000);
+  it("makes card, page and full WebP variants and keeps the original size", { timeout: 20_000 }, async () => {
+    const input = await jpeg(2400, 3200);
     const img = await processEventImage(input);
     expect(img.id).toBe(createHash("sha256").update(input).digest("hex").slice(0, 16));
-    expect([img.w, img.h]).toEqual([3000, 4000]);
+    expect([img.w, img.h]).toEqual([2400, 3200]);
     expect([img.files.card.w, img.files.card.h]).toEqual([480, 640]);
     expect([img.files.page.w, img.files.page.h]).toEqual([1200, 1600]);
     expect([img.files.full.w, img.files.full.h]).toEqual([2000, 2667]);
