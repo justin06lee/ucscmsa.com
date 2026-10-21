@@ -60,7 +60,7 @@ export function MonthAgenda({
                       <span className="w-24 shrink-0 text-xs tabular-nums text-ink/70">{timeRange(o, day)}</span>
                       <span className="min-w-0">
                         <span className="block font-medium leading-snug">{o.title}</span>
-                        {o.location ? <span className="block text-xs text-dim">{o.location}</span> : null}
+                        {o.location ? <span className="block text-xs text-ink/70">{o.location}</span> : null}
                       </span>
                     </Link>
                   </li>

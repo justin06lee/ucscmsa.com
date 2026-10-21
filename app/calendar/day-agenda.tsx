@@ -112,7 +112,7 @@ export function DayAgenda({
               >
                 <span className="text-xs tabular-nums text-ink/70">{item.when}</span>
                 <span className="font-medium leading-snug">{o.title}</span>
-                {o.location ? <span className="text-sm text-dim">{o.location}</span> : null}
+                {o.location ? <span className="text-sm text-ink/75">{o.location}</span> : null}
               </Link>
             </li>
           );

@@ -51,7 +51,7 @@ export function MonthView({ ymd, occurrences }: Props) {
               className={`
                 group relative min-h-14 px-1 py-1.5 flex flex-col items-center gap-1 transition-colors
                 sm:min-h-32 sm:items-stretch sm:px-3 sm:py-2
-                ${inMonth ? "text-ink hover:bg-ink/[0.04]" : "text-ink/30 bg-ink/[0.015]"}
+                ${inMonth ? "text-ink hover:bg-ink/[0.04]" : "text-dim bg-ink/[0.015]"}
                 ${col < 6 ? "border-r border-ink/10" : ""}
                 ${row < totalRows - 1 ? "border-b border-ink/10" : ""}
               `.replace(/\s+/g, " ").trim()}
@@ -62,7 +62,7 @@ export function MonthView({ ymd, occurrences }: Props) {
                     {dayNum}
                   </span>
                 ) : (
-                  <span className={`text-sm font-medium ${inMonth ? "" : "opacity-70"}`}>
+                  <span className={`text-sm ${inMonth ? "font-medium" : ""}`}>
                     {dayNum}
                   </span>
                 )}
@@ -86,7 +86,7 @@ export function MonthView({ ymd, occurrences }: Props) {
                   className={`hidden rounded-md border px-1.5 py-0.5 text-xs leading-snug break-words transition-opacity sm:line-clamp-2 lg:line-clamp-1 ${
                     inMonth
                       ? "border-burgundy/15 bg-burgundy/10 text-burgundy"
-                      : "border-burgundy/10 bg-burgundy/5 text-burgundy/50"
+                      : "border-burgundy/10 bg-burgundy/5 text-burgundy/80"
                   }`}
                 >
                   <span className="hidden tabular-nums lg:inline">
@@ -96,7 +96,7 @@ export function MonthView({ ymd, occurrences }: Props) {
                 </div>
               ))}
               {n > 3 && (
-                <div className={`hidden text-xs sm:block ${inMonth ? "text-dim" : "text-dim/50"}`}>
+                <div className="hidden text-xs text-dim sm:block">
                   +{n - 3} more
                 </div>
               )}

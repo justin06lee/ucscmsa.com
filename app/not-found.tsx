@@ -39,7 +39,7 @@ export default async function NotFound() {
           Back home
         </Link>
       </div>
-      <p className="text-[11px] text-dim/70">
+      <p className="text-xs text-dim">
         site by{" "}
         <a
           href="https://justin06lee.dev"
