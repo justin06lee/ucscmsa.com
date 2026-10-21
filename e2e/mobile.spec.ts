@@ -68,11 +68,11 @@ for (const width of WIDTHS) {
         await page.waitForLoadState("networkidle");
         expect(new URL(page.url()).pathname).toBe(new URL(p.path, baseURL).pathname);
 
-        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
-          scrollWidth: document.documentElement.scrollWidth,
-          innerWidth: window.innerWidth,
-        }));
-        expect(scrollWidth, "page scrolls sideways").toBeLessThanOrEqual(innerWidth);
+        // Against the configured width, not window.innerWidth: with isMobile,
+        // Chrome widens the layout viewport to fit overflowing content, so
+        // that comparison could never fail (it missed the landing wordmark).
+        const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+        expect(scrollWidth, "page scrolls sideways").toBeLessThanOrEqual(width);
         expect(await smallTargets(page, 24, true), "under the WCAG 24px minimum").toEqual([]);
         expect(await smallTargets(page, 44, false), "under 44px").toEqual([]);
       });
