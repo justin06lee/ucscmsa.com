@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { formatInTimeZone } from "date-fns-tz";
+import type { EventTiming } from "./event-rules";
 import type { RecurrenceFreq } from "./rrule-lite";
 import { SITE_TZ } from "./time";
 import {
@@ -117,6 +118,8 @@ export type SeoEvent = {
   recurrenceFreq: RecurrenceFreq | null;
   recurrenceByWeekday: string | null;
   recurrenceInterval: number | null;
+  // Which times are known (lib/event-rules.ts); missing means "timed".
+  timing?: EventTiming;
 };
 
 // Jummah, Jumuah, Jumu'ah, Jumu’ah, Jumah, Jumma, Juma...
@@ -178,11 +181,11 @@ export function eventTitle(ev: SeoEvent, start: Date): string {
 
 /** Meta description: when, where, then the event's own text. */
 export function eventDescription(ev: SeoEvent, start: Date): string {
-  const time = formatInTimeZone(start, SITE_TZ, "h:mm a");
-  const series = recurrenceSummary(ev, start);
-  const when = series
-    ? `${series} at ${time}`
-    : `${formatInTimeZone(start, SITE_TZ, "EEE, MMM d, yyyy")} at ${time}`;
+  // A date-only event gets no time, rather than the 12:00 AM it is stored at.
+  const time = ev.timing === "date_only" ? null : formatInTimeZone(start, SITE_TZ, "h:mm a");
+  const day =
+    recurrenceSummary(ev, start) ?? formatInTimeZone(start, SITE_TZ, "EEE, MMM d, yyyy");
+  const when = time ? `${day} at ${time}` : day;
   const where = ev.location?.trim() || "UC Santa Cruz";
   const parts = [
     ev.cancelledAt ? "Cancelled." : null,
@@ -197,6 +200,21 @@ export function eventDescription(ev: SeoEvent, start: Date): string {
 
 export function eventUrl(id: string): string {
   return `/calendar/events/${encodeURIComponent(id)}`;
+}
+
+/**
+ * schema.org startDate/endDate for an occurrence. A date-only event gets plain
+ * dates, with an endDate only when it runs past its first day; a start-only
+ * one gets no endDate. Neither ever carries the stored 00:00 / 23:59 stand-ins.
+ */
+function eventDates(ev: SeoEvent, start: Date, end: Date): { startDate: string; endDate?: string } {
+  if (ev.timing === "date_only") {
+    const first = formatInTimeZone(start, SITE_TZ, "yyyy-MM-dd");
+    const last = formatInTimeZone(end, SITE_TZ, "yyyy-MM-dd");
+    return last > first ? { startDate: first, endDate: last } : { startDate: first };
+  }
+  if (ev.timing === "start_only") return { startDate: isoInSiteTz(start) };
+  return { startDate: isoInSiteTz(start), endDate: isoInSiteTz(end) };
 }
 
 /**
@@ -225,8 +243,7 @@ export function eventJsonLd(ev: SeoEvent, start: Date, end: Date): Record<string
     "@type": "Event",
     name: ev.title,
     ...(ev.description?.trim() ? { description: ev.description.trim() } : {}),
-    startDate: isoInSiteTz(start),
-    endDate: isoInSiteTz(end),
+    ...eventDates(ev, start, end),
     eventStatus: cancelled
       ? "https://schema.org/EventCancelled"
       : "https://schema.org/EventScheduled",

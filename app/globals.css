@@ -196,6 +196,51 @@ body {
   pointer-events: none;
 }
 
+/* Start-only events: the block is a nominal hour, and its open bottom edge
+   says the end wasn't announced. */
+.day-grid__event[data-open-end] {
+  border-bottom-style: dashed;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Events with no time on this day (date-only), above the hour grid. */
+.day-grid__untimed {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  padding: 8px 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.day-grid__untimed-label {
+  padding: 14px 12px 0 0;
+  text-align: right;
+  color: var(--color-dim);
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+
+.day-grid__untimed-event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px; /* a tap target on tablets */
+  margin: 0 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-paper) 55%, var(--color-burgundy-soft));
+  border: 1px solid color-mix(in srgb, var(--color-burgundy) 30%, transparent);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: border-color 120ms ease;
+}
+
+.day-grid__untimed-event:hover {
+  border-color: var(--color-burgundy);
+}
+
 /* Mobile day agenda: prayer markers and events in one time-ordered list,
    below md. The pills and chips echo the day grid. */
 .day-agenda__prayer {

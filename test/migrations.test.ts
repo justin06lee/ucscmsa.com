@@ -116,3 +116,51 @@ describe("migration 0003 (event import columns, tombstones, rate limits)", () =>
     }
   });
 });
+
+describe("migration 0004 (event timing)", () => {
+  it("marks existing events timed and keeps their RSVPs and cancellations", async () => {
+    const file = path.join(os.tmpdir(), `ucscmsa-migtest-${crypto.randomUUID()}.db`);
+    const client = createClient({ url: `file:${file}` });
+    const db = drizzle(client);
+    try {
+      await migrate(db, { migrationsFolder: migrationsUpTo(4) });
+      await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
+      await client.execute("INSERT INTO admins (user_id) VALUES ('u1')");
+      await client.execute(
+        "INSERT INTO events (id, title, start_time, end_time, recurrence_freq, created_by_admin_id, source, source_id) VALUES ('ev1', 'Jummah', 1792000000000, 1792003600000, 'weekly', 1, 'whatsapp', 'msg-1')"
+      );
+      await client.execute(
+        "INSERT INTO event_rsvps (event_id, occurrence_start, user_id, status) VALUES ('ev1', 1792000000000, 'u1', 'yes')"
+      );
+      await client.execute("INSERT INTO event_cancellations (event_id, occurrence_date) VALUES ('ev1', '2026-10-30')");
+
+      await migrate(db, { migrationsFolder: "./drizzle" });
+
+      const typed = drizzle(client, { schema });
+      const [ev] = await typed.select().from(schema.events);
+      expect(ev).toMatchObject({
+        id: "ev1",
+        timing: "timed",
+        startTime: new Date(1792000000000),
+        endTime: new Date(1792003600000),
+        source: "whatsapp",
+        sourceId: "msg-1",
+      });
+      expect(await typed.select().from(schema.eventRsvps)).toHaveLength(1);
+      expect(await typed.select().from(schema.eventCancellations)).toHaveLength(1);
+
+      await typed.insert(schema.events).values({
+        id: "ev2",
+        title: "Potluck",
+        timing: "date_only",
+        startTime: new Date("2026-10-23T07:00:00.000Z"),
+        endTime: new Date("2026-10-24T06:59:59.999Z"),
+      });
+      const [potluck] = await typed.select().from(schema.events).where(eq(schema.events.id, "ev2"));
+      expect(potluck.timing).toBe("date_only");
+    } finally {
+      client.close();
+      fs.rmSync(file, { force: true });
+    }
+  });
+});

@@ -108,8 +108,8 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
             required={!isRecurring}
           />
         </Field>
-        <Field label="Start time">
-          <TimePicker name="startTime" defaultValue={initial.startTime ?? ""} required />
+        <Field label="Start time" hint="Optional">
+          <TimePicker name="startTime" defaultValue={initial.startTime ?? ""} ariaLabel="Start time" />
         </Field>
         <Field label="End date" hint={dateHint}>
           <DatePicker
@@ -118,9 +118,14 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
             required={!isRecurring}
           />
         </Field>
-        <Field label="End time">
-          <TimePicker name="endTime" defaultValue={initial.endTime ?? ""} required />
+        <Field label="End time" hint="Optional">
+          <TimePicker name="endTime" defaultValue={initial.endTime ?? ""} ariaLabel="End time" />
         </Field>
+        <p className="text-xs text-dim sm:col-span-2">
+          Leave both times blank if they haven&rsquo;t been announced, or the
+          end time blank if only the start is known. The site then says
+          &ldquo;Time not announced&rdquo; instead of guessing.
+        </p>
       </div>
       <div className="grid gap-3 rounded-md border border-ink/20 p-4">
         <span className="text-sm text-dim">Recurrence</span>

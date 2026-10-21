@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { eventInstants } from "./event-rules";
 import {
   calendarMetadata,
   clip,
@@ -98,6 +99,23 @@ describe("eventJsonLd", () => {
   it("leaves out an empty description", () => {
     expect(eventJsonLd(ev({ description: "  " }), OCT, OCT_END)).not.toHaveProperty("description");
   });
+
+  it("gives a date-only event plain dates, never the stored 00:00 / 23:59", () => {
+    const { startTime, endTime } = eventInstants({ date: "2026-10-24" });
+    const ld = eventJsonLd(ev({ timing: "date_only" }), startTime, endTime);
+    expect(ld.startDate).toBe("2026-10-24");
+    expect(ld).not.toHaveProperty("endDate");
+    const weekend = eventInstants({ date: "2026-11-13", endDate: "2026-11-15" });
+    const ld2 = eventJsonLd(ev({ timing: "date_only" }), weekend.startTime, weekend.endTime);
+    expect([ld2.startDate, ld2.endDate]).toEqual(["2026-11-13", "2026-11-15"]);
+  });
+
+  it("gives a start-only event its start and no endDate", () => {
+    const { startTime, endTime } = eventInstants({ date: "2026-10-23", startTime: "18:00" });
+    const ld = eventJsonLd(ev({ timing: "start_only" }), startTime, endTime);
+    expect(ld.startDate).toBe("2026-10-23T18:00:00-07:00");
+    expect(ld).not.toHaveProperty("endDate");
+  });
 });
 
 describe("site JSON-LD", () => {
@@ -164,6 +182,14 @@ describe("event titles and descriptions", () => {
       "Jumu'ah (Jummah), the Friday prayer, with the MSA at UC Santa Cruz. Fridays at 1:15 PM, Student Union Assembly Hall. Khutbah and congregational prayer.",
     );
     expect(eventDescription(ev({ cancelledAt: new Date() }), OCT)).toMatch(/^Cancelled\. /);
+  });
+
+  it("gives a date-only event no time, rather than 12:00 AM", () => {
+    const { startTime } = eventInstants({ date: "2026-10-24" });
+    expect(eventDescription(ev({ timing: "date_only" }), startTime)).toBe(
+      "Sat, Oct 24, 2026, Stevenson Event Center. Updates, plans for the quarter, and snacks.",
+    );
+    expect(eventTitle(ev({ timing: "date_only" }), startTime)).toBe("General Body Meeting · Oct 24, 2026");
   });
 
   it("keeps descriptions to snippet length", () => {

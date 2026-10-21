@@ -1,4 +1,4 @@
-import { and, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db, type DB } from "./client";
 import { events, eventCancellations } from "./schema";
 import { expandEvents, type EventInput, type Occurrence } from "@/lib/rrule-lite";
@@ -61,6 +61,7 @@ function toEventInput(r: typeof events.$inferSelect, cancellations: string[]): E
     recurrenceByWeekday: r.recurrenceByWeekday,
     recurrenceInterval: r.recurrenceInterval,
     recurrenceUntil: r.recurrenceUntil,
+    timing: r.timing,
     cancellations,
   };
 }
@@ -103,3 +104,21 @@ export async function getUpcomingOccurrences(
   return all.slice(0, limit);
 }
 
+/**
+ * The most recent past one-off events, newest first, for the landing's Past
+ * events. Weekly series are left out so they don't crowd it; cancelled events
+ * too. "Past" means ended: an event still under way is upcoming.
+ */
+export async function getPastOccurrences(
+  limit: number,
+  now: Date = new Date(),
+  database: DB = db
+): Promise<Occurrence[]> {
+  const rows = await database
+    .select()
+    .from(events)
+    .where(and(isNull(events.cancelledAt), isNull(events.recurrenceFreq), lte(events.endTime, now)))
+    .orderBy(sql`${events.startTime} desc`)
+    .limit(limit);
+  return rows.flatMap((r) => expandEvents([toEventInput(r, [])], r.startTime, r.endTime));
+}

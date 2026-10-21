@@ -5,8 +5,9 @@ export const SITE_NAME = "MSA at UCSC";
 export const SITE_SHORT_NAME = "UCSC MSA";
 export const SITE_TAGLINE =
   "Muslim Student Association at the University of California, Santa Cruz";
+// The home page's and the default meta description. Keep it short and plain.
 export const SITE_DESCRIPTION =
-  "Muslim Student Association at UC Santa Cruz: Jummah (Jumu'ah) Friday prayer, halaqas, iftars, socials and daily prayer times for UCSC Muslim students.";
+  "Events and prayer times from the Muslim Student Association at UC Santa Cruz.";
 
 // The MSA's own profiles (Instagram, Linktree, the UCSC student-org directory
 // page...), used as Organization sameAs in search results. Only add links the

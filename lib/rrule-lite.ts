@@ -1,5 +1,6 @@
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { SITE_TZ, toLocalYmd } from "./time";
+import type { EventTiming } from "./event-rules";
+import { endOfLocalDayUtc, SITE_TZ, toLocalYmd } from "./time";
 
 export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -14,6 +15,7 @@ export type EventInput = {
   recurrenceByWeekday: string | null; // "MO,WE,FR"
   recurrenceInterval: number;
   recurrenceUntil: Date | null;
+  timing?: EventTiming; // default "timed"
   cancellations: string[]; // YYYY-MM-DD (local)
 };
 
@@ -24,6 +26,8 @@ export type Occurrence = {
   location: string;
   occurrenceStart: Date;
   occurrenceEnd: Date;
+  // "date_only": show the date(s) only; "start_only": show no end time.
+  timing: EventTiming;
 };
 
 const WEEKDAY_MAP: Record<string, number> = {
@@ -70,11 +74,21 @@ export function expandEvents(
   const out: Occurrence[] = [];
 
   for (const ev of events) {
+    const timing = ev.timing ?? "timed";
     const durationMs = ev.endTime.getTime() - ev.startTime.getTime();
+    // An unknown end is the end of the event's last local day, so it is
+    // counted in days, not milliseconds: a fixed duration would end an hour
+    // early, or spill into the next day, on the other side of a DST change.
+    const spanDays = Math.round(
+      (localCalendarDate(ev.endTime).getTime() - localCalendarDate(ev.startTime).getTime()) / DAY_MS
+    );
     const cancelSet = new Set(ev.cancellations);
 
     const emit = (start: Date) => {
-      const end = new Date(start.getTime() + durationMs);
+      const end =
+        timing === "timed"
+          ? new Date(start.getTime() + durationMs)
+          : endOfLocalDayUtc(calYmd(addDays(localCalendarDate(start), spanDays)));
       // Overlap with [rangeStart, rangeEnd)
       if (end <= rangeStart || start >= rangeEnd) return;
       if (cancelSet.has(toLocalYmd(start))) return;
@@ -85,6 +99,7 @@ export function expandEvents(
         location: ev.location,
         occurrenceStart: start,
         occurrenceEnd: end,
+        timing,
       });
     };
 
@@ -169,6 +184,11 @@ export function expandEvents(
     }
   }
 
-  out.sort((a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime());
+  // A date-only event sorts first in its day, even before one at midnight.
+  out.sort(
+    (a, b) =>
+      a.occurrenceStart.getTime() - b.occurrenceStart.getTime() ||
+      Number(b.timing === "date_only") - Number(a.timing === "date_only")
+  );
   return out;
 }

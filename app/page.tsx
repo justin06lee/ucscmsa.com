@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PrayerSpace } from "@/components/prayer-space";
 import { WiggleIcon } from "@/components/logo/wiggle-icon";
 import { WiggleLetters } from "@/components/logo/wiggle-letters";
+import { PastEvents } from "@/components/past-events";
 import { UpcomingEvents } from "@/components/upcoming-events";
 import { PRAYER_SPACE, SITE_DESCRIPTION, SITE_NAME, SITE_SHORT_NAME, SITE_TAGLINE } from "@/lib/site";
 import { jsonLdScript, organizationJsonLd, pageMetadata, websiteJsonLd } from "@/lib/seo";
@@ -37,11 +38,6 @@ export default function Home() {
       <div className="flex flex-col items-center gap-6">
         <WiggleIcon size={200} alt="" priority />
         <WiggleLetters />
-        <p className="max-w-md text-center text-base leading-relaxed text-dim">
-          The Muslim Student Association at UC Santa Cruz: Friday Jummah
-          (Jumu&rsquo;ah) prayer, halaqas, iftars and socials, with daily prayer
-          times for Santa Cruz on the calendar.
-        </p>
       </div>
       {PRAYER_SPACE ? <PrayerSpace info={PRAYER_SPACE} /> : null}
       <section className="w-full">
@@ -62,6 +58,20 @@ export default function Home() {
       >
         See the full calendar
       </Link>
+      <section aria-labelledby="past-events-heading" className="w-full max-w-2xl">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 id="past-events-heading" className="text-xl text-ink/85">
+            Past events
+          </h2>
+          <Link
+            href="/calendar?view=year"
+            className="-my-3 inline-flex min-h-11 items-center text-sm text-dim hover:text-ink transition-colors"
+          >
+            Browse the calendar →
+          </Link>
+        </div>
+        <PastEvents limit={4} />
+      </section>
     </main>
   );
 }

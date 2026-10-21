@@ -8,6 +8,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { EVENT_TIMINGS } from "../event-rules";
 
 // ---------- Auth.js (Drizzle adapter) ----------
 
@@ -163,6 +164,10 @@ export const events = sqliteTable(
     recurrenceByWeekday: text("recurrence_by_weekday"),
     recurrenceInterval: integer("recurrence_interval").notNull().default(1),
     recurrenceUntil: integer("recurrence_until", { mode: "timestamp_ms" }),
+    // Which of the times are known; see EVENT_TIMINGS in lib/event-rules.ts.
+    // start_time/end_time are always set: an unknown start is the start of the
+    // Santa Cruz day, an unknown end the end of the event's last day.
+    timing: text("timing", { enum: EVENT_TIMINGS }).notNull().default("timed"),
     // Nullable with SET NULL: a NOT NULL reference here made any admin who had
     // created an event impossible to demote (the admins delete failed).
     createdByAdminId: integer("created_by_admin_id").references(() => admins.id, {

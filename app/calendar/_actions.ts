@@ -32,8 +32,13 @@ export async function rsvp(formData: FormData) {
   const userId = session.user.id;
   // Only real occurrences: otherwise any timestamp (or unknown event id) could
   // be sent, adding junk rows or failing on the foreign key.
-  if (!(await findOccurrence(eventId, start))) {
+  const occurrence = await findOccurrence(eventId, start);
+  if (!occurrence) {
     return { ok: false as const, error: "invalid_input" };
+  }
+  // Open until the occurrence ends (a date-only one: the end of its last day).
+  if (occurrence.occurrenceEnd.getTime() <= Date.now()) {
+    return { ok: false as const, error: "event_ended" };
   }
 
   await db

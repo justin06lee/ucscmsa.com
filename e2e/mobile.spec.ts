@@ -6,6 +6,11 @@ import { seed, signIn } from "./fixtures";
 
 const WIDTHS = [375, 390, 768] as const;
 
+// A month the seed's past events fill (scripts/seed-local.ts), three back from today.
+const MONTHS_BACK = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+  timeZone: "America/Los_Angeles",
+});
+
 const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "landing", path: "/" },
   { name: "calendar month", path: "/calendar?view=month&date=2026-10-20" },
@@ -14,12 +19,21 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "event", path: "/calendar/events/ev-gbm" },
   { name: "recurring event", path: "/calendar/events/ev-jummah" },
   { name: "event with links", path: "/calendar/events/ev-sisters" },
+  { name: "past event", path: "/calendar/events/ev-past-01" },
+  { name: "calendar month, 3 back", path: `/calendar?view=month&date=${MONTHS_BACK}` },
+  { name: "calendar this month", path: "/calendar?view=month" },
+  // Untimed events (seed-local): a date-only one today, start-only, a date-only weekend.
+  { name: "calendar today, date-only event", path: "/calendar?view=day" },
+  { name: "date-only event", path: "/calendar/events/ev-date-only" },
+  { name: "start-only event", path: "/calendar/events/ev-start-only" },
+  { name: "date-only weekend", path: "/calendar/events/ev-retreat" },
   { name: "event signed in", path: "/calendar/events/ev-gbm", as: "member" },
   { name: "login", path: "/login" },
   { name: "404", path: "/this-page-does-not-exist" },
   { name: "admin events", path: "/admin", as: "admin" },
   { name: "admin new event", path: "/admin/events/new", as: "admin" },
   { name: "admin edit event", path: "/admin/events/ev-jummah/edit", as: "admin" },
+  { name: "admin edit date-only event", path: "/admin/events/ev-date-only/edit", as: "admin" },
   { name: "admin admins", path: "/admin/admins", as: "admin" },
   { name: "admin nominations", path: "/admin/nominations", as: "admin" },
 ];
