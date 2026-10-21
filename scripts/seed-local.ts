@@ -139,6 +139,14 @@ async function main() {
       endTime: at("2026-10-23", "15:00"),
     },
     {
+      id: "ev-qiyam",
+      title: "Qiyam al-Layl",
+      description: "Night prayer before Fajr, then breakfast together.",
+      location: "Kresge College Town Hall",
+      startTime: at("2026-10-23", "05:00"),
+      endTime: at("2026-10-23", "05:50"),
+    },
+    {
       id: "ev-hike",
       title: "Night Hike to the Lookout",
       description: "Meet at the base of campus. Bring a flashlight and water.",

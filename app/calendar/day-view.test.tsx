@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { render, within } from "@testing-library/react";
 import { DayView } from "./day-view";
+import { DayAgenda, buildAgenda } from "./day-agenda";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { parseHMInLocal } from "@/lib/time";
 
@@ -47,13 +48,14 @@ describe("DayView", () => {
   });
 
   it("stretches the grid to show an event after Isha instead of dropping it", () => {
-    const { container, getByText } = render(
+    const { container } = render(
       <DayView
         ymd="2026-10-23"
         occurrences={[occ("hike", "Night Hike", "2026-10-23", "20:30", "22:00")]}
         prayer={OCT_23}
       />
     );
+    const { getByText } = within(container.querySelector(".day-grid") as HTMLElement);
     expect(getByText("Night Hike")).toBeInTheDocument();
     const labels = [...container.querySelectorAll(".day-grid__hour")].map((el) => el.textContent);
     expect(labels[0]).toBe("6 AM");
@@ -64,19 +66,20 @@ describe("DayView", () => {
   });
 
   it("stretches the grid up for an event before Fajr", () => {
-    const { container, getByText } = render(
+    const { container } = render(
       <DayView
         ymd="2026-10-23"
         occurrences={[occ("tahajjud", "Tahajjud", "2026-10-23", "04:30", "05:30")]}
         prayer={OCT_23}
       />
     );
+    const { getByText } = within(container.querySelector(".day-grid") as HTMLElement);
     expect(getByText("Tahajjud")).toBeInTheDocument();
     expect(container.querySelector(".day-grid__hour")?.textContent).toBe("4 AM");
   });
 
   it("puts overlapping events side by side so neither hides the other", () => {
-    const { getByText } = render(
+    const { container } = render(
       <DayView
         ymd="2026-10-23"
         occurrences={[
@@ -87,6 +90,7 @@ describe("DayView", () => {
         prayer={OCT_23}
       />
     );
+    const { getByText } = within(container.querySelector(".day-grid") as HTMLElement);
     const jummah = getByText("Jummah Prayer").closest("a")!;
     const ball = getByText("Brothers' Basketball").closest("a")!;
     const later = getByText("Asr Study").closest("a")!;
@@ -94,5 +98,51 @@ describe("DayView", () => {
     expect(ball.dataset.lane).toBe("2/2");
     // A later, non-overlapping event keeps the full width.
     expect(later.dataset.lane).toBe("1/1");
+  });
+});
+
+describe("DayAgenda (phones)", () => {
+  const day = [
+    occ("hike", "Night Hike", "2026-10-23", "20:30", "22:00"),
+    occ("ball", "Brothers' Basketball", "2026-10-23", "13:30", "15:00"),
+    occ("qiyam", "Qiyam al-Layl", "2026-10-23", "05:00", "05:50"),
+    occ("jummah", "Jummah Prayer", "2026-10-23", "13:15", "14:00"),
+  ];
+  const order = (items: ReturnType<typeof buildAgenda>) =>
+    items.map((i) => (i.kind === "event" ? i.occurrence.title : i.kind === "prayer" ? i.label : "now"));
+
+  it("interleaves every event with the six prayer markers in time order", () => {
+    expect(order(buildAgenda("2026-10-23", day, OCT_23))).toEqual([
+      "Qiyam al-Layl", // before Fajr: kept, listed first
+      "Fajr",
+      "Sunrise",
+      "Dhuhr",
+      "Jummah Prayer", // overlapping pair: both listed
+      "Brothers' Basketball",
+      "Asr",
+      "Maghrib",
+      "Isha",
+      "Night Hike", // after Isha: kept, listed last
+    ]);
+  });
+
+  it("places the now line among them and a marker before an event at the same minute", () => {
+    const items = buildAgenda("2026-10-23", [occ("x", "At Asr", "2026-10-23", "15:56", "16:30")], OCT_23, 15 * 60 + 56);
+    expect(order(items).slice(3, 6)).toEqual(["Asr", "now", "At Asr"]);
+  });
+
+  it("renders 12-hour prayer times and each event's time range", () => {
+    const { container, getByText } = render(<DayAgenda ymd="2026-10-23" occurrences={day} prayer={OCT_23} />);
+    const isha = container.querySelector('[data-prayer="isha"]');
+    expect(isha?.textContent).toBe("Isha 7:33 PM");
+    expect(getByText("1:15 – 2:00 PM")).toBeInTheDocument();
+    expect(getByText("8:30 – 10:00 PM")).toBeInTheDocument();
+    expect(getByText("Night Hike").closest("a")?.getAttribute("href")).toContain("/calendar/events/hike?occurrence=");
+  });
+
+  it("still lists prayer times on a day with no events", () => {
+    const { container, getByText } = render(<DayAgenda ymd="2026-10-23" occurrences={[]} prayer={OCT_23} />);
+    expect(getByText("No events scheduled")).toBeInTheDocument();
+    expect(container.querySelectorAll(".day-agenda__prayer")).toHaveLength(6);
   });
 });
