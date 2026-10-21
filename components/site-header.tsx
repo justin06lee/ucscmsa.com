@@ -40,6 +40,9 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
   const pathname = usePathname();
   const items = variant === "admin" ? ADMIN_NAV : PUBLIC_NAV;
   const activeHref = pickActiveHref(pathname, items);
+  // One public link fits beside the logo at any width; only the admin nav
+  // collapses into a menu on phones.
+  const collapsible = items.length > 1;
   const [open, setOpen] = useState(false);
   // Reset on route change via the React 19 "compare during render" pattern,
   // avoiding a useEffect that would trigger react-hooks/set-state-in-effect.
@@ -64,7 +67,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <Link
           href="/"
-          className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
+          className="flex min-h-11 items-center gap-2.5 transition-opacity hover:opacity-80"
         >
           <WiggleIcon size={28} alt="" />
           <span className="font-display text-base leading-none">
@@ -74,7 +77,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
 
         <nav
           aria-label="Primary"
-          className="hidden items-center gap-5 text-sm text-ink/70 sm:flex"
+          className={`items-center gap-3 text-sm text-ink/70 ${collapsible ? "hidden sm:flex" : "flex"}`}
         >
           {items.map((item) => {
             const isActive = item.href === activeHref;
@@ -83,11 +86,11 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={
+                className={`inline-flex min-h-11 items-center px-1 ${
                   isActive
                     ? "text-ink underline decoration-burgundy decoration-2 underline-offset-[6px]"
                     : "transition-colors hover:text-ink"
-                }
+                }`}
               >
                 {item.label}
               </Link>
@@ -95,25 +98,27 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
           })}
         </nav>
 
-        <button
-          type="button"
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          aria-controls="site-header-mobile-menu"
-          onClick={() => setOpen((v) => !v)}
-          className="-mr-2 inline-flex h-9 w-9 items-center justify-center rounded-md text-ink/70 transition-colors hover:text-ink sm:hidden"
-        >
-          {open ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        {collapsible && (
+          <button
+            type="button"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            aria-controls="site-header-mobile-menu"
+            onClick={() => setOpen((v) => !v)}
+            className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-ink/70 transition-colors hover:text-ink sm:hidden"
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        )}
       </div>
 
-      {open && (
+      {collapsible && open && (
         <nav
           id="site-header-mobile-menu"
           aria-label="Primary"
           className="border-t border-ink/10 bg-paper/95 backdrop-blur sm:hidden"
         >
-          <ul className="mx-auto flex max-w-6xl flex-col px-6 py-2 text-sm">
+          <ul className="mx-auto flex max-w-6xl flex-col px-6 py-2 text-base">
             {items.map((item) => {
               const isActive = item.href === activeHref;
               return (
@@ -124,8 +129,8 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
                     onClick={() => setOpen(false)}
                     className={
                       isActive
-                        ? "block rounded-md py-2 text-ink underline decoration-burgundy decoration-2 underline-offset-[6px]"
-                        : "block rounded-md py-2 text-ink/70 transition-colors hover:text-ink"
+                        ? "flex min-h-11 items-center rounded-md text-ink underline decoration-burgundy decoration-2 underline-offset-[6px]"
+                        : "flex min-h-11 items-center rounded-md text-ink/70 transition-colors hover:text-ink"
                     }
                   >
                     {item.label}

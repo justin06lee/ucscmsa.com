@@ -167,7 +167,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 px-6 py-8 sm:py-12">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -177,12 +177,12 @@ export default async function EventDetail({ params, searchParams }: Props) {
       <FadeIn>
         <Link
           href="/calendar"
-          className="inline-flex items-center gap-1 text-sm text-dim transition-colors hover:text-ink"
+          className="-ml-1 inline-flex min-h-11 items-center gap-1 px-1 text-sm text-dim transition-colors hover:text-ink"
         >
           <ChevronLeft size={14} />
           Back to calendar
         </Link>
-        <h1 className="mt-5 text-4xl leading-tight">{row.title}</h1>
+        <h1 className="mt-3 text-3xl leading-tight break-words sm:mt-5 sm:text-4xl">{row.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-dim">
           <span className="tabular-nums">
             {formatLocal(occurrenceStart, "EEEE, MMMM d, yyyy")}
@@ -216,7 +216,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
           ) : (
             <Link
               href="/api/auth/signin"
-              className="inline-flex items-center rounded-full border border-ink px-5 py-2 text-sm font-medium transition-colors hover:bg-ink hover:text-paper"
+              className="inline-flex min-h-11 items-center rounded-full border border-ink px-5 py-2 text-sm font-medium transition-colors hover:bg-ink hover:text-paper"
             >
               Sign in with UCSC to RSVP
             </Link>

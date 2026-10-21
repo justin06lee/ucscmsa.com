@@ -72,7 +72,7 @@ export default function Home() {
           <h2 className="text-2xl">Upcoming</h2>
           <Link
             href="/calendar"
-            className="text-sm text-dim hover:text-ink transition-colors"
+            className="-my-3 inline-flex min-h-11 items-center text-sm text-dim hover:text-ink transition-colors"
           >
             See all →
           </Link>

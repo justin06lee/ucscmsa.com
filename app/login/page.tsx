@@ -83,7 +83,7 @@ export default async function LoginPage({
       </form>
       <Link
         href="/"
-        className="text-sm text-dim transition-colors hover:text-ink"
+        className="inline-flex min-h-11 items-center text-sm text-dim transition-colors hover:text-ink"
       >
         &larr; Back to home
       </Link>

@@ -36,6 +36,8 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
             <Button
               type="submit"
               variant={current === c ? "primary" : "outline"}
+              size="lg"
+              aria-pressed={current === c}
               disabled={pending || disabled}
             >
               {c === "yes" ? "Going" : c === "maybe" ? "Maybe" : "Can't go"}
@@ -57,7 +59,7 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
             <Button
               type="submit"
               variant="ghost"
-              size="sm"
+              size="lg"
               disabled={pending || disabled}
             >
               Clear
