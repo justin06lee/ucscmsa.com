@@ -36,6 +36,11 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "admin edit date-only event", path: "/admin/events/ev-date-only/edit", as: "admin" },
   { name: "admin admins", path: "/admin/admins", as: "admin" },
   { name: "admin nominations", path: "/admin/nominations", as: "admin" },
+  { name: "admin planning", path: "/admin/plan", as: "admin" },
+  { name: "admin plan timeline", path: "/admin/plan/ev-bonfire", as: "admin" },
+  // A guide's own page is in board.spec.ts: its links sit in list items, which
+  // that spec exempts as running text.
+  { name: "admin playbook", path: "/admin/playbook", as: "admin" },
 ];
 
 function mobile(width: number) {

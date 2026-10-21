@@ -149,16 +149,16 @@ for (const width of [375, 390, 768] as const) {
   test.describe(`${width}px`, () => {
     test.use({ viewport: { width, height: 844 }, isMobile: width < 768, hasTouch: true });
 
-    test("board pages: no sideways scroll, touch-sized controls", async ({ page }) => {
-      for (const path of BOARD_PAGES) {
+    for (const path of BOARD_PAGES) {
+      test(`${path}: no sideways scroll, touch-sized controls`, async ({ page }) => {
         await page.goto(path);
         await page.waitForLoadState("networkidle");
-        expect(new URL(page.url()).pathname, path).toBe(path.split("?")[0]);
+        expect(new URL(page.url()).pathname).toBe(path.split("?")[0]);
         // Against the configured width, not innerWidth (see mobile.spec.ts).
         const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-        expect(scrollWidth, `${path} scrolls sideways`).toBeLessThanOrEqual(width);
-        expect(await smallTargets(page, 44), `${path}: under 44px`).toEqual([]);
-      }
-    });
+        expect(scrollWidth, "page scrolls sideways").toBeLessThanOrEqual(width);
+        expect(await smallTargets(page, 44), "under 44px").toEqual([]);
+      });
+    }
   });
 }
