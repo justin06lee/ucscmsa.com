@@ -22,7 +22,7 @@ export function PlanningFields({
       <legend className="px-1 text-sm text-dim">Planning</legend>
       {/* Tells the server this form carries draft and tags. */}
       <input type="hidden" name="planning" value="1" />
-      <Checkbox name="draft" defaultChecked={draft} label="Draft: only admins can see it" className="-ml-1.5" />
+      <Checkbox name="draft" defaultChecked={draft} label="Draft: only admins can see it" className="-ml-1.5 text-base!" />
       {recurring ? null : (
         <div className="grid gap-2">
           <span id="plan-tags-label" className="text-sm text-dim">
@@ -32,7 +32,7 @@ export function PlanningFields({
             {PLAN_TAGS.map((t) => (
               <label
                 key={t.id}
-                className="inline-flex min-h-11 cursor-pointer select-none items-center rounded-full border border-ink/20 px-4 text-sm text-ink/80 transition-colors hover:border-ink/40 has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-burgundy"
+                className="inline-flex min-h-11 cursor-pointer select-none items-center rounded-full border border-ink/20 px-4 text-base text-ink/80 transition-colors hover:border-ink/40 has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:text-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-burgundy"
               >
                 <input type="checkbox" name="tags" value={t.id} defaultChecked={tags.includes(t.id)} className="sr-only" />
                 {t.label}

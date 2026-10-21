@@ -68,36 +68,43 @@ export function TaskItem({
         </span>
       </label>
       <div className="-mt-1 flex flex-wrap items-center gap-x-4 pl-8 text-sm">
-        <span className={overdue ? "font-medium text-burgundy" : dueToday ? "font-medium" : "text-dim"}>
+        {/* Its own line on phones, so the picker and Guide sit together below it. */}
+        <span
+          className={`max-sm:basis-full ${overdue ? "font-medium text-burgundy" : dueToday ? "font-medium" : "text-dim"}`}
+        >
           {dueText(task, done, today)}
         </span>
-        <span className="relative inline-flex items-center">
-          <select
-            aria-label={`Who's doing "${task.title}"`}
-            value={assignee}
-            disabled={pending}
-            onChange={(e) => {
-              const next = e.target.value;
-              setErr(null);
-              start(async () => {
-                setAssignee(next);
-                const r = await assignTask(task.id, next);
-                if (!r.ok) setErr("Couldn't save that. Try again.");
-              });
-            }}
-            className={`min-h-11 cursor-pointer appearance-none bg-transparent pr-5 text-base focus:outline-none ${
-              assigneeName ? "text-ink" : "text-dim"
-            }`}
-          >
-            <option value="">Unassigned</option>
-            {members.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={14} aria-hidden className="pointer-events-none absolute right-0 text-dim" />
-        </span>
+        {/* Once it's done, "Done by" says who; the picker would be noise. */}
+        {done ? null : (
+          <span className="relative inline-flex items-center">
+            <select
+              aria-label={`Who's doing "${task.title}"`}
+              value={assignee}
+              disabled={pending}
+              onChange={(e) => {
+                const next = e.target.value;
+                setErr(null);
+                start(async () => {
+                  setAssignee(next);
+                  const r = await assignTask(task.id, next);
+                  if (!r.ok) setErr("Couldn't save that. Try again.");
+                });
+              }}
+              className={`min-h-11 cursor-pointer appearance-none bg-transparent pr-5 text-base [field-sizing:content] focus:outline-none ${
+                assigneeName ? "text-ink" : "text-dim"
+              }`}
+            >
+              {/* Reads as the action while nobody has it, and as the way to clear it once someone does. */}
+              <option value="">{assigneeName ? "Nobody" : "Assign"}</option>
+              {members.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} aria-hidden className="pointer-events-none absolute right-0 text-dim" />
+          </span>
+        )}
         {task.guide ? (
           <Link
             href={`/admin/playbook/${task.guide.slug}`}
