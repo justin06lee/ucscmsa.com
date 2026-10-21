@@ -9,6 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { EVENT_TIMINGS } from "../event-rules";
+import { PLAN_TAG_IDS } from "../planning";
 
 // ---------- Auth.js (Drizzle adapter) ----------
 
@@ -192,6 +193,10 @@ export const events = sqliteTable(
     adminEditedAt: integer("admin_edited_at", { mode: "timestamp_ms" }),
     // The whole event is cancelled; it drops off the public calendar.
     cancelledAt: integer("cancelled_at", { mode: "timestamp_ms" }),
+    // A draft is being planned by the board and is never shown publicly: not
+    // on the calendar, the landing page, the sitemap, nor at its own URL. See
+    // notDraft in lib/db/queries.ts.
+    draft: integer("draft", { mode: "boolean" }).notNull().default(false),
   },
   (t) => ({
     createdByIdx: index("events_created_by_admin_id_idx").on(
@@ -274,6 +279,120 @@ export const eventRsvps = sqliteTable(
     occurrenceStartIdx: index("event_rsvps_occurrence_start_idx").on(
       t.occurrenceStart
     ),
+  })
+);
+
+// ---------- Board: event planning and the playbook ----------
+
+// What an event needs (room, food, ...). Each tag brings its task templates.
+export const eventTags = sqliteTable(
+  "event_tags",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    tag: text("tag", { enum: PLAN_TAG_IDS }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.eventId, t.tag] }),
+    tagCheck: check(
+      "event_tags_tag_check",
+      sql`${t.tag} IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab')`
+    ),
+  })
+);
+
+// The lead-time defaults: one row per task a tag brings (tag NULL: every
+// planned event). Edited on /admin/plan/settings.
+export const taskTemplates = sqliteTable(
+  "task_templates",
+  {
+    id: text("id").primaryKey(),
+    tag: text("tag", { enum: PLAN_TAG_IDS }),
+    title: text("title").notNull(),
+    daysBefore: integer("days_before").notNull(),
+    guideSlug: text("guide_slug"),
+    sort: integer("sort").notNull().default(0),
+  },
+  (t) => ({
+    daysCheck: check("task_templates_days_before_check", sql`${t.daysBefore} BETWEEN 0 AND 120`),
+    tagCheck: check(
+      "task_templates_tag_check",
+      sql`${t.tag} IS NULL OR ${t.tag} IN ('room', 'food', 'funding', 'big', 'offcampus', 'collab')`
+    ),
+  })
+);
+
+// One event's checklist. People are user ids, not admins ids, so demoting a
+// board member doesn't erase who did a task.
+export const eventTasks = sqliteTable(
+  "event_tasks",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    templateId: text("template_id").references(() => taskTemplates.id, {
+      onDelete: "set null",
+    }),
+    tag: text("tag"),
+    title: text("title").notNull(),
+    dueDate: text("due_date").notNull(), // YYYY-MM-DD, Santa Cruz
+    doneAt: integer("done_at", { mode: "timestamp_ms" }),
+    doneByUserId: text("done_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    assigneeUserId: text("assignee_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    eventTemplateUnique: uniqueIndex("event_tasks_event_template_unique").on(
+      t.eventId,
+      t.templateId
+    ),
+    dueIdx: index("event_tasks_due_date_idx").on(t.dueDate),
+    dueFormat: check("event_tasks_due_date_format", sql`${t.dueDate} GLOB '????-??-??'`),
+  })
+);
+
+// Playbook guides, in markdown, edited by admins.
+export const guides = sqliteTable("guides", {
+  slug: text("slug").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  sort: integer("sort").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  updatedByUserId: text("updated_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+});
+
+// Every saved version of a guide, the current one included, so a bad edit can
+// be restored.
+export const guideVersions = sqliteTable(
+  "guide_versions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    guideSlug: text("guide_slug")
+      .notNull()
+      .references(() => guides.slug, { onDelete: "cascade", onUpdate: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => ({
+    guideIdx: index("guide_versions_guide_slug_idx").on(t.guideSlug),
   })
 );
 
