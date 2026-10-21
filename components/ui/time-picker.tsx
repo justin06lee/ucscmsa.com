@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, X } from "lucide-react";
 
 type Props = {
   name?: string;
@@ -152,7 +152,15 @@ export function TimePicker({
     setDraft(p);
   }
 
+  // Only an optional picker can be emptied again (a date-only event's times).
+  function clear() {
+    if (!isControlled) setInternal("");
+    onChange?.("");
+    setText("");
+  }
+
   function commitTyped() {
+    if (!required && !text.trim()) return clear();
     const p = parseTyped(text);
     if (p) commit(p);
     else setText(display);
@@ -194,6 +202,17 @@ export function TimePicker({
           placeholder="Select time"
           className="w-full min-w-0 flex-1 bg-transparent px-3 py-2 placeholder:text-dim/70 focus:outline-none"
         />
+        {!required && current ? (
+          <button
+            type="button"
+            aria-label={ariaLabel ? `Clear ${ariaLabel.toLowerCase()}` : "Clear time"}
+            data-dense-target=""
+            onClick={clear}
+            className="flex w-11 items-center justify-center text-dim transition-colors hover:text-ink"
+          >
+            <X size={16} />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-label="Open time picker"

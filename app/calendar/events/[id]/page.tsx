@@ -7,6 +7,7 @@ import { eventRsvps } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { formatLocal } from "@/lib/time";
+import { occurrenceWhen } from "@/lib/event-time";
 import { resolveOccurrence } from "@/lib/occurrence";
 import { SITE_NAME } from "@/lib/site";
 import {
@@ -55,6 +56,11 @@ export default async function EventDetail({ params, searchParams }: Props) {
   const now = new Date();
   const occurrence = resolveOccurrence(input, sp.occurrence, now);
   const occurrenceStart = occurrence.start;
+  const when = occurrenceWhen({
+    occurrenceStart,
+    occurrenceEnd: occurrence.end,
+    timing: row.timing,
+  });
   // Cancelled as a whole (by the import). The page stays up, marked cancelled
   // with EventCancelled JSON-LD, so links and search results say so.
   const cancelled = row.cancelledAt != null;
@@ -110,13 +116,9 @@ export default async function EventDetail({ params, searchParams }: Props) {
         </Link>
         <h1 className="mt-3 text-3xl leading-tight break-words sm:mt-5 sm:text-4xl">{row.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-dim">
-          <span className="tabular-nums">
-            {formatLocal(occurrenceStart, "EEEE, MMMM d, yyyy")}
-          </span>
+          <span className="tabular-nums">{when.date}</span>
           <span aria-hidden="true" className="text-ink/20">·</span>
-          <span className="tabular-nums">
-            {formatLocal(occurrenceStart, "h:mm a")}
-          </span>
+          <span className="tabular-nums">{when.time}</span>
           {row.location ? (
             <>
               <span aria-hidden="true" className="text-ink/20">·</span>
