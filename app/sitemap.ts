@@ -9,6 +9,8 @@ export const revalidate = 3600;
 const BUILD_DATE = new Date();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Cancelled events stay listed: their pages say "cancelled" and carry
+  // EventCancelled JSON-LD, which search engines pick up on recrawl.
   const rows = await db
     .select({ id: events.id, updatedAt: events.updatedAt })
     .from(events);

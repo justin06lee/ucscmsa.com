@@ -58,17 +58,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { start } = resolveOccurrence(input, undefined, new Date());
   const dateLabel = formatLocal(start, "EEEE, MMMM d, yyyy 'at' h:mm a");
-  const baseDesc = row.description?.trim()
+  const summary = row.description?.trim()
     ? truncate(row.description, 200)
     : `${row.title} on ${dateLabel}${row.location ? ` at ${row.location}` : ""}.`;
+  const baseDesc = row.cancelledAt ? `Cancelled. ${summary}` : summary;
+  const title = row.cancelledAt ? `Cancelled: ${row.title}` : row.title;
 
   return {
-    title: row.title,
+    title,
     description: baseDesc,
     alternates: { canonical: `/calendar/events/${id}` },
     openGraph: {
       type: "article",
-      title: row.title,
+      title,
       description: baseDesc,
       url: `/calendar/events/${id}`,
       publishedTime: row.createdAt.toISOString(),
@@ -76,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary",
-      title: row.title,
+      title,
       description: baseDesc,
     },
   };
@@ -114,7 +116,9 @@ function eventJsonLd(row: EventRow, start: Date, end: Date): object {
     description: row.description?.trim() || undefined,
     startDate: start.toISOString(),
     endDate: end.toISOString(),
-    eventStatus: "https://schema.org/EventScheduled",
+    eventStatus: row.cancelledAt
+      ? "https://schema.org/EventCancelled"
+      : "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     location: place,
     organizer: {
@@ -148,6 +152,9 @@ export default async function EventDetail({ params, searchParams }: Props) {
 
   const occurrence = resolveOccurrence(input, sp.occurrence, new Date());
   const occurrenceStart = occurrence.start;
+  // Cancelled as a whole (by the import). The page stays up, marked cancelled
+  // with EventCancelled JSON-LD, so links and search results say so.
+  const cancelled = row.cancelledAt != null;
   const session = await getSession();
 
   let myStatus: "yes" | "no" | "maybe" | null = null;
@@ -198,30 +205,40 @@ export default async function EventDetail({ params, searchParams }: Props) {
             </>
           ) : null}
         </div>
+        {cancelled ? (
+          <p
+            role="status"
+            className="mt-6 rounded-md border border-burgundy/30 bg-burgundy/5 px-4 py-3 text-sm font-medium text-burgundy"
+          >
+            This event was cancelled.
+          </p>
+        ) : null}
         {row.description && (
           <p className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-ink/85">
             {row.description}
           </p>
         )}
-        <section className="mt-10 border-t border-ink/10 pt-6">
-          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-dim">
-            RSVP
-          </h2>
-          {session?.user?.id ? (
-            <RsvpForm
-              eventId={id}
-              occurrenceStart={occurrenceStart.toISOString()}
-              current={myStatus}
-            />
-          ) : (
-            <Link
-              href="/api/auth/signin"
-              className="inline-flex min-h-11 items-center rounded-full border border-ink px-5 py-2 text-sm font-medium transition-colors hover:bg-ink hover:text-paper"
-            >
-              Sign in with UCSC to RSVP
-            </Link>
-          )}
-        </section>
+        {!cancelled && (
+          <section className="mt-10 border-t border-ink/10 pt-6">
+            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-dim">
+              RSVP
+            </h2>
+            {session?.user?.id ? (
+              <RsvpForm
+                eventId={id}
+                occurrenceStart={occurrenceStart.toISOString()}
+                current={myStatus}
+              />
+            ) : (
+              <Link
+                href="/api/auth/signin"
+                className="inline-flex min-h-11 items-center rounded-full border border-ink px-5 py-2 text-sm font-medium transition-colors hover:bg-ink hover:text-paper"
+              >
+                Sign in with UCSC to RSVP
+              </Link>
+            )}
+          </section>
+        )}
       </FadeIn>
     </main>
   );
