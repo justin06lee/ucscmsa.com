@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, MapPin } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { eventRsvps } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { formatLocal } from "@/lib/time";
+import { occurrenceWhen } from "@/lib/event-time";
+import { mapSearchUrl, splitHostedBy, splitLinks } from "@/lib/event-text";
+import { toFlyers } from "@/lib/event-media";
+import { googleCalendarUrl } from "@/lib/ics";
 import { resolveOccurrence } from "@/lib/occurrence";
 import { SITE_NAME } from "@/lib/site";
 import {
@@ -19,8 +23,11 @@ import {
   jsonLdScript,
   pageMetadata,
 } from "@/lib/seo";
+import { EventActions } from "@/components/event-actions";
 import { FadeIn } from "@/components/fade-in";
+import { FlyerGallery } from "@/components/flyer-gallery";
 import { LinkifiedText } from "@/components/linkified-text";
+import { calendarEvent } from "./calendar-event";
 import { loadEvent } from "./load-event";
 import { RsvpForm } from "./rsvp-form";
 
@@ -55,6 +62,11 @@ export default async function EventDetail({ params, searchParams }: Props) {
   const now = new Date();
   const occurrence = resolveOccurrence(input, sp.occurrence, now);
   const occurrenceStart = occurrence.start;
+  const when = occurrenceWhen({
+    occurrenceStart,
+    occurrenceEnd: occurrence.end,
+    timing: row.timing,
+  });
   // Cancelled as a whole (by the import). The page stays up, marked cancelled
   // with EventCancelled JSON-LD, so links and search results say so.
   const cancelled = row.cancelledAt != null;
@@ -62,6 +74,17 @@ export default async function EventDetail({ params, searchParams }: Props) {
   const passed = !cancelled && occurrence.end <= now;
   const next = passed && row.recurrenceFreq ? resolveOccurrence(input, undefined, now) : null;
   const nextUpcoming = next && next.end > now ? next : null;
+  const flyers = toFlyers(row.images, row.title);
+  const links = splitLinks(row.links ?? []);
+  // Over or called off: nothing left to sign up for.
+  const closed = cancelled || passed;
+  const primary = closed ? null : links.primary;
+  const secondary = closed
+    ? links.secondary.filter((l) => !["rsvp", "form", "signup"].includes(l.kind))
+    : links.secondary;
+  const mapHref = row.location ? (links.map?.url ?? mapSearchUrl(row.location)) : null;
+  const { hostedBy, body } = splitHostedBy(row.description ?? "");
+  const occurrenceParam = `?occurrence=${encodeURIComponent(occurrenceStart.toISOString())}`;
   const session = await getSession();
 
   let myStatus: "yes" | "no" | "maybe" | null = null;
@@ -110,20 +133,26 @@ export default async function EventDetail({ params, searchParams }: Props) {
         </Link>
         <h1 className="mt-3 text-3xl leading-tight break-words sm:mt-5 sm:text-4xl">{row.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-dim">
-          <span className="tabular-nums">
-            {formatLocal(occurrenceStart, "EEEE, MMMM d, yyyy")}
-          </span>
+          <span className="tabular-nums">{when.date}</span>
           <span aria-hidden="true" className="text-ink/20">·</span>
-          <span className="tabular-nums">
-            {formatLocal(occurrenceStart, "h:mm a")}
-          </span>
-          {row.location ? (
+          <span className="tabular-nums">{when.time}</span>
+          {row.location && mapHref ? (
             <>
               <span aria-hidden="true" className="text-ink/20">·</span>
-              <span>{row.location}</span>
+              <a
+                href={mapHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="-my-3 inline-flex min-h-11 items-center gap-1 underline decoration-ink/20 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink/50"
+              >
+                <MapPin size={14} aria-hidden="true" className="shrink-0" />
+                {row.location}
+                <span className="sr-only"> (map, opens in a new tab)</span>
+              </a>
             </>
           ) : null}
         </div>
+        {hostedBy ? <p className="mt-2 text-sm font-medium text-ink/75">Hosted by {hostedBy}</p> : null}
         {isJummah(row.title) ? (
           <p className="mt-4 text-sm leading-relaxed text-dim">
             Jumu&rsquo;ah, also spelled Jummah or Jumuah, is the weekly Friday
@@ -154,12 +183,23 @@ export default async function EventDetail({ params, searchParams }: Props) {
             ) : null}
           </p>
         ) : null}
-        {row.description && (
+        <FlyerGallery title={row.title} flyers={flyers} />
+        <EventActions
+          primary={primary}
+          secondary={secondary}
+          icsHref={closed ? null : `${eventUrl(id)}/event.ics${occurrenceParam}`}
+          googleHref={closed ? null : googleCalendarUrl(calendarEvent(loaded, occurrenceStart.toISOString(), now))}
+          title={row.title}
+          pageUrl={eventUrl(id)}
+        />
+        {body && (
           <p className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-ink/85">
-            <LinkifiedText text={row.description} />
+            <LinkifiedText text={body} />
           </p>
         )}
-        {!cancelled && !passed && (
+        {/* The site's own RSVP, unless the event has its own RSVP or form:
+            two RSVPs would leave people unsure which one counts. */}
+        {!closed && !links.primary && (
           <section className="mt-10 border-t border-ink/10 pt-6">
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-dim">
               RSVP

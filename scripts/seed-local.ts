@@ -10,7 +10,8 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { eq } from "drizzle-orm";
 import {
   admins,
   adminApprovals,
@@ -20,6 +21,8 @@ import {
   sessions,
   users,
 } from "../lib/db/schema";
+import { eventInstants } from "../lib/event-rules";
+import type { EventImage } from "../lib/event-image";
 import { parseHMInLocal, toLocalYmd } from "../lib/time";
 
 const url = process.argv[2];
@@ -29,6 +32,44 @@ if (!url || !url.startsWith("file:")) {
 }
 
 const at = (ymd: string, hm: string) => parseHMInLocal(ymd, hm);
+
+/**
+ * A stand-in flyer: a drawn SVG as a data: URL, shaped like the import's
+ * images (lib/event-image.ts), so nothing test-only ships in public/. Text
+ * runs close to the top and bottom edges, so a crop would show.
+ */
+function flyer(title: string, details: string[], hue: number, w = 1600, h = 2000): EventImage {
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const words = title.toUpperCase().split(" ");
+  const lines: string[] = [];
+  for (const word of words) {
+    const last = lines.at(-1);
+    if (last && (last + " " + word).length <= 11) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  const big = w * 0.1;
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`,
+    `<rect width="100%" height="100%" fill="hsl(${hue} 42% 30%)"/>`,
+    `<circle cx="${w * 0.86}" cy="${h * 0.14}" r="${w * 0.24}" fill="hsl(${hue} 60% 62%)" fill-opacity=".35"/>`,
+    `<text x="${w * 0.06}" y="${h * 0.05}" font-family="Georgia,serif" font-size="${w * 0.034}" fill="#fff">MSA AT UCSC PRESENTS</text>`,
+    ...lines.map((l, i) => `<text x="${w * 0.06}" y="${h * 0.3 + i * big * 1.1}" font-family="Georgia,serif" font-weight="bold" font-size="${big}" fill="#fff">${esc(l)}</text>`),
+    ...details.map((d, i) => `<text x="${w * 0.06}" y="${h * 0.66 + i * w * 0.06}" font-family="Helvetica,Arial,sans-serif" font-size="${w * 0.045}" fill="#fff">${esc(d)}</text>`),
+    `<text x="${w * 0.06}" y="${h * 0.965}" font-family="Helvetica,Arial,sans-serif" font-size="${w * 0.03}" fill="#fff">ucscmsa.com · everyone is welcome</text>`,
+    `</svg>`,
+  ].join("");
+  const url = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const variant = (max: number) => ({ url, w: Math.min(max, w), h: Math.round((h * Math.min(max, w)) / w) });
+  return {
+    id: createHash("sha256").update(svg).digest("hex").slice(0, 16),
+    w,
+    h,
+    origin: "import",
+    card: variant(480),
+    page: variant(1200),
+    full: variant(2000),
+  };
+}
 const DAY = 24 * 60 * 60 * 1000;
 
 async function main() {
@@ -238,6 +279,66 @@ async function main() {
     const startTime = at(pastDay(47), hm);
     history.push({ title, location: "Quarry Plaza", description: `${title} during Islamic Awareness Week.`, startTime, endTime: new Date(startTime.getTime() + 90 * 60_000) });
   }
+  // Events whose times weren't announced, stored the way the admin form and the
+  // import store them (eventInstants): date-only and start-only, upcoming and
+  // past, plus a date-only weekend (e2e/event-timing.spec.ts). They keep off
+  // the fixed one-off fixtures' days, which e2e lists event by event.
+  const fixtureDays = new Set(ev.flatMap((e) => ("recurrenceFreq" in e ? [] : [toLocalYmd(e.startTime)])));
+  const freeDay = (days: number, step: 1 | -1) => {
+    while (fixtureDays.has(toLocalYmd(new Date(now + days * DAY)))) days += step;
+    return toLocalYmd(new Date(now + days * DAY));
+  };
+  const dayAhead = (days: number) => freeDay(days, 1);
+  const dayBack = (days: number) => freeDay(-days, -1);
+  const plusDays = (ymd: string, days: number) => toLocalYmd(new Date(at(ymd, "12:00").getTime() + days * DAY));
+  const retreat = dayAhead(9);
+  const untimed: (typeof events.$inferInsert)[] = [
+    {
+      id: "ev-start-only",
+      title: "Laser Tag + Arcade Social",
+      description: "Entry: $8 per person for a 15-minute game. Everyone is welcome!",
+      location: "Santa Cruz Beach Boardwalk",
+      ...eventInstants({ date: dayAhead(2), startTime: "18:00" }),
+    },
+    {
+      id: "ev-date-only",
+      title: "Henna Night",
+      description: "Henna, snacks and good company. Time and room to be announced.",
+      location: "Cowell College",
+      ...eventInstants({ date: dayAhead(0) }),
+    },
+    {
+      id: "ev-retreat",
+      title: "Winter Retreat",
+      description: "A weekend away in the mountains. Details to follow.",
+      location: "Mount Hermon",
+      ...eventInstants({ date: retreat, endDate: plusDays(retreat, 2) }),
+    },
+    {
+      id: "ev-past-date-only",
+      title: "Grappling Night",
+      description: "Open mat with the brothers' grappling group.",
+      location: "East Field House",
+      ...eventInstants({ date: dayBack(4) }),
+    },
+    {
+      id: "ev-past-start-only",
+      title: "Hilltop Potluck",
+      description: "Bring a dish; we eat at sunset.",
+      location: "Porter Meadow",
+      ...eventInstants({ date: dayBack(6), startTime: "17:30" }),
+    },
+  ].map((e) => ({
+    ...e,
+    createdByAdminId: 1,
+    createdAt: new Date("2026-10-01T18:00:00.000Z"),
+    updatedAt: new Date("2026-10-01T18:00:00.000Z"),
+    source: "whatsapp",
+    sourceId: `wa-${e.id}`,
+    importedAt: new Date("2026-10-01T18:00:00.000Z"),
+    lastImportedAt: new Date("2026-10-01T18:00:00.000Z"),
+  }));
+  await db.insert(events).values(untimed);
   await db.insert(events).values(
     ev.map((e) => ({
       recurrenceFreq: null,
@@ -262,6 +363,59 @@ async function main() {
         : { source: "whatsapp", sourceId: `wa-hist-${i + 1}`, importedAt: e.endTime, lastImportedAt: e.endTime }),
     })),
   );
+  // Flyers and links (e2e/flyers.spec.ts): one flyer, several, a landscape
+  // one, past ones; an RSVP button, a form left with its default label,
+  // secondary links, a map link, and a collab's "Hosted by" line; and
+  // flyers for the admin flyer editor (e2e/admin-flyers.spec.ts).
+  const media: Record<string, Partial<typeof events.$inferInsert>> = {
+    "ev-gbm": {
+      images: [flyer("Fall General Body Meeting", ["Thu · 6:30 PM", "Stevenson Event Center", "Dinner provided"], 350)],
+      links: [{ kind: "donate", label: "Donate", url: "https://www.launchgood.com/example-msa" }],
+    },
+    "ev-panel": {
+      description:
+        "Hosted by the Interfaith Council.\n\nStudents and chaplains talk about practicing faith at a public university: finding prayer space, fasting during finals, and building community. Q&A after.",
+      images: [
+        flyer("Faith on Campus", ["Panel and Q&A", "Humanities Lecture Hall"], 210),
+        flyer("Islamic Awareness Week", ["Nov 9 – 13", "Talks, food, games"], 30, 1600, 1600),
+      ],
+      links: [
+        { kind: "rsvp", label: "RSVP", url: "https://forms.gle/example-panel" },
+        { kind: "signup", label: "Volunteer", url: "https://forms.gle/example-volunteer" },
+      ],
+    },
+    "ev-date-only": {
+      images: [
+        flyer("Henna Night", ["Time and room TBA", "Cowell College"], 300),
+        flyer("Henna Night", ["Bring a friend", "Snacks and chai"], 320),
+        flyer("Henna Night", ["Sisters only", "RSVP for the room"], 280),
+      ],
+      links: [{ kind: "form", label: "Form", url: "https://forms.gle/example-henna" }],
+    },
+    "ev-start-only": {
+      images: [flyer("Laser Tag + Arcade", ["Fri · 6:00 PM", "Beach Boardwalk"], 190, 2000, 1250)],
+      links: [{ kind: "map", label: "Map", url: "https://maps.app.goo.gl/exampleBoardwalk" }],
+    },
+    "ev-potluck": {
+      links: [{ kind: "signup", label: "Sign up to bring a dish", url: "https://forms.gle/example-potluck" }],
+    },
+    "ev-past-01": {
+      images: [flyer("Game Night", ["Board games and chai", "Cowell Fireside Lounge"], 260)],
+      links: [{ kind: "rsvp", label: "RSVP", url: "https://forms.gle/example-past" }],
+    },
+    "ev-past-02": { images: [flyer("Halaqa", ["Patience in Hard Times"], 160)] },
+    "ev-past-03": { images: [flyer("Community Iftar", ["Dates, water, dinner"], 20)] },
+    // Only the admin flyer test touches these: it reorders and removes them.
+    "ev-bakesale": {
+      images: [
+        flyer("Charity Bake Sale", ["Flyer A"], 40),
+        flyer("Charity Bake Sale", ["Flyer B"], 120),
+        flyer("Charity Bake Sale", ["Flyer C"], 200),
+      ],
+    },
+  };
+  for (const [id, set] of Object.entries(media)) await db.update(events).set(set).where(eq(events.id, id));
+
   await db.insert(eventCancellations).values([
     { eventId: "ev-jummah", occurrenceDate: "2026-11-27" },
   ]);

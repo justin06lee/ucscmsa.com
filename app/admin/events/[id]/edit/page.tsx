@@ -3,6 +3,7 @@ import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { EventForm } from "@/app/admin/events/event-form";
+import { FlyerEditor } from "@/app/admin/events/flyer-editor";
 import { deleteEvent, updateEvent } from "@/app/admin/_actions";
 import { formatLocal } from "@/lib/time";
 import { Button } from "@/components/ui/button";
@@ -64,9 +65,10 @@ export default async function EditEventPage({ params }: Props) {
           description: row.description,
           location: row.location,
           startDate: formatLocal(row.startTime, "yyyy-MM-dd"),
-          startTime: formatLocal(row.startTime, "HH:mm"),
+          // Unknown times stay blank, not the stored 00:00 / 23:59 stand-ins.
+          startTime: row.timing === "date_only" ? "" : formatLocal(row.startTime, "HH:mm"),
           endDate: formatLocal(row.endTime, "yyyy-MM-dd"),
-          endTime: formatLocal(row.endTime, "HH:mm"),
+          endTime: row.timing === "timed" ? formatLocal(row.endTime, "HH:mm") : "",
           recurrenceFreq: (row.recurrenceFreq ?? "none") as
             "none" | "daily" | "weekly" | "monthly" | "yearly",
           recurrenceByWeekday: row.recurrenceByWeekday ?? "",
@@ -74,8 +76,10 @@ export default async function EditEventPage({ params }: Props) {
           recurrenceUntil: row.recurrenceUntil
             ? formatLocal(row.recurrenceUntil, "yyyy-MM-dd")
             : "",
+          links: row.links ?? [],
         }}
       />
+      <FlyerEditor eventId={row.id} initial={row.images ?? []} />
       <form action={del} className="mt-8">
         <Button type="submit" variant="danger-outline" size="lg">
           Delete event

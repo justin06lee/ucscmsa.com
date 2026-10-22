@@ -1,7 +1,7 @@
 // Markers for where an event came from (the import API) and whether the
 // whole event is cancelled. Field names match lib/db/schema.ts `events`.
 
-const SOURCE_NAMES: Record<string, string> = { whatsapp: "WhatsApp" };
+const SOURCE_NAMES: Record<string, string> = { whatsapp: "WhatsApp", instagram: "Instagram" };
 
 /** "Imported from WhatsApp", "Imported (<source>)", or null for admin-made events. */
 export function importLabel(source: string): string | null {

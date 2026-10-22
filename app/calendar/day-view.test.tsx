@@ -3,6 +3,7 @@ import { render, within } from "@testing-library/react";
 import { DayView } from "./day-view";
 import { DayAgenda, buildAgenda } from "./day-agenda";
 import type { Occurrence } from "@/lib/rrule-lite";
+import { eventInstants } from "@/lib/event-rules";
 import { parseHMInLocal } from "@/lib/time";
 
 // Santa Cruz, Fri Oct 23 2026 (Aladhan/ISNA).
@@ -24,6 +25,19 @@ function occ(id: string, title: string, ymd: string, start: string, end: string)
     occurrenceStart: parseHMInLocal(ymd, start),
     occurrenceEnd: parseHMInLocal(ymd, end),
     timing: "timed",
+    links: [],
+    cover: null,
+    imageCount: 0,
+  };
+}
+
+// An event whose times weren't (all) announced, stored as the form stores it.
+function untimed(id: string, title: string, ymd: string, startTime?: string): Occurrence {
+  const { timing, startTime: start, endTime: end } = eventInstants({ date: ymd, startTime });
+  return {
+    eventId: id, title, description: "", location: "",
+    occurrenceStart: start, occurrenceEnd: end, timing,
+    links: [], cover: null, imageCount: 0,
   };
 }
 
@@ -102,6 +116,35 @@ describe("DayView", () => {
   });
 });
 
+describe("DayView with untimed events", () => {
+  const day = [
+    occ("ball", "Brothers' Basketball", "2026-10-23", "13:30", "15:00"),
+    untimed("henna", "Henna Night", "2026-10-23"),
+    untimed("laser", "Laser Tag", "2026-10-23", "18:00"),
+  ];
+
+  it("puts a date-only event in the row above the grid, not at midnight", () => {
+    const { container } = render(<DayView ymd="2026-10-23" occurrences={day} prayer={OCT_23} />);
+    const row = container.querySelector(".day-grid__untimed") as HTMLElement;
+    expect(within(row).getByText("Henna Night")).toBeInTheDocument();
+    expect(within(row).getByText("Time not announced")).toBeInTheDocument();
+    const grid = container.querySelector(".day-grid") as HTMLElement;
+    expect(within(grid).queryByText("Henna Night")).toBeNull();
+    // The grid still starts at Fajr's hour, not stretched up to midnight.
+    expect(grid.querySelector(".day-grid__hour")?.textContent).toBe("6 AM");
+  });
+
+  it("draws a start-only event as a short open-ended block with its start only", () => {
+    const { container } = render(<DayView ymd="2026-10-23" occurrences={day} prayer={OCT_23} />);
+    const block = within(container.querySelector(".day-grid") as HTMLElement)
+      .getByText("Laser Tag")
+      .closest("a") as HTMLElement;
+    expect(block.hasAttribute("data-open-end")).toBe(true);
+    expect(block.textContent).toContain("6:00 PM, end not announced");
+    expect(parseFloat(block.style.height)).toBe(56); // one hour, not to midnight
+  });
+});
+
 describe("DayAgenda (phones)", () => {
   const day = [
     occ("hike", "Night Hike", "2026-10-23", "20:30", "22:00"),
@@ -139,6 +182,21 @@ describe("DayAgenda (phones)", () => {
     expect(getByText("1:15 – 2:00 PM")).toBeInTheDocument();
     expect(getByText("8:30 – 10:00 PM")).toBeInTheDocument();
     expect(getByText("Night Hike").closest("a")?.getAttribute("href")).toContain("/calendar/events/hike?occurrence=");
+  });
+
+  it("lists date-only events first, above Fajr, saying the time wasn't announced", () => {
+    const items = buildAgenda(
+      "2026-10-23",
+      [...day, untimed("henna", "Henna Night", "2026-10-23"), untimed("laser", "Laser Tag", "2026-10-23", "18:00")],
+      OCT_23,
+      2 * 60,
+    );
+    expect(order(items).slice(0, 4)).toEqual(["Henna Night", "now", "Qiyam al-Layl", "Fajr"]);
+    const henna = items[0];
+    expect(henna.kind === "event" && henna.when).toBe("Time not announced");
+    const laser = items.find((i) => i.kind === "event" && i.occurrence.eventId === "laser");
+    expect(laser?.kind === "event" && laser.when).toBe("6:00 PM");
+    expect(order(items).indexOf("Laser Tag")).toBe(order(items).indexOf("Asr") + 1);
   });
 
   it("still lists prayer times on a day with no events", () => {

@@ -62,6 +62,8 @@ function toEventInput(r: typeof events.$inferSelect, cancellations: string[]): E
     recurrenceInterval: r.recurrenceInterval,
     recurrenceUntil: r.recurrenceUntil,
     timing: r.timing,
+    links: r.links,
+    images: r.images,
     cancellations,
   };
 }

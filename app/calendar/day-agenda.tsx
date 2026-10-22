@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import type { PrayerTimes } from "@/lib/aladhan";
+import { timeOnDay, untimedOnDay } from "@/lib/event-time";
+import { coverThumb } from "@/lib/event-media";
+import { FlyerThumb } from "@/components/flyer-thumb";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 
 export const PRAYER_MARKERS = [
@@ -22,23 +25,14 @@ function wallMinutes(utc: Date): number {
   return h * 60 + m;
 }
 
-export function timeRange(o: Occurrence, ymd: string): string {
-  const startsToday = toLocalYmd(o.occurrenceStart) === ymd;
-  const endsToday = toLocalYmd(o.occurrenceEnd) === ymd;
-  const start = formatLocal(o.occurrenceStart, "h:mm a");
-  const end = formatLocal(o.occurrenceEnd, "h:mm a");
-  if (!startsToday) return `Until ${end}`;
-  if (!endsToday) return `${start} onward`;
-  // "1:15 – 2:00 PM" when both share AM/PM, else "11:00 AM – 3:00 PM".
-  return start.slice(-2) === end.slice(-2) ? `${start.slice(0, -3)} – ${end}` : `${start} – ${end}`;
-}
-
 /**
  * One day as a single time-ordered list: the six prayer-time markers with each
  * event placed by its start, so events read against the prayers ("after Isha",
  * "between Dhuhr and Asr"). Nothing is dropped: events before Fajr come first,
  * events after Isha last, and overlapping events simply follow one another.
- * A marker sorts before an event that starts at the same minute.
+ * A marker sorts before an event that starts at the same minute. Events with
+ * no time on this day (date-only ones) come first of all, above Fajr, and say
+ * so rather than claiming midnight.
  */
 export function buildAgenda(
   ymd: string,
@@ -51,13 +45,17 @@ export function buildAgenda(
     return { kind: "prayer" as const, key, label, at: wallMinutes(at), time: formatLocal(at, "h:mm a") };
   });
   for (const o of occurrences) {
-    const at = toLocalYmd(o.occurrenceStart) < ymd ? 0 : wallMinutes(o.occurrenceStart);
+    const at = untimedOnDay(o, ymd)
+      ? -1
+      : toLocalYmd(o.occurrenceStart) < ymd
+        ? 0
+        : wallMinutes(o.occurrenceStart);
     items.push({
       kind: "event",
       key: `${o.eventId}-${o.occurrenceStart.toISOString()}`,
       at,
       occurrence: o,
-      when: timeRange(o, ymd),
+      when: timeOnDay(o, ymd),
     });
   }
   if (nowMinutes != null) items.push({ kind: "now", key: "now", at: nowMinutes });
@@ -110,9 +108,14 @@ export function DayAgenda({
                 href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                 className="day-agenda__event"
               >
-                <span className="text-xs tabular-nums text-ink/70">{item.when}</span>
-                <span className="font-medium leading-snug">{o.title}</span>
-                {o.location ? <span className="text-sm text-ink/75">{o.location}</span> : null}
+                <span className="flex items-start gap-3">
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-xs tabular-nums text-ink/70">{item.when}</span>
+                    <span className="font-medium leading-snug">{o.title}</span>
+                    {o.location ? <span className="text-sm text-ink/75">{o.location}</span> : null}
+                  </span>
+                  {o.cover ? <FlyerThumb image={coverThumb(o.cover, o.title)!} width={44} /> : null}
+                </span>
               </Link>
             </li>
           );

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -9,6 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/ui/time-picker";
+import {
+  LINK_KIND_LABELS,
+  LINK_KINDS,
+  LINK_LABEL_MAX,
+  LINK_URL_MAX,
+  LINKS_MAX,
+  type EventLink,
+  type LinkKind,
+} from "@/lib/event-rules";
 
 type Initial = {
   id?: string;
@@ -23,6 +33,7 @@ type Initial = {
   recurrenceByWeekday?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: string;
+  links?: EventLink[];
 };
 
 type Props = {
@@ -49,6 +60,17 @@ const FREQ_OPTIONS = [
   { value: "yearly", label: "Yearly" },
 ];
 
+// What each link kind is called in the form's menu.
+const LINK_KIND_NAMES: Record<LinkKind, string> = {
+  rsvp: "RSVP",
+  form: "Form",
+  donate: "Donation",
+  signup: "Sign-up",
+  map: "Map",
+  other: "Other",
+};
+const LINK_KIND_OPTIONS = LINK_KINDS.map((k) => ({ value: k, label: LINK_KIND_NAMES[k] }));
+
 function Field({
   label,
   hint,
@@ -66,6 +88,91 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+type LinkRow = { key: number; kind: LinkKind; label: string; url: string };
+
+// Buttons on the event page, sent as rows of linkKind/linkLabel/linkUrl
+// fields (app/admin/_actions.ts). A label left as its kind's default shows
+// blank, so changing the kind changes the label with it.
+function LinksField({ initial }: { initial: EventLink[] }) {
+  const [rows, setRows] = useState<LinkRow[]>(() =>
+    initial.map((l, i) => ({
+      key: i,
+      kind: l.kind,
+      label: l.label === LINK_KIND_LABELS[l.kind] ? "" : l.label,
+      url: l.url,
+    })),
+  );
+  const nextKey = useRef(initial.length);
+
+  return (
+    <fieldset className="grid gap-3 rounded-md border border-ink/20 p-4">
+      <legend className="px-1 text-sm text-dim">Links</legend>
+      <p className="text-xs text-dim/80">
+        Buttons on the event page. The first RSVP link, or else the first
+        form, is the main button; the rest show beside it.
+      </p>
+      {rows.length > 0 && (
+        <ol className="grid gap-4">
+          {rows.map((r, i) => (
+            <li key={r.key} className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
+              <Select
+                name="linkKind"
+                value={r.kind}
+                onChange={(v) =>
+                  setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, kind: v as LinkKind } : x)))
+                }
+                options={LINK_KIND_OPTIONS}
+                ariaLabel={`Link ${i + 1} kind`}
+              />
+              <Input
+                name="linkLabel"
+                defaultValue={r.label}
+                placeholder={LINK_KIND_LABELS[r.kind]}
+                maxLength={LINK_LABEL_MAX}
+                aria-label={`Link ${i + 1} label`}
+              />
+              <div className="col-span-2 flex gap-2">
+                <Input
+                  name="linkUrl"
+                  type="url"
+                  inputMode="url"
+                  defaultValue={r.url}
+                  placeholder="https://"
+                  maxLength={LINK_URL_MAX}
+                  aria-label={`Link ${i + 1} URL`}
+                />
+                <Button
+                  variant="ghost"
+                  className="size-11 shrink-0 !p-0"
+                  aria-label={`Remove link ${i + 1}`}
+                  onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                >
+                  <X className="size-4" aria-hidden />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {rows.length === 0 && (
+        // No linkUrl field at all would leave the saved links alone.
+        <input type="hidden" name="linkUrl" value="" />
+      )}
+      {rows.length < LINKS_MAX && (
+        <Button
+          variant="outline"
+          className="min-h-11 justify-self-start"
+          onClick={() =>
+            setRows((rs) => [...rs, { key: nextKey.current++, kind: rs.length ? "other" : "rsvp", label: "", url: "" }])
+          }
+        >
+          Add a link
+        </Button>
+      )}
+    </fieldset>
   );
 }
 
@@ -108,8 +215,8 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
             required={!isRecurring}
           />
         </Field>
-        <Field label="Start time">
-          <TimePicker name="startTime" defaultValue={initial.startTime ?? ""} required />
+        <Field label="Start time" hint="Optional">
+          <TimePicker name="startTime" defaultValue={initial.startTime ?? ""} ariaLabel="Start time" />
         </Field>
         <Field label="End date" hint={dateHint}>
           <DatePicker
@@ -118,9 +225,14 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
             required={!isRecurring}
           />
         </Field>
-        <Field label="End time">
-          <TimePicker name="endTime" defaultValue={initial.endTime ?? ""} required />
+        <Field label="End time" hint="Optional">
+          <TimePicker name="endTime" defaultValue={initial.endTime ?? ""} ariaLabel="End time" />
         </Field>
+        <p className="text-xs text-dim sm:col-span-2">
+          Leave both times blank if they haven&rsquo;t been announced, or the
+          end time blank if only the start is known. The site then says
+          &ldquo;Time not announced&rdquo; instead of guessing.
+        </p>
       </div>
       <div className="grid gap-3 rounded-md border border-ink/20 p-4">
         <span className="text-sm text-dim">Recurrence</span>
@@ -173,6 +285,7 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
           </div>
         )}
       </div>
+      <LinksField initial={initial.links ?? []} />
       {err && (
         <div role="alert" className="text-sm text-burgundy">
           {err}
