@@ -38,22 +38,25 @@ bun scripts/screenshots.ts --base http://localhost:3100 --out docs/screenshots/a
 - **Public pages:** taken from the LIVE site, https://ucscmsa.com, on 2026-10-21 at about 14:28 PT, read-only (GETs, signed out). That was master `0feaa92`, minutes before the times release (`91244a0`) went live. They show the real events: Sisters' Game Night, Laser Tag + Arcade Social, and the Jummah series.
 - **Admin pages:** from a local `next start` of `91244a0` on `scripts/seed-local.ts` data, since production admin needs a real sign-in.
 
-`after-v3/` follows the same names once v3 ships.
+`after-v3/` is the same pages once v3 shipped, with the same names:
 
-| Page | Before (390px) |
-|---|---|
-| Landing | <img src="before-v3/landing-390.png" width="260" alt="Landing, before v3, 390px"> |
-| Calendar — today (Wed Oct 21) | <img src="before-v3/calendar-day-today-390.png" width="260" alt="Calendar day view for Oct 21, before v3, 390px"> |
-| Calendar — day (Fri Oct 23) | <img src="before-v3/calendar-day-390.png" width="260" alt="Calendar day view for Oct 23, before v3, 390px"> |
-| Calendar — month (Oct 2026) | <img src="before-v3/calendar-month-390.png" width="260" alt="Calendar month view, before v3, 390px"> |
-| Calendar — year (2026) | <img src="before-v3/calendar-year-390.png" width="260" alt="Calendar year view, before v3, 390px"> |
-| Event — Sisters' Game Night | <img src="before-v3/event-game-night-390.png" width="260" alt="Sisters' Game Night event page, before v3, 390px"> |
-| Event — Laser Tag + Arcade Social | <img src="before-v3/event-laser-tag-390.png" width="260" alt="Laser Tag event page, before v3, 390px"> |
-| Event — Jummah 1 (weekly) | <img src="before-v3/event-recurring-390.png" width="260" alt="Jummah 1 event page, before v3, 390px"> |
-| Login | <img src="before-v3/login-390.png" width="260" alt="Login, before v3, 390px"> |
-| 404 | <img src="before-v3/not-found-390.png" width="260" alt="404, before v3, 390px"> |
-| Admin — events (seed) | <img src="before-v3/admin-events-390.png" width="260" alt="Admin events list, before v3, 390px"> |
-| Admin — new event (seed) | <img src="before-v3/admin-event-new-390.png" width="260" alt="Admin new event form, before v3, 390px"> |
-| Admin — edit event (seed) | <img src="before-v3/admin-event-edit-390.png" width="260" alt="Admin edit event form, before v3, 390px"> |
-| Admin — admins (seed) | <img src="before-v3/admin-admins-390.png" width="260" alt="Admin admins page, before v3, 390px"> |
-| Admin — nominations (seed) | <img src="before-v3/admin-nominations-390.png" width="260" alt="Admin nominations page, before v3, 390px"> |
+- **Public pages:** from the LIVE site on 2026-10-21 at about 19:03 PT, read-only, the same way: master `875e85f` (Release 2, v3 from `midna/v3` `65700fb`, plus the board release), after MSA sync attached flyers to 63 events. Sisters' Game Night was under way, so it still shows its RSVP button.
+- **Admin pages:** from a local `next start` of `65700fb` on `scripts/seed-local.ts` data, as before; the edit page now has the Links and Flyers sections.
+
+| Page | Before (390px) | After (390px) |
+|---|---|---|
+| Landing | <img src="before-v3/landing-390.png" width="260" alt="Landing, before v3, 390px"> | <img src="after-v3/landing-390.png" width="260" alt="Landing, after v3, 390px"> |
+| Calendar — today (Wed Oct 21) | <img src="before-v3/calendar-day-today-390.png" width="260" alt="Calendar day view for Oct 21, before v3, 390px"> | <img src="after-v3/calendar-day-today-390.png" width="260" alt="Calendar day view for Oct 21, after v3, 390px"> |
+| Calendar — day (Fri Oct 23) | <img src="before-v3/calendar-day-390.png" width="260" alt="Calendar day view for Oct 23, before v3, 390px"> | <img src="after-v3/calendar-day-390.png" width="260" alt="Calendar day view for Oct 23, after v3, 390px"> |
+| Calendar — month (Oct 2026) | <img src="before-v3/calendar-month-390.png" width="260" alt="Calendar month view, before v3, 390px"> | <img src="after-v3/calendar-month-390.png" width="260" alt="Calendar month view, after v3, 390px"> |
+| Calendar — year (2026) | <img src="before-v3/calendar-year-390.png" width="260" alt="Calendar year view, before v3, 390px"> | <img src="after-v3/calendar-year-390.png" width="260" alt="Calendar year view, after v3, 390px"> |
+| Event — Sisters' Game Night | <img src="before-v3/event-game-night-390.png" width="260" alt="Sisters' Game Night event page, before v3, 390px"> | <img src="after-v3/event-game-night-390.png" width="260" alt="Sisters' Game Night event page, after v3, 390px"> |
+| Event — Laser Tag + Arcade Social | <img src="before-v3/event-laser-tag-390.png" width="260" alt="Laser Tag event page, before v3, 390px"> | <img src="after-v3/event-laser-tag-390.png" width="260" alt="Laser Tag event page, after v3, 390px"> |
+| Event — Jummah 1 (weekly) | <img src="before-v3/event-recurring-390.png" width="260" alt="Jummah 1 event page, before v3, 390px"> | <img src="after-v3/event-recurring-390.png" width="260" alt="Jummah 1 event page, after v3, 390px"> |
+| Login | <img src="before-v3/login-390.png" width="260" alt="Login, before v3, 390px"> | <img src="after-v3/login-390.png" width="260" alt="Login, after v3, 390px"> |
+| 404 | <img src="before-v3/not-found-390.png" width="260" alt="404, before v3, 390px"> | <img src="after-v3/not-found-390.png" width="260" alt="404, after v3, 390px"> |
+| Admin — events (seed) | <img src="before-v3/admin-events-390.png" width="260" alt="Admin events list, before v3, 390px"> | <img src="after-v3/admin-events-390.png" width="260" alt="Admin events list, after v3, 390px"> |
+| Admin — new event (seed) | <img src="before-v3/admin-event-new-390.png" width="260" alt="Admin new event form, before v3, 390px"> | <img src="after-v3/admin-event-new-390.png" width="260" alt="Admin new event form, after v3, 390px"> |
+| Admin — edit event (seed) | <img src="before-v3/admin-event-edit-390.png" width="260" alt="Admin edit event form, before v3, 390px"> | <img src="after-v3/admin-event-edit-390.png" width="260" alt="Admin edit event form, after v3, 390px"> |
+| Admin — admins (seed) | <img src="before-v3/admin-admins-390.png" width="260" alt="Admin admins page, before v3, 390px"> | <img src="after-v3/admin-admins-390.png" width="260" alt="Admin admins page, after v3, 390px"> |
+| Admin — nominations (seed) | <img src="before-v3/admin-nominations-390.png" width="260" alt="Admin nominations page, before v3, 390px"> | <img src="after-v3/admin-nominations-390.png" width="260" alt="Admin nominations page, after v3, 390px"> |
