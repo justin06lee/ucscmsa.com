@@ -77,6 +77,9 @@ describe("Upcoming cards", () => {
     // No flyer: the fallback cover, hidden from screen readers; no made-up time.
     const henna = cards[2];
     expect(henna.querySelector("[data-fallback-cover]")).toHaveAttribute("aria-hidden", "true");
+    // Type on a tone, never a shape or a pattern.
+    expect(henna.querySelector("[data-fallback-cover] svg")).toBeNull();
+    expect(henna.querySelector("[data-fallback-cover]")).toHaveTextContent("Henna Tabling");
     expect(henna).toHaveTextContent("Time not announced");
     expect(screen.getAllByRole("link", { name: /Henna Tabling/ })).toHaveLength(1);
   });

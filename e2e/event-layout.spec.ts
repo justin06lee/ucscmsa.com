@@ -113,6 +113,9 @@ test.describe("event page", () => {
     await expect(fallback).toBeVisible();
     await expect(fallback).toHaveAttribute("aria-hidden", "true");
     await expect(fallback).toContainText("Community Potluck");
+    // Type on a tone, never a shape or a pattern (no svg, no image in the background).
+    await expect(page.locator("[data-fallback-cover] svg")).toHaveCount(0);
+    expect(await fallback.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain("url(");
     const box = (await fallback.boundingBox())!;
     const title = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
     expect(box.x + box.width).toBeLessThan(title.x);
