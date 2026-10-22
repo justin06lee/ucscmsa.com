@@ -3,7 +3,7 @@ import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { isAllowedSignIn, parseEmailList } from "@/lib/auth-policy";
+import { isAllowedGoogleSignIn, parseEmailList } from "@/lib/auth-policy";
 import { seedAdminIfEligible } from "@/lib/admin-seed";
 import {
   accounts,
@@ -26,12 +26,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  providers: [Google],
+  // A first Google sign-in attaches to an existing user row with the same
+  // email instead of failing with OAuthAccountNotLinked, so admins can be
+  // created before they ever sign in. Safe because Google is the only
+  // provider and signIn below admits only addresses Google has verified.
+  providers: [Google({ allowDangerousEmailAccountLinking: true })],
   session: { strategy: "database" },
   callbacks: {
     async signIn({ user, profile }) {
-      if (!isAllowedSignIn(user.email, profile, EXTRA_ALLOWED_EMAILS)) return false;
-      const email = (user.email ?? "").toLowerCase();
+      // A verified address in UCSC's Google Workspace (hd), not just the
+      // suffix, or an exact verified extra address: linking by email relies on it.
+      if (!isAllowedGoogleSignIn(profile, EXTRA_ALLOWED_EMAILS)) return false;
+      const email = (profile?.email ?? "").toLowerCase();
       // Normalize email to lowercase before the adapter persists it. Without this,
       // case-sensitive lookups (eq(users.email, ...)) silently fail when Google
       // returns a mixed-case email.

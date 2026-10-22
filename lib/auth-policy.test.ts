@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedGoogleSignIn, isAllowedSignIn, parseEmailList } from "./auth-policy";
+import { isAllowedGoogleSignIn, parseEmailList } from "./auth-policy";
 
 const ucsc = { email: "slug@ucsc.edu", email_verified: true, hd: "ucsc.edu" };
 
@@ -44,38 +44,5 @@ describe("parseEmailList", () => {
     ]);
     expect(parseEmailList(undefined)).toEqual([]);
     expect(parseEmailList("")).toEqual([]);
-  });
-});
-
-describe("isAllowedSignIn", () => {
-  const extra = new Set(["maintainer@gmail.com"]);
-  const gmail = { email: "maintainer@gmail.com", email_verified: true };
-
-  it("still lets in any @ucsc.edu address, as before", () => {
-    expect(isAllowedSignIn("slug@ucsc.edu", { email: "slug@ucsc.edu" })).toBe(true);
-    expect(isAllowedSignIn("Slug@UCSC.edu", undefined, extra)).toBe(true);
-  });
-
-  it("lets in a listed address only when Google says it is verified", () => {
-    expect(isAllowedSignIn("Maintainer@gmail.com", gmail, extra)).toBe(true);
-    expect(isAllowedSignIn("maintainer@gmail.com", { ...gmail, email_verified: false }, extra)).toBe(false);
-    expect(isAllowedSignIn("maintainer@gmail.com", { email: gmail.email }, extra)).toBe(false);
-    expect(isAllowedSignIn("maintainer@gmail.com", undefined, extra)).toBe(false);
-  });
-
-  it("rejects other gmail addresses, and listed ones when the list is empty", () => {
-    expect(isAllowedSignIn("other@gmail.com", { ...gmail, email: "other@gmail.com" }, extra)).toBe(false);
-    expect(isAllowedSignIn("maintainer@gmail.com", gmail)).toBe(false);
-  });
-
-  it("checks the verified profile's own address, not just the user's", () => {
-    expect(isAllowedSignIn("maintainer@gmail.com", { ...gmail, email: "other@gmail.com" }, extra)).toBe(false);
-    expect(isAllowedSignIn("", { ...gmail, email: "" }, new Set([""]))).toBe(false);
-    expect(isAllowedSignIn(null, gmail, extra)).toBe(false);
-  });
-
-  it("rejects look-alike domains", () => {
-    expect(isAllowedSignIn("x@ucsc.edu.evil.com", undefined)).toBe(false);
-    expect(isAllowedSignIn("x@notucsc.edu", undefined)).toBe(false);
   });
 });
