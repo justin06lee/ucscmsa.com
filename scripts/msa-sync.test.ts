@@ -188,6 +188,18 @@ describe("Jummah one-offs", () => {
     expect(state.jummah).toEqual({ "2026-10-23": "wa:J1" });
   });
 
+  it("makes one event for a Friday with two prayer times, starting at the first", async () => {
+    const summary = emptySummary();
+    const ops = await eventifyItems([jummah("Jummah tomorrow, Redwood Lounge, 1:30 and 2:45")], emptyState(), opts({
+      isEvent: true, isJummah: true, title: "Jummah", confidence: 0.95, location: "Redwood Lounge", description: "Jummah tomorrow, Redwood Lounge, 1:30 and 2:45",
+      date: { value: "2026-10-23", source: "text", quote: "tomorrow" },
+      startTime: { value: "13:30", source: "text", quote: "1:30" },
+    }, summary));
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({ sourceId: "wa:J1", event: { title: "Jummah", date: "2026-10-23", startTime: "13:30" } });
+    expect((ops[0].event as { description: string }).description).toMatch(/1:30 and 2:45/);
+  });
+
   it("cancels the posted Jummah when a later message says there is none", async () => {
     const summary = emptySummary();
     const state: SyncState = { ...emptyState(), jummah: { "2026-10-23": "wa:J1" } };
