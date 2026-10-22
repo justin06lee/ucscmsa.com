@@ -20,6 +20,10 @@ Flags: `--since <ISO>` overrides the WhatsApp start (default: the last run; **on
 
 The summary lists created, updated, unchanged, needs-review, skipped and errors, plus how many flyers matched an announcement (and how many didn't). **The exit code is non-zero if anything errored.** Needs-review items are written to `ucscmsa-sync-review.json`; read them, and add them by hand with the manual flow below if they're real.
 
+### Jummah
+
+Jummah is one-off events from the announcements, never a recurring series: an announcement or undated Jummah card becomes that Friday's event (`wa:<message id>`), and a "no Jummah" message cancels the one-off posted for that Friday. msa-sync never sends `recurrence` (any is stripped and flagged for review). **This is off until Backend deletes the old recurring series**, so a Friday never shows two: then set `"jummahOneOffs": true` in `ucscmsa-sync.json`. Until then Jummah messages are skipped as before.
+
 ### The LLM step (yagami)
 
 The eventify step talks to an Anthropic-compatible endpoint. In development that's **yagami** on this Mac; only midna starts it (`yagami start`), never the sync. msa-sync checks the port first (a TCP connect, since a busy yagami can take many seconds to answer HTTP) and, **if yagami is down, stops before posting anything** — it eventifies and posts nothing, says so in the summary, and exits non-zero. Settings come from the environment or config, never hardcoded:

@@ -172,7 +172,7 @@ describe("yagamiCall", () => {
 
 describe("Jummah one-offs", () => {
   const jummah = (text: string) => ({ ...item("wa:J1", text), sentDate: "2026-10-22" });
-  const opts = (reply: unknown, summary: SyncSummary) => ({ call: mockCall(() => reply), primaryModel: "haiku", verifierModel: "sonnet", summary });
+  const opts = (reply: unknown, summary: SyncSummary, jummahOneOffs = true) => ({ call: mockCall(() => reply), primaryModel: "haiku", verifierModel: "sonnet", summary, jummahOneOffs });
 
   it("turns a Jummah announcement into a one-off event for that Friday, never a series", async () => {
     const summary = emptySummary();
@@ -201,6 +201,13 @@ describe("Jummah one-offs", () => {
     const ops = await eventifyItems([item("wa:J3", "No Jummah today")], emptyState(), opts({ isEvent: false, cancelsJummah: "2026-10-30", confidence: 0.9 }, summary));
     expect(ops).toEqual([]);
     expect(summary.skipped[0].reason).toMatch(/no Jummah event on file/);
+  });
+
+  it("skips Jummah while one-offs are off (the default), so a Friday never shows two", async () => {
+    const summary = emptySummary();
+    const ops = await eventifyItems([jummah("Jummah tomorrow at 1:30")], emptyState(), opts({ isEvent: true, isJummah: true, title: "Jummah", confidence: 0.95, date: { value: "2026-10-23", source: "text", quote: "tomorrow" } }, summary, false));
+    expect(ops).toEqual([]);
+    expect(summary.skipped[0].reason).toMatch(/one-offs are off/);
   });
 
   it("strips any recurrence before posting", () => {

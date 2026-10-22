@@ -50,6 +50,8 @@ const syncConfigSchema = z.object({
   aiEffort: z.string().default("medium"),
   confidenceFloor: z.number().min(0).max(1).optional(),
   flyerDir: z.string().optional(),
+  /** Post Jummah as one-off events. Off until the recurring series is deleted, so a Friday never shows two. */
+  jummahOneOffs: z.boolean().default(false),
   stateFile: z.string().optional(),
   reviewFile: z.string().optional(),
 });
@@ -318,12 +320,18 @@ export type SyncSummary = {
 export async function eventifyItems(
   items: SourceItem[],
   state: SyncState,
-  opts: { call: CallModel; primaryModel: string; verifierModel: string; confidenceFloor?: number; summary: SyncSummary },
+  opts: { call: CallModel; primaryModel: string; verifierModel: string; confidenceFloor?: number; summary: SyncSummary; jummahOneOffs?: boolean },
 ): Promise<Record<string, unknown>[]> {
   const ops: Record<string, unknown>[] = [];
   for (const item of items) {
     try {
       const draft = await eventify(item, opts);
+      if (!opts.jummahOneOffs && (draft.isJummah || draft.cancelsJummah)) {
+        // Not yet: the recurring series is still on the site (see jummahOneOffs).
+        opts.summary.skipped.push({ sourceId: item.sourceId, reason: "Jummah (one-offs are off until the series is deleted)" });
+        state.processed[item.sourceId] = { hash: itemHash(item), status: "skipped" };
+        continue;
+      }
       if (!draft.isEvent && draft.cancelsJummah) {
         // "No Jummah this Friday": cancel the one-off we posted for that date, if any.
         const target = state.jummah?.[draft.cancelsJummah];
@@ -483,7 +491,7 @@ export async function main(argv: string[]): Promise<number> {
       return 1;
     }
     const call = yagamiCall({ baseUrl: ai.baseUrl, apiKey: ai.apiKey, effort: syncCfg.aiEffort });
-    ops = await eventifyItems(items, state, { call, primaryModel: syncCfg.aiModel, verifierModel: syncCfg.aiVerifierModel, confidenceFloor: syncCfg.confidenceFloor, summary });
+    ops = await eventifyItems(items, state, { call, primaryModel: syncCfg.aiModel, verifierModel: syncCfg.aiVerifierModel, confidenceFloor: syncCfg.confidenceFloor, summary, jummahOneOffs: syncCfg.jummahOneOffs });
     if (newImages.length) {
       const res = await matchImages(newImages, imageCandidates, { call, model: syncCfg.aiModel, load: imageForPath });
       state.images ??= {};
