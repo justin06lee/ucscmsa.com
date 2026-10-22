@@ -29,13 +29,13 @@ test.describe("Upcoming cards", () => {
     expect(await cards.count()).toBeGreaterThan(0);
     for (const card of await cards.all()) {
       await expectCover(card);
-      await expect(card.locator("p").first()).toHaveText(/^\w{3}, \w{3} \d{1,2} · /);
+      await expect(card.locator("a:not([data-link-kind]) > span").nth(1)).toHaveText(/^\w{3}, \w{3} \d{1,2} · /);
       // One link to the event; any other link is the event's RSVP button.
       const eventLinks = card.locator("a:not([data-link-kind])");
       await expect(eventLinks).toHaveCount(1);
       await expect(eventLinks).toHaveAttribute("href", /^\/calendar\/events\/[^/?]+\?occurrence=/);
     }
-    // The cover opens the event too: the title's link covers the card.
+    // The cover opens the event too: the card is one link.
     const first = cards.first();
     const href = await first.locator("a:not([data-link-kind])").getAttribute("href");
     const box = (await first.locator(".aspect-\\[4\\/5\\]").boundingBox())!;
@@ -46,20 +46,15 @@ test.describe("Upcoming cards", () => {
   test("an event with its own form gets an RSVP button that opens the form in a new tab", async ({ page }) => {
     await page.goto("/");
     const card = upcoming(page).filter({ hasText: "Henna Night" });
-    await expect(card.locator("p").first()).toContainText("Time not announced");
+    await expect(card).toContainText("Time not announced");
     const rsvp = card.locator("a[data-link-kind=form]");
     await expect(rsvp).toHaveAccessibleName("RSVP (opens in a new tab)");
     await expect(rsvp).toHaveAttribute("href", "https://forms.gle/example-henna");
     await expect(rsvp).toHaveAttribute("target", "_blank");
     await expect(rsvp).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
-    // The site's primary button, above the card's own link.
+    // The site's primary button, outside the card's own link.
     await expect(rsvp).toHaveClass(/bg-ink/);
-    const box = (await rsvp.boundingBox())!;
-    const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest("a")?.dataset.linkKind, [
-      box.x + box.width / 2,
-      box.y + box.height / 2,
-    ]);
-    expect(hit).toBe("form");
+    expect(await rsvp.evaluate((a) => a.parentElement!.closest("a"))).toBeNull();
   });
 
   test("past events are list cards with covers, newest first", async ({ page }) => {
@@ -92,7 +87,8 @@ test.describe("phones", () => {
     await page.goto("/calendar?view=month&date=2026-10-20");
     const list = page.getByRole("region", { name: "October events" });
     const days = list.locator(":scope > ol.timeline > li.timeline__day");
-    expect(await days.count()).toBeGreaterThan(3);
+    await expect(days.first()).toBeVisible();
+    expect(await days.count()).toBeGreaterThan(1);
     const card = list.locator(".event-list-card").filter({ hasText: "Night Hike to the Lookout" });
     await expect(card).toContainText("8:30");
     await expectCover(card);

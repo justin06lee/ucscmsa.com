@@ -122,6 +122,7 @@ test("the checks catch a bad link and an arrow", async ({ page }) => {
     <p>See all →</p>`);
   const { offSite, problems } = await checkLinks(page);
   expect(offSite).toBe(3);
-  expect(problems).toHaveLength(2);
+  // The first lacks the target and both rel words; the second lacks noreferrer.
+  expect(problems).toHaveLength(3);
   expect(await findArrows(page)).toHaveLength(1);
 });
