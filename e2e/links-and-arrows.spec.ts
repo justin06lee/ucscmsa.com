@@ -16,7 +16,7 @@ const PUBLIC = [
   "/calendar?view=day",
   "/calendar?view=year&date=2026-10-20",
   "/calendar/events/ev-gbm",
-  "/calendar/events/ev-jummah",
+  "/calendar/events/ev-halaqa",
   "/calendar/events/ev-sisters",
   "/calendar/events/ev-panel",
   "/calendar/events/ev-date-only",
