@@ -23,6 +23,19 @@ describe("attempt", () => {
     });
   });
 
+  it("keeps an action's own code and sentence: { ok: false, code, error }", async () => {
+    expect(await attempt(async () => ({ ok: false, code: "event_ended", error: "This event has ended." }))).toEqual({
+      ok: false,
+      code: "event_ended",
+      error: "This event has ended.",
+    });
+    expect(await attempt(async () => ({ ok: false, code: "not_found" }))).toEqual({
+      ok: false,
+      code: "not_found",
+      error: "That no longer exists. Reload the page.",
+    });
+  });
+
   it("treats a throw (the network, a 500) as a failure, never an exception", async () => {
     expect(
       await attempt(async () => {

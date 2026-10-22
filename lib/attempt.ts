@@ -1,6 +1,6 @@
 // Calling a Server Function from a button, for optimistic UI: the caller has
 // already shown the outcome, and rolls it back when this says it failed.
-// Failures are `{ ok: false, error }` results and anything thrown (the
+// Failures are `{ ok: false, code?, error }` results and anything thrown (the
 // network, a 500); `undefined` (an action that returns nothing) is success.
 
 /** `code` is the action's own error string, for callers with their own wording. */
@@ -34,8 +34,11 @@ export async function attempt<T>(run: () => Promise<T>): Promise<Attempt<T>> {
     return { ok: false, error: OFFLINE_ERROR };
   }
   if (value && typeof value === "object" && "ok" in value && (value as { ok: unknown }).ok === false) {
-    const code = (value as { error?: unknown }).error;
-    return { ok: false, error: errorText(code), ...(typeof code === "string" ? { code } : {}) };
+    // `{ ok: false, code, error }`: error is already a sentence. Older actions
+    // put a short code in `error` itself.
+    const { code, error } = value as { code?: unknown; error?: unknown };
+    if (typeof code === "string") return { ok: false, code, error: typeof error === "string" && error.trim() ? error : errorText(code) };
+    return { ok: false, error: errorText(error), ...(typeof error === "string" ? { code: error } : {}) };
   }
   return { ok: true, value };
 }
