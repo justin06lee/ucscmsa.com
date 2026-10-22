@@ -16,7 +16,7 @@
  */
 import { chromium, type Browser, type Locator, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { arg, scrollTo, scrollToShow, settle, sleep, tap } from "./demo-kit";
@@ -57,8 +57,10 @@ async function clip(
   lead = (Date.now() - t0) / 1000;
   await run(page, (label) => marks.push([(Date.now() - t0) / 1000 - lead, label]));
   marks.push([(Date.now() - t0) / 1000 - lead, "end"]);
+  // This page's own recording: a tab it opened (the RSVP form) gets one too.
+  const video = page.video()!;
   await context.close();
-  return { webm: path.join(dir, readdirSync(dir).find((f) => f.endsWith(".webm"))!), lead, marks };
+  return { webm: await video.path(), lead, marks };
 }
 
 // A round pointer that follows the mouse, since recordings show none.
