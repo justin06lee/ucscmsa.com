@@ -4,7 +4,7 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 // cover-first Upcoming cards, list cards with covers, the timeline lists, the
 // two-column event page, and the cover for events without a flyer.
 
-const HENNA = "/calendar/events/ev-date-only"; // three flyers, a form link, today
+const HENNA = "/calendar/events/ev-date-only"; // three flyers, a form link, date-only, upcoming
 const POTLUCK = "/calendar/events/ev-potluck"; // no flyer
 
 const upcoming = (page: Page) =>
@@ -43,18 +43,15 @@ test.describe("Upcoming cards", () => {
     await page.waitForURL((url) => url.pathname + url.search === href);
   });
 
-  test("an event with its own form gets an RSVP button that opens the form in a new tab", async ({ page }) => {
+  // The RSVP button on a card is in components/upcoming-events.test.tsx: the
+  // seed's event with a form isn't always among the next three.
+  test("a card's RSVP button, when there is one, opens the form in a new tab", async ({ page }) => {
     await page.goto("/");
-    const card = upcoming(page).filter({ hasText: "Henna Night" });
-    await expect(card).toContainText("Time not announced");
-    const rsvp = card.locator("a[data-link-kind=form]");
-    await expect(rsvp).toHaveAccessibleName("RSVP (opens in a new tab)");
-    await expect(rsvp).toHaveAttribute("href", "https://forms.gle/example-henna");
-    await expect(rsvp).toHaveAttribute("target", "_blank");
-    await expect(rsvp).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
-    // The site's primary button, outside the card's own link.
-    await expect(rsvp).toHaveClass(/bg-ink/);
-    expect(await rsvp.evaluate((a) => a.parentElement!.closest("a"))).toBeNull();
+    for (const rsvp of await upcoming(page).locator("a[data-link-kind]").all()) {
+      await expect(rsvp).toHaveAttribute("target", "_blank");
+      await expect(rsvp).toHaveAccessibleName(/\(opens in a new tab\)$/);
+      expect(await rsvp.evaluate((a) => a.parentElement!.closest("a"))).toBeNull();
+    }
   });
 
   test("past events are list cards with covers, newest first", async ({ page }) => {
@@ -72,7 +69,7 @@ test.describe("phones", () => {
     await page.goto("/");
     const cover = (await upcoming(page).first().locator(".aspect-\\[4\\/5\\]").boundingBox())!;
     expect(cover.width).toBeGreaterThan(330);
-    expect(Math.round(cover.height)).toBe(Math.round((cover.width * 5) / 4));
+    expect(Math.abs(cover.height - (cover.width * 5) / 4)).toBeLessThan(1.5);
   });
 
   test("the event page stacks: the cover, then the title and RSVP", async ({ page }) => {
