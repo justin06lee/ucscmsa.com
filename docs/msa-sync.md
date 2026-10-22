@@ -93,7 +93,7 @@ Everything private lives in `~/.local/share/midna-ucscmsa/` (the directory is `c
 | `ucscmsa-wa-state.json` | A hash per message, so `read` can tell when a message was edited. |
 | `ucscmsa-sync-state.json` | The sync's last-seen WhatsApp time, per-id status, and which `--images` files it has matched. |
 | `ucscmsa-sync-review.json` | Items the sync held back for a human to check. |
-| `ucscmsa-sync-enrichment.json` | Per posted event: its links and flyer images, held until the import API accepts those fields. |
+| `ucscmsa-sync-enrichment.json` | Per posted event: its links (also sent in the upsert, which replaces the event's links) and flyer images (attached by step 4 or `flyer-upload.ts`). |
 | `ucscmsa-flyer-map.json` | The history's flyers: event sourceId → its images in order. |
 | `ucscmsa-images-state.json` | Per event: the site's event id and the images attached. |
 | `blob-token` | The Vercel Blob token for flyer uploads (`chmod 600`). Never printed. |

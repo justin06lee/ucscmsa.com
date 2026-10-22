@@ -229,4 +229,10 @@ describe("draftToOperation", () => {
     });
     expect(op.event).toEqual({ title: "Jeopardy", date: "2026-01-07", description: "Fun", location: "McHenry", startTime: "17:00", endTime: "19:00" });
   });
+
+  it("sends the grounded links, at most 5", () => {
+    const links = Array.from({ length: 6 }, (_, i) => ({ kind: "rsvp" as const, label: "RSVP", url: `https://forms.gle/x${i}` }));
+    const op = draftToOperation({ sourceId: "wa:C", sourceRef: "ref", isEvent: true, title: "Game Night", date: "2026-10-21", links, images: [], confidence: 0.9, needsReview: false, reviewNotes: [] });
+    expect((op.event as { links: unknown[] }).links).toEqual(links.slice(0, 5));
+  });
 });

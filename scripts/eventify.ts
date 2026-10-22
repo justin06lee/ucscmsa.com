@@ -360,5 +360,7 @@ export function draftToOperation(d: EventDraft): Record<string, unknown> {
   if (d.location) event.location = d.location;
   if (d.startTime) event.startTime = d.startTime;
   if (d.endTime) event.endTime = d.endTime;
+  // An upsert replaces the event's links, so always send them (the import API takes at most 5).
+  if (d.links.length) event.links = d.links.slice(0, 5).map((l) => ({ kind: l.kind, label: l.label.slice(0, 40), url: l.url }));
   return { op: "upsert", sourceId: d.sourceId, sourceRef: d.sourceRef, event };
 }
