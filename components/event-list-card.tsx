@@ -39,7 +39,7 @@ export function EventListCard({
           </span>
         ) : null}
       </span>
-      <EventCover image={coverThumb(o.cover, o.title)} title={o.title} className="w-[72px] self-start rounded-xl" />
+      <EventCover image={coverThumb(o.cover, o.title)} title={o.title} compact className="w-[72px] self-start rounded-xl" />
     </Link>
   );
 }

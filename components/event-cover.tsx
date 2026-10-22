@@ -10,16 +10,18 @@ const STARS =
  * An event's cover: its first flyer, whole (contained in a 4:5 frame, never
  * cropped; the frame holds the space before it loads), or, for an event with
  * no flyer, a cover in the site's colours: burgundy with a faint star lattice
- * and the title in Amiri. Below 8rem wide the fallback shows a single star.
- * Decorative: whatever it sits in names the event in text.
+ * and the title in Amiri; `compact` (list thumbnails) shows a single star
+ * instead. Decorative: whatever it sits in names the event in text.
  */
 export function EventCover({
   image,
   title,
+  compact = false,
   className = "",
 }: {
   image: FlyerImage | null;
   title: string;
+  compact?: boolean;
   className?: string;
 }) {
   return (
@@ -37,13 +39,13 @@ export function EventCover({
           className="h-full w-full object-contain"
         />
       ) : (
-        <FallbackCover title={title} />
+        <FallbackCover title={compact ? null : title} />
       )}
     </span>
   );
 }
 
-function FallbackCover({ title }: { title: string }) {
+function FallbackCover({ title }: { title: string | null }) {
   return (
     <span
       aria-hidden="true"
@@ -51,19 +53,22 @@ function FallbackCover({ title }: { title: string }) {
       className="flex h-full w-full flex-col items-center justify-center bg-burgundy p-[9%] text-center text-paper"
       style={{ backgroundImage: STARS, backgroundPosition: "center" }}
     >
-      <span className="hidden flex-col items-center @[8rem]:flex">
-        <span className="font-display line-clamp-5 text-[clamp(1rem,10.5cqw,2.75rem)] leading-[1.12] text-balance break-words">
-          {title}
-        </span>
-        <span className="mt-[7cqw] h-px w-[18cqw] bg-paper/45" />
-        <span className="mt-[5cqw] text-[clamp(0.5625rem,3.6cqw,0.8125rem)] uppercase tracking-[0.22em] text-paper/75">
-          MSA at UCSC
-        </span>
-      </span>
-      <svg viewBox="0 0 24 24" className="w-[38%] @[8rem]:hidden" fill="none" stroke="currentColor" strokeOpacity=".7">
-        <path d="M6 6h12v12H6z" />
-        <path d="M12 3.5 20.5 12 12 20.5 3.5 12z" />
-      </svg>
+      {title ? (
+        <>
+          <span className="font-display line-clamp-5 text-[clamp(1rem,10.5cqw,2.75rem)] leading-[1.12] text-balance break-words">
+            {title}
+          </span>
+          <span className="mt-[7cqw] h-px w-[18cqw] bg-paper/45" />
+          <span className="mt-[5cqw] text-[clamp(0.5625rem,3.6cqw,0.8125rem)] tracking-[0.22em] text-paper/75 uppercase">
+            MSA at UCSC
+          </span>
+        </>
+      ) : (
+        <svg viewBox="0 0 24 24" className="w-[38%]" fill="none" stroke="currentColor" strokeOpacity=".7">
+          <path d="M6 6h12v12H6z" />
+          <path d="M12 3.5 20.5 12 12 20.5 3.5 12z" />
+        </svg>
+      )}
     </span>
   );
 }
