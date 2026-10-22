@@ -139,7 +139,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
             {flyers.length > 0 ? (
               <FlyerGallery title={row.title} flyers={flyers} />
             ) : (
-              <EventCover image={null} title={row.title} className="mx-auto w-full max-w-[380px] rounded-2xl shadow-sm" />
+              <EventCover image={null} title={row.title} date={occurrenceStart} className="mx-auto w-full max-w-[380px] rounded-2xl shadow-sm" />
             )}
           </div>
           <div className="min-w-0">

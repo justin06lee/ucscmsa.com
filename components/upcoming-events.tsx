@@ -53,6 +53,7 @@ export async function UpcomingEvents({
               <EventCover
                 image={coverThumb(o.cover, o.title)}
                 title={o.title}
+                date={o.occurrenceStart}
                 className="w-full rounded-2xl transition-[border-color,box-shadow] group-hover:border-ink/30 group-hover:shadow-md"
               />
               <span className="mt-3 text-sm tabular-nums text-ink/70">
