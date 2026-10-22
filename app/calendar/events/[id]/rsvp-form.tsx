@@ -11,6 +11,13 @@ type Props = {
   disabled?: boolean;
 };
 
+// What the RSVP actions' error codes mean to a visitor (app/calendar/_actions.ts).
+const ERRORS: Record<string, string> = {
+  login_required: "Please sign in first.",
+  // A page left open past the event's end.
+  event_ended: "This event has ended, so it no longer takes RSVPs.",
+};
+
 export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +76,7 @@ export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props)
       </div>
       {error && (
         <p role="alert" className="mt-2 text-sm text-burgundy">
-          {error === "login_required" ? "Please sign in first." : "Something went wrong."}
+          {ERRORS[error] ?? "Something went wrong."}
         </p>
       )}
     </div>

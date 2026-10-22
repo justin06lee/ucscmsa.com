@@ -20,6 +20,7 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "recurring event", path: "/calendar/events/ev-jummah" },
   { name: "event with links", path: "/calendar/events/ev-sisters" },
   { name: "past event", path: "/calendar/events/ev-past-01" },
+  { name: "event with flyers and links", path: "/calendar/events/ev-panel" },
   { name: "calendar month, 3 back", path: `/calendar?view=month&date=${MONTHS_BACK}` },
   { name: "calendar this month", path: "/calendar?view=month" },
   // Untimed events (seed-local): a date-only one today, start-only, a date-only weekend.
@@ -34,6 +35,7 @@ const PAGES: { name: string; path: string; as?: "admin" | "member" }[] = [
   { name: "admin new event", path: "/admin/events/new", as: "admin" },
   { name: "admin edit event", path: "/admin/events/ev-jummah/edit", as: "admin" },
   { name: "admin edit date-only event", path: "/admin/events/ev-date-only/edit", as: "admin" },
+  { name: "admin edit event with flyers and links", path: "/admin/events/ev-panel/edit", as: "admin" },
   { name: "admin admins", path: "/admin/admins", as: "admin" },
   { name: "admin nominations", path: "/admin/nominations", as: "admin" },
   { name: "admin planning", path: "/admin/plan", as: "admin" },
@@ -97,6 +99,27 @@ for (const width of WIDTHS) {
         expect(await smallTargets(page, 44, false), "under 44px").toEqual([]);
       });
     }
+  });
+}
+
+for (const width of WIDTHS) {
+  test(`${width}px: the flyer viewer fits and its controls are touch-sized`, async ({ browser }) => {
+    const context = await browser.newContext(mobile(width));
+    const page = await context.newPage();
+    await page.goto("/calendar/events/ev-date-only");
+    await page.getByRole("button", { name: /^Open full screen/ }).click();
+    const viewer = page.getByRole("dialog", { name: "Henna Night flyers" });
+    await expect(viewer).toBeVisible();
+    const box = (await viewer.boundingBox())!;
+    expect(box.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    // The flyer fits on screen, whole.
+    const img = (await viewer.getByRole("img", { name: "Henna Night flyer, 1 of 3" }).boundingBox())!;
+    expect(img.x).toBeGreaterThanOrEqual(0);
+    expect(img.x + img.width).toBeLessThanOrEqual(width + 0.5);
+    expect(img.y + img.height).toBeLessThanOrEqual(844 + 0.5);
+    expect(await smallTargets(page, 44, false), "under 44px").toEqual([]);
+    await context.close();
   });
 }
 

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getPastOccurrences } from "@/lib/db/queries";
+import { coverThumb } from "@/lib/event-media";
 import { formatLocal, toLocalYmd } from "@/lib/time";
+import { FlyerThumb } from "@/components/flyer-thumb";
 
 /**
  * The most recent past one-off events, newest first: a compact list under the
@@ -24,6 +26,7 @@ export async function PastEvents({ limit = 4 }: { limit?: number }) {
     <ol className="divide-y divide-ink/10 rounded-xl border border-ink/10">
       {items.map((o) => {
         const sameYear = toLocalYmd(o.occurrenceStart).slice(0, 4) === thisYear;
+        const thumb = coverThumb(o.cover, o.title);
         return (
           <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}>
             <Link
@@ -34,6 +37,7 @@ export async function PastEvents({ limit = 4 }: { limit?: number }) {
                 {formatLocal(o.occurrenceStart, sameYear ? "EEE, MMM d" : "MMM d, yyyy")}
               </span>
               <span className="min-w-0 font-medium leading-snug text-ink/85">{o.title}</span>
+              {thumb ? <FlyerThumb image={thumb} width={32} className="ml-auto self-center" /> : null}
             </Link>
           </li>
         );

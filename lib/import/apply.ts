@@ -54,6 +54,7 @@ function toEventValues(e: ImportEvent, sourceRef: string | undefined) {
     recurrenceInterval: e.recurrence?.interval ?? 1,
     // Same convention as the admin form: the until date is inclusive.
     recurrenceUntil: e.recurrence?.until ? localInstant(e.recurrence.until, "23:59") : null,
+    links: e.links?.length ? e.links : null,
     sourceRef: sourceRef ?? null,
   };
 }
@@ -74,6 +75,7 @@ function sameContent(row: EventRow, v: EventValues): boolean {
     (row.recurrenceByWeekday ?? null) === v.recurrenceByWeekday &&
     row.recurrenceInterval === v.recurrenceInterval &&
     time(row.recurrenceUntil) === time(v.recurrenceUntil) &&
+    JSON.stringify(row.links ?? null) === JSON.stringify(v.links) &&
     (row.sourceRef ?? null) === v.sourceRef
   );
 }

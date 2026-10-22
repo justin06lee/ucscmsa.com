@@ -30,6 +30,7 @@ import { loadEvent } from "@/app/calendar/events/[id]/load-event";
 import sitemap from "@/app/sitemap";
 import EventDetail, { generateMetadata } from "@/app/calendar/events/[id]/page";
 import Image from "@/app/calendar/events/[id]/opengraph-image";
+import { GET as calendarFile } from "@/app/calendar/events/[id]/event.ics/route";
 import { UpcomingEvents } from "@/components/upcoming-events";
 import { PastEvents } from "@/components/past-events";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -40,11 +41,24 @@ const DAY = inDays(5);
 const start = parseHMInLocal(DAY, "18:00");
 const end = parseHMInLocal(DAY, "20:00");
 const PAST = inDays(-5);
+// A draft's flyer: its URL must not reach any public page.
+const DRAFT_FLYER = "https://s.public.blob.vercel-storage.com/flyers/ev-draft/0123456789abcdef-card.webp";
+const draftImages = [
+  {
+    id: "0123456789abcdef",
+    w: 1080,
+    h: 1350,
+    origin: "import" as const,
+    card: { url: DRAFT_FLYER, w: 480, h: 600 },
+    page: { url: DRAFT_FLYER, w: 480, h: 600 },
+    full: { url: DRAFT_FLYER, w: 480, h: 600 },
+  },
+];
 
 beforeAll(async () => {
   await db.insert(events).values([
     { id: "ev-public", title: "Game Night", startTime: start, endTime: end },
-    { id: "ev-draft", title: "Secret Planning Dinner", startTime: start, endTime: end, draft: true },
+    { id: "ev-draft", title: "Secret Planning Dinner", startTime: start, endTime: end, draft: true, images: draftImages },
     {
       id: "ev-draft-weekly",
       title: "Draft Series",
@@ -61,6 +75,7 @@ beforeAll(async () => {
       startTime: parseHMInLocal(PAST, "12:00"),
       endTime: parseHMInLocal(PAST, "14:00"),
       draft: true,
+      images: draftImages,
     },
   ]);
 });
@@ -78,14 +93,14 @@ describe("draft events stay off every public path", () => {
     expect(up.map((o) => o.eventId)).toEqual(["ev-public"]);
     const html = renderToStaticMarkup(await UpcomingEvents({ limit: 10 }));
     expect(html).toContain("Game Night");
-    expect(html).not.toMatch(/Secret|Draft Series|ev-draft/);
+    expect(html).not.toMatch(/Secret|Draft Series|ev-draft|blob\.vercel-storage/);
   });
 
   it("landing page Past events", async () => {
     expect((await getPastOccurrences(10)).map((o) => o.eventId)).toEqual(["ev-past"]);
     const html = renderToStaticMarkup(await PastEvents({ limit: 10 }));
     expect(html).toContain("Fall Picnic");
-    expect(html).not.toMatch(/Secret|ev-past-draft/);
+    expect(html).not.toMatch(/Secret|ev-past-draft|blob\.vercel-storage/);
   });
 
   it("the admin's planning reads can ask for drafts", async () => {
@@ -116,6 +131,13 @@ describe("draft events stay off every public path", () => {
     expect(res.status).toBe(404);
     expect(await getPublicEventRow("ev-draft")).toBeNull();
     expect(await getPublicEventRow("ev-public")).not.toBeNull();
+  });
+
+  it("Add to calendar (.ics) 404s", async () => {
+    const ics = (id: string) =>
+      calendarFile(new Request(`https://ucscmsa.com/calendar/events/${id}/event.ics`), { params: Promise.resolve({ id }) });
+    expect((await ics("ev-draft")).status).toBe(404);
+    expect((await ics("ev-public")).status).toBe(200);
   });
 
   it("sitemap", async () => {

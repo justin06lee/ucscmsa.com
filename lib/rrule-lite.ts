@@ -1,5 +1,6 @@
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import type { EventTiming } from "./event-rules";
+import type { EventLink, EventTiming } from "./event-rules";
+import type { EventImage } from "./event-image";
 import { endOfLocalDayUtc, SITE_TZ, toLocalYmd } from "./time";
 
 export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
@@ -16,6 +17,8 @@ export type EventInput = {
   recurrenceInterval: number;
   recurrenceUntil: Date | null;
   timing?: EventTiming; // default "timed"
+  links?: EventLink[] | null;
+  images?: EventImage[] | null;
   cancellations: string[]; // YYYY-MM-DD (local)
 };
 
@@ -28,6 +31,11 @@ export type Occurrence = {
   occurrenceEnd: Date;
   // "date_only": show the date(s) only; "start_only": show no end time.
   timing: EventTiming;
+  links: EventLink[];
+  // The event's first image, for cards and calendar views, and how many it
+  // has. The event page reads the whole list from the event row.
+  cover: EventImage | null;
+  imageCount: number;
 };
 
 const WEEKDAY_MAP: Record<string, number> = {
@@ -100,6 +108,9 @@ export function expandEvents(
         occurrenceStart: start,
         occurrenceEnd: end,
         timing,
+        links: ev.links ?? [],
+        cover: ev.images?.[0] ?? null,
+        imageCount: ev.images?.length ?? 0,
       });
     };
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { description, hm, location, realYmd, title, INTERVAL_MAX, WEEKDAY_CODES } from "@/lib/event-rules";
+import { description, eventLinks, hm, location, realYmd, title, INTERVAL_MAX, WEEKDAY_CODES } from "@/lib/event-rules";
 
 const ymd = realYmd.or(z.literal("")).default("");
 // Both times are optional (see EVENT_TIMINGS in lib/event-rules.ts): blank
@@ -26,6 +26,9 @@ export const eventInputSchema = z
       .default(""),
     recurrenceInterval: z.coerce.number().int().min(1).max(INTERVAL_MAX).default(1),
     recurrenceUntil: ymd,
+    // Left out when the form has no link fields: an update then keeps the
+    // event's links as they are.
+    links: eventLinks.optional(),
   })
   .refine(
     (d) => d.recurrenceFreq !== "none" || (d.startDate && d.endDate),

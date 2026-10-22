@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { timeOnDay } from "@/lib/event-time";
+import { coverThumb } from "@/lib/event-media";
+import { FlyerThumb } from "@/components/flyer-thumb";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 
 /**
@@ -62,6 +64,9 @@ export function MonthAgenda({
                     <span className="block font-medium leading-snug">{o.title}</span>
                     {o.location ? <span className="block text-xs text-ink/70">{o.location}</span> : null}
                   </span>
+                  {o.cover ? (
+                    <FlyerThumb image={coverThumb(o.cover, o.title)!} width={36} className="ml-auto self-center" />
+                  ) : null}
                 </Link>
               </li>
             ))}

@@ -3,6 +3,7 @@ import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { EventForm } from "@/app/admin/events/event-form";
+import { FlyerEditor } from "@/app/admin/events/flyer-editor";
 import { deleteEvent, updateEvent } from "@/app/admin/_actions";
 import { formatLocal } from "@/lib/time";
 import { Button } from "@/components/ui/button";
@@ -88,10 +89,12 @@ export default async function EditEventPage({ params }: Props) {
           recurrenceUntil: row.recurrenceUntil
             ? formatLocal(row.recurrenceUntil, "yyyy-MM-dd")
             : "",
+          links: row.links ?? [],
           draft: row.draft,
           tags,
         }}
       />
+      <FlyerEditor eventId={row.id} initial={row.images ?? []} />
       <form action={del} className="mt-8">
         <Button type="submit" variant="danger-outline" size="lg">
           Delete event
