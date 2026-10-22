@@ -37,10 +37,10 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
       if (expected) show(expected);
       const result = await attempt(action);
       startTransition(() => {
-        if (result.ok) {
+        if (result.ok && result.value.ok) {
           setImages(result.value.images);
           setStatus(done);
-        } else setError(result.error);
+        } else if (!result.ok) setError(result.error);
       });
     });
   }
