@@ -7,14 +7,18 @@
  * day timelines, and an event page stacked.
  *
  *   bun scripts/luma-demo.ts --base http://localhost:3100 --out tmp/ucscmsa-luma-demo.mp4 \
- *     [--at 2026-10-21T14:00:00-07:00]
+ *     [--at 2026-10-21T14:00:00-07:00] [--part all|fixes]
+ *
+ * --part fixes is the short clip of the review fixes: an RSVP button opening
+ * its form in a new tab, with no caption, and Niya Summit's long day on
+ * desktop (a row above the grid) and on the phone.
  *
  * Meant for a local `next start` on the public snapshot, with the server's
  * clock set to --at as well (scripts/fake-now.cjs), so the browser and the
  * server agree on "now". Read-only: it loads pages and follows links; the
  * RSVP form it opens is closed, never filled in.
  */
-import { chromium, type Browser, type Locator, type Page } from "@playwright/test";
+import { chromium, type Browser, type Locator, type Page, type Video } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -24,16 +28,24 @@ import { arg, scrollTo, scrollToShow, settle, sleep, tap } from "./demo-kit";
 const BASE = arg("base", "http://localhost:3100");
 const OUT = arg("out", "tmp/ucscmsa-luma-demo.mp4");
 const AT = arg("at", "2026-10-21T14:00:00-07:00");
+const PART = arg("part", "all");
+// Snapshot ids: Sisters' Game Night (flyer, RSVP form) and Niya Summit's day.
+const RSVP_EVENT = "/calendar/events/01M5FP0HAZ8CFJ4R3CZH3X09AB";
+const LONG_DAY = "/calendar?view=day&date=2026-08-29";
 const PAPER = "0xf5efe2";
 
-type Clip = { webm: string; lead: number; marks: [number, string][] };
+type Mark = (label: string) => number;
+/** The stretch of the page's video replaced by a tab it opened, cut in from that tab's own video. */
+type TabCut = { video: Video; from: number; to: number; skip: number };
+type Clip = { webm: string; lead: number; marks: [number, string][]; tab?: Omit<TabCut, "video"> & { webm: string } };
 
 async function clip(
   browser: Browser,
   tmp: string,
   size: { width: number; height: number },
   phone: boolean,
-  run: (page: Page, mark: (label: string) => void) => Promise<void>,
+  start: string,
+  run: (page: Page, mark: Mark) => Promise<TabCut | void>,
 ): Promise<Clip> {
   const dir = mkdtempSync(path.join(tmp, phone ? "phone-" : "desktop-"));
   const context = await browser.newContext({
@@ -51,16 +63,26 @@ async function clip(
   const t0 = Date.now();
   const marks: [number, string][] = [];
   let lead = 0;
-  await page.goto(`${BASE}/`);
+  await page.goto(BASE + start);
   await settle(page);
   await sleep(400);
   lead = (Date.now() - t0) / 1000;
-  await run(page, (label) => marks.push([(Date.now() - t0) / 1000 - lead, label]));
-  marks.push([(Date.now() - t0) / 1000 - lead, "end"]);
+  const mark: Mark = (label) => {
+    const t = (Date.now() - t0) / 1000 - lead;
+    marks.push([t, label]);
+    return t;
+  };
+  const tab = await run(page, mark);
+  mark("end");
   // This page's own recording: a tab it opened (the RSVP form) gets one too.
   const video = page.video()!;
   await context.close();
-  return { webm: await video.path(), lead, marks };
+  return {
+    webm: await video.path(),
+    lead,
+    marks,
+    tab: tab ? { from: tab.from, to: tab.to, skip: tab.skip, webm: await tab.video.path() } : undefined,
+  };
 }
 
 // A round pointer that follows the mouse, since recordings show none.
@@ -93,22 +115,35 @@ async function click(page: Page, el: Locator) {
   await page.mouse.up();
 }
 
-/** A note on the page, for what happens off it (a new tab). */
-async function toast(page: Page, text: string) {
-  await page.evaluate((t) => {
-    const d = document.createElement("div");
-    d.textContent = t;
-    d.style.cssText =
-      "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:90vw;padding:12px 18px;border-radius:12px;background:#151312;color:#f5efe2;font:500 15px/1.4 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:2147483646";
-    document.body.appendChild(d);
-    setTimeout(() => d.remove(), 3200);
-  }, text);
+/**
+ * Clicks the event's RSVP button. The form opens in a new tab, and the video
+ * cuts to that tab's own recording until it closes: no caption, the tab is
+ * the evidence. The form is looked at, never filled in.
+ */
+async function rsvp(page: Page, mark: Mark): Promise<TabCut | undefined> {
+  const button = page.locator("a[data-link-kind=rsvp], a[data-link-kind=form]").first();
+  if (!(await button.count())) {
+    console.warn("warning: no RSVP form link on this page; the new-tab step is skipped");
+    return;
+  }
+  await point(page, button);
+  await sleep(500);
+  const [tab] = await Promise.all([page.context().waitForEvent("page"), click(page, button)]);
+  const from = mark("click: RSVP, the form opens in a new tab");
+  await tab.waitForLoadState("load", { timeout: 10_000 }).catch(() => {});
+  // Leave out the blank seconds while the form loads.
+  const skip = Math.max(0, mark("the form, in its own tab") - from - 0.2);
+  await sleep(2600);
+  await tab.close();
+  const to = mark("back on the event page, still open");
+  await sleep(1500);
+  return { video: tab.video()!, from, to, skip };
 }
 
 const upcoming = (page: Page) =>
   page.locator("section", { has: page.getByRole("heading", { name: "Upcoming", exact: true }) }).locator(".upcoming-card");
 
-async function desktop(page: Page, mark: (label: string) => void) {
+async function desktop(page: Page, mark: Mark) {
   mark("desktop: landing");
   await sleep(1000);
   mark("Upcoming cards");
@@ -130,26 +165,7 @@ async function desktop(page: Page, mark: (label: string) => void) {
   mark("event page: cover left, details and RSVP right");
   await sleep(2200);
 
-  const rsvp = page.locator("a[data-link-kind=rsvp], a[data-link-kind=form]").first();
-  if (await rsvp.count()) {
-    await point(page, rsvp);
-    await sleep(500);
-    mark("click: RSVP, which opens a new tab");
-    const [popup] = await Promise.all([page.context().waitForEvent("page"), click(page, rsvp)]);
-    let where = (await rsvp.getAttribute("href"))!;
-    try {
-      await popup.waitForURL(/^https?:/, { timeout: 8000 });
-      where = popup.url();
-    } catch {
-      // Offline: the link's own address will do.
-    }
-    await popup.close();
-    const u = new URL(where);
-    await toast(page, `The RSVP form opened in a new tab (${u.host}${u.pathname.slice(0, 24)}…). This page stays open.`);
-    await sleep(3000);
-  } else {
-    console.warn("warning: no Upcoming event with an RSVP form; the new-tab step is skipped");
-  }
+  const tab = await rsvp(page, mark);
 
   mark("click: Back to the calendar");
   await scrollTo(page, 0, 500);
@@ -181,9 +197,10 @@ async function desktop(page: Page, mark: (label: string) => void) {
   await settle(page);
   mark("passed event: no RSVP");
   await sleep(2600);
+  return tab;
 }
 
-async function phone(page: Page, mark: (label: string) => void) {
+async function phone(page: Page, mark: Mark) {
   mark("phone: landing");
   await sleep(700);
   mark("Upcoming cards, stacked");
@@ -283,33 +300,69 @@ async function warm(browser: Browser) {
   }
 }
 
+async function fixesDesktop(page: Page, mark: Mark) {
+  mark("desktop: an event with an RSVP form");
+  await sleep(1600);
+  const tab = await rsvp(page, mark);
+  mark("Niya Summit's day: the long event in a row above the grid");
+  await page.goto(BASE + LONG_DAY);
+  await settle(page);
+  await sleep(1000);
+  await point(page, page.locator(".day-grid__long a").first());
+  await sleep(2200);
+  mark("the prayer times, uncovered");
+  await point(page, page.locator(".day-grid__prayer-label").filter({ hasText: "Asr" }));
+  await sleep(2200);
+  return tab;
+}
+
+async function fixesPhone(page: Page, mark: Mark) {
+  mark("phone: Niya Summit's day, the event at its start");
+  await sleep(1000);
+  const card = page.locator(".day-agenda .event-list-card").first();
+  await scrollToShow(page, card, 220, 1000);
+  await sleep(2800);
+}
+
 async function main() {
   mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true });
   const tmp = mkdtempSync(path.join(os.tmpdir(), "ucscmsa-luma-"));
   const browser = await chromium.launch();
   await warm(browser);
-  const d = await clip(browser, tmp, { width: 1280, height: 800 }, false, desktop);
-  const p = await clip(browser, tmp, { width: 390, height: 844 }, true, phone);
+  const fixes = PART === "fixes";
+  const d = await clip(browser, tmp, { width: 1280, height: 800 }, false, fixes ? RSVP_EVENT : "/", fixes ? fixesDesktop : desktop);
+  const p = await clip(browser, tmp, { width: 390, height: 844 }, true, fixes ? LONG_DAY : "/", fixes ? fixesPhone : phone);
   await browser.close();
 
-  // Desktop scaled to 1080 high; the phone centred, 1080 high, on paper.
+  // Desktop scaled to 1080 high, with the RSVP form's tab cut in while it was
+  // open; then the phone centred, 1080 high, on paper.
+  const desk = `fps=30,scale=1728:1080:flags=lanczos,pad=1920:1080:96:0:color=${PAPER},setsar=1`;
+  const inputs = ["-ss", d.lead.toFixed(2), "-i", d.webm, "-ss", p.lead.toFixed(2), "-i", p.webm];
+  const graph = [`[1:v]fps=30,scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:0:color=${PAPER},setsar=1[b]`];
+  if (d.tab) {
+    inputs.push("-ss", d.tab.skip.toFixed(2), "-i", d.tab.webm);
+    graph.push(
+      "[0:v]split[d1][d2]",
+      `[d1]trim=end=${d.tab.from.toFixed(2)},setpts=PTS-STARTPTS,${desk}[a1]`,
+      `[2:v]setpts=PTS-STARTPTS,${desk}[t]`,
+      `[d2]trim=start=${d.tab.to.toFixed(2)},setpts=PTS-STARTPTS,${desk}[a2]`,
+      "[a1][t][a2][b]concat=n=4:v=1:a=0[v]",
+    );
+  } else {
+    graph.push(`[0:v]${desk}[a]`, "[a][b]concat=n=2:v=1:a=0[v]");
+  }
   execFileSync("ffmpeg", [
-    "-y", "-loglevel", "error",
-    "-ss", d.lead.toFixed(2), "-i", d.webm,
-    "-ss", p.lead.toFixed(2), "-i", p.webm,
-    "-filter_complex",
-    [
-      `[0:v]fps=30,scale=1728:1080:flags=lanczos,pad=1920:1080:96:0:color=${PAPER},setsar=1[a]`,
-      `[1:v]fps=30,scale=-2:1080:flags=lanczos,pad=1920:1080:(ow-iw)/2:0:color=${PAPER},setsar=1[b]`,
-      "[a][b]concat=n=2:v=1:a=0[v]",
-    ].join(";"),
+    "-y", "-loglevel", "error", ...inputs,
+    "-filter_complex", graph.join(";"),
     "-map", "[v]", "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p",
     "-movflags", "+faststart", OUT,
   ]);
   rmSync(tmp, { recursive: true, force: true });
   console.log(`wrote ${OUT}`);
-  const dEnd = d.marks.at(-1)![0];
-  for (const [t, label] of d.marks) console.log(`${t.toFixed(1).padStart(5)}s  ${label}`);
+  // Marks after the cut-in move up by the loading time left out of it.
+  const shift = (t: number) => (d.tab && t > d.tab.from ? t - d.tab.skip : t);
+  const dEnd = shift(d.marks.at(-1)![0]);
+  for (const [t, label] of d.marks) console.log(`${shift(t).toFixed(1).padStart(5)}s  ${label}`);
   for (const [t, label] of p.marks) console.log(`${(t + dEnd).toFixed(1).padStart(5)}s  ${label}`);
 }
 

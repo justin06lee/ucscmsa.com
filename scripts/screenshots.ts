@@ -39,11 +39,13 @@ type Shot = { name: string; path: string; as?: "admin" | "member" };
 
 // Real events in the snapshot of 2026-10-22: Sisters' Game Night (flyer, an
 // RSVP form), Laser Tag (start-only, flyer), Henna Tabling (no flyer), Niya
-// Summit (past, two flyers).
+// Summit (past, two flyers, 12 hours long).
 const snapshotShots: Shot[] = [
   { name: "landing", path: "/" },
   { name: "calendar-day-today", path: "/calendar?view=day&date=2026-10-21" },
   { name: "calendar-day", path: "/calendar?view=day&date=2026-10-23" },
+  // Niya Summit, 8 AM to 8 PM: a long event, in the row above the day grid.
+  { name: "calendar-day-long", path: "/calendar?view=day&date=2026-08-29" },
   { name: "calendar-month", path: "/calendar?view=month&date=2026-10-20" },
   { name: "calendar-year", path: "/calendar?view=year&date=2026-10-20" },
   { name: "event-game-night", path: "/calendar/events/01M5FP0HAZ8CFJ4R3CZH3X09AB" },
