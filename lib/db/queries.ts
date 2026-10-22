@@ -128,7 +128,7 @@ export async function getUpcomingOccurrences(
 /**
  * The most recent past one-off events, newest first, for the landing's Past
  * events. Weekly series are left out so they don't crowd it, and so is Jummah,
- * a one-off every Friday since the series went (lib/event-rules.ts); cancelled
+ * a one-off every Friday since the weekly series went; cancelled
  * events too. "Past" means ended: an event still under way is upcoming.
  */
 export async function getPastOccurrences(
