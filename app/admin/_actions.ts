@@ -191,6 +191,25 @@ export async function deleteEvent(id: string) {
   return { ok: true as const };
 }
 
+// Cancels or restores a whole event (for a series, every date) from the admin
+// Events page. It counts as an admin edit, so the importer leaves it as set
+// unless an import op says override. Errors are sentences the page can show.
+export async function setEventCancelled(id: string, cancelled: boolean) {
+  await requireAdminId();
+  if (typeof id !== "string" || !id || typeof cancelled !== "boolean") {
+    return { ok: false as const, error: "That request wasn't valid." };
+  }
+  const now = new Date();
+  const [row] = await db
+    .update(events)
+    .set({ cancelledAt: cancelled ? now : null, updatedAt: now, adminEditedAt: now })
+    .where(eq(events.id, id))
+    .returning({ cancelledAt: events.cancelledAt });
+  if (!row) return { ok: false as const, error: "That event no longer exists." };
+  revalidateEventPages(id);
+  return { ok: true as const, cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null };
+}
+
 // Event images. Uploads are re-encoded into the variants (EXIF and GPS
 // dropped) and never stored as sent. Every change counts as an admin edit,
 // so the importer won't undo it (docs/import.md). Uploads must fit the
