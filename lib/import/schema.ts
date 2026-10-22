@@ -6,10 +6,12 @@ import {
   imageAlt,
   imageId,
   interval,
+  isRecurringJummah,
   localTimeKind,
   location,
   realYmd,
   title,
+  RECURRING_JUMMAH,
   WEEKDAY_CODES,
 } from "@/lib/event-rules";
 import type { RateLimitRule } from "@/lib/rate-limit";
@@ -105,6 +107,9 @@ const event = z
       }
     } else if (endDate < e.date) {
       ctx.addIssue({ code: "custom", path: ["endDate"], message: "endDate is before date" });
+    }
+    if (isRecurringJummah(e.title, !!e.recurrence)) {
+      ctx.addIssue({ code: "custom", path: ["recurrence"], message: RECURRING_JUMMAH });
     }
     if (e.recurrence?.until && e.recurrence.until < e.date) {
       ctx.addIssue({ code: "custom", path: ["recurrence", "until"], message: "until is before the event's date" });

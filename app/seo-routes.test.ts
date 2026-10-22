@@ -33,14 +33,23 @@ beforeAll(async () => {
       updatedAt: at("2026-10-01T00:00:00.000Z"),
     },
     {
-      id: "ev-jummah",
+      id: "ev-halaqa",
+      title: "Weekly Halaqa",
+      location: "Merrill College, Room 102",
+      startTime: at("2026-10-01T02:30:00.000Z"),
+      endTime: at("2026-10-01T04:00:00.000Z"),
+      recurrenceFreq: "weekly",
+      recurrenceByWeekday: "WE",
+      updatedAt: at("2026-10-10T00:00:00.000Z"),
+    },
+    {
+      // Jummah is a one-off each Friday, never a series (lib/event-rules.ts).
+      id: "ev-jummah-1023",
       title: "Jummah Prayer",
       location: "Student Union Assembly Hall",
-      startTime: at("2026-09-25T20:15:00.000Z"),
-      endTime: at("2026-09-25T21:00:00.000Z"),
-      recurrenceFreq: "weekly",
-      recurrenceByWeekday: "FR",
-      updatedAt: at("2026-10-10T00:00:00.000Z"),
+      startTime: at("2026-10-23T20:15:00.000Z"),
+      endTime: at("2026-10-23T21:00:00.000Z"),
+      updatedAt: at("2026-10-09T00:00:00.000Z"),
     },
     {
       // Cancelled but still ahead: stays in the sitemap.
@@ -80,7 +89,7 @@ describe("sitemap", () => {
     const urls = (await sitemap()).map((e) => e.url);
     expect(urls.slice(0, 2)).toEqual(["https://ucscmsa.com/", "https://ucscmsa.com/calendar"]);
     expect(urls.slice(2).sort()).toEqual(
-      ["ev-cancelled", "ev-evil", "ev-gbm", "ev-jummah"].map(
+      ["ev-cancelled", "ev-evil", "ev-gbm", "ev-halaqa", "ev-jummah-1023"].map(
         (id) => `https://ucscmsa.com/calendar/events/${id}`,
       ),
     );
@@ -119,9 +128,14 @@ describe("event page metadata", () => {
     expect(m.twitter).toEqual({ card: "summary_large_image" });
   });
 
-  it("titles a weekly series by its day and mentions the Jummah spellings", async () => {
-    const m = await eventMetadata(props("ev-jummah"));
-    expect(m.title).toBe("Jummah Prayer · Fridays");
+  it("titles a weekly series by its day", async () => {
+    const m = await eventMetadata(props("ev-halaqa"));
+    expect(m.title).toBe("Weekly Halaqa · Wednesdays");
+  });
+
+  it("mentions the Jummah spellings on a Friday's Jummah", async () => {
+    const m = await eventMetadata(props("ev-jummah-1023"));
+    expect(m.title).toBe("Jummah Prayer · Oct 23, 2026");
     expect(m.description).toMatch(/^Jumu'ah \(Jummah\), the Friday prayer/);
   });
 
@@ -172,9 +186,9 @@ describe("event page JSON-LD", () => {
   });
 
   it("gives the next occurrence of a series, with its UTC offset", async () => {
-    const [body] = jsonLdBodies(await EventPage(props("ev-jummah")));
+    const [body] = jsonLdBodies(await EventPage(props("ev-halaqa")));
     const ld = JSON.parse(body);
-    expect(ld.startDate).toMatch(/^\d{4}-\d{2}-\d{2}T13:15:00-0[78]:00$/);
+    expect(ld.startDate).toMatch(/^\d{4}-\d{2}-\d{2}T19:30:00-0[78]:00$/);
     expect(new Date(ld.startDate).getTime()).toBeGreaterThan(Date.now() - 60 * 60 * 1000);
   });
 });

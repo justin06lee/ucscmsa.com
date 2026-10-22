@@ -6,7 +6,7 @@ import { EventListCard } from "@/components/event-list-card";
  * The most recent past one-off events, newest first: list cards under the
  * landing's Upcoming (date, title, place, a small cover), two across from sm,
  * quieter than the Upcoming cards so they never compete with them. Weekly
- * series are left out.
+ * series and Jummah are left out.
  */
 export async function PastEvents({ limit = 4 }: { limit?: number }) {
   let items;

@@ -124,18 +124,6 @@ async function main() {
   const fallUntil = at("2026-12-11", "23:59");
   const ev = [
     {
-      id: "ev-jummah",
-      title: "Jummah Prayer",
-      description:
-        "Weekly Friday congregational prayer. Khutbah starts at 1:15 PM, salah right after. Wudu facilities are down the hall; bring a prayer mat if you have one.",
-      location: "Student Union Assembly Hall",
-      startTime: at("2026-09-25", "13:15"),
-      endTime: at("2026-09-25", "14:00"),
-      recurrenceFreq: "weekly" as const,
-      recurrenceByWeekday: "FR",
-      recurrenceUntil: fallUntil,
-    },
-    {
       id: "ev-halaqa",
       title: "Weekly Halaqa",
       description: "Tafsir of Surah Al-Kahf, one passage a week. Chai and snacks provided.",
@@ -181,6 +169,17 @@ async function main() {
       location: "Stevenson Event Center",
       startTime: at("2026-10-22", "18:30"),
       endTime: at("2026-10-22", "20:00"),
+    },
+    {
+      // Jummah is never a series: the WhatsApp sync posts each Friday as its
+      // own event (lib/event-rules.ts), so the seed has this week's only.
+      id: "ev-jummah-1023",
+      title: "Jummah Prayer",
+      description:
+        "Friday congregational prayer. Khutbah starts at 1:15 PM, salah right after. Wudu facilities are down the hall; bring a prayer mat if you have one.",
+      location: "Student Union Assembly Hall",
+      startTime: at("2026-10-23", "13:15"),
+      endTime: at("2026-10-23", "14:00"),
     },
     {
       id: "ev-basketball",
@@ -423,7 +422,7 @@ async function main() {
   for (const [id, set] of Object.entries(media)) await db.update(events).set(set).where(eq(events.id, id));
 
   await db.insert(eventCancellations).values([
-    { eventId: "ev-jummah", occurrenceDate: "2026-11-27" },
+    { eventId: "ev-halaqa", occurrenceDate: "2026-11-25" },
   ]);
 
   // Board planning (/admin/plan): a draft being planned and a published event
@@ -468,7 +467,7 @@ async function main() {
       adminToken,
       memberToken,
       singleEventId: "ev-gbm",
-      recurringEventId: "ev-jummah",
+      recurringEventId: "ev-halaqa",
       plannedEventId: "ev-bonfire",
     }),
   );

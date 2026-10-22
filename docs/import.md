@@ -151,6 +151,8 @@ Other date and time rules:
 
 The first occurrence is on `date`. Monthly events on the 29th–31st fall on the last day of shorter months.
 
+**Jummah is never a series.** Each Friday's Jummah is its own one-off event, posted from that week's announcement (a `sourceId` such as `2026-10-23-jummah`), so a cancelled or moved Friday is a change to that one event. An event whose title reads as Jummah (Jummah, Jumu'ah, Jumuah, Jumah…) with a `recurrence` is refused with 400; the admin form refuses it too.
+
 #### `event.links`
 
 Each link is an object; order is kept.
@@ -374,15 +376,15 @@ curl -sS "$URL" \
     "source": "whatsapp",
     "operations": [{
       "op": "upsert",
-      "sourceId": "weekly-jummah-fall-2026",
+      "sourceId": "weekly-halaqa-fall-2026",
       "sourceRef": "WhatsApp MSA Announcements, 2026-09-20 09:12",
       "event": {
-        "title": "Jummah",
-        "location": "Stevenson Event Center",
-        "date": "2026-09-25",
-        "startTime": "13:30",
-        "endTime": "14:30",
-        "recurrence": { "freq": "weekly", "byWeekday": ["FR"], "until": "2026-12-11" }
+        "title": "Weekly Halaqa",
+        "location": "Merrill College, Room 102",
+        "date": "2026-09-30",
+        "startTime": "19:30",
+        "endTime": "21:00",
+        "recurrence": { "freq": "weekly", "byWeekday": ["WE"], "until": "2026-12-09" }
       }
     }]
   }'
@@ -398,14 +400,14 @@ curl -sS "$URL" \
     "source": "whatsapp",
     "operations": [{
       "op": "upsert",
-      "sourceId": "weekly-jummah-fall-2026",
+      "sourceId": "weekly-halaqa-fall-2026",
       "event": {
-        "title": "Jummah",
-        "location": "Stevenson Event Center, Room 150",
-        "date": "2026-09-25",
-        "startTime": "13:45",
-        "endTime": "14:45",
-        "recurrence": { "freq": "weekly", "byWeekday": ["FR"], "until": "2026-12-11" }
+        "title": "Weekly Halaqa",
+        "location": "Merrill College, Room 210",
+        "date": "2026-09-30",
+        "startTime": "19:45",
+        "endTime": "21:15",
+        "recurrence": { "freq": "weekly", "byWeekday": ["WE"], "until": "2026-12-09" }
       }
     }]
   }'
@@ -416,24 +418,24 @@ curl -sS "$URL" \
 ### Cancel one week, or the whole event
 
 ```bash
-# Just Friday Oct 30
+# Just Wednesday Oct 28
 curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"whatsapp","operations":[{"op":"cancel","sourceId":"weekly-jummah-fall-2026","occurrenceDate":"2026-10-30"}]}'
+  -d '{"source":"whatsapp","operations":[{"op":"cancel","sourceId":"weekly-halaqa-fall-2026","occurrenceDate":"2026-10-28"}]}'
 
 # The whole series
 curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"whatsapp","operations":[{"op":"cancel","sourceId":"weekly-jummah-fall-2026"}]}'
+  -d '{"source":"whatsapp","operations":[{"op":"cancel","sourceId":"weekly-halaqa-fall-2026"}]}'
 
 # Undo the series cancellation
 curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"whatsapp","operations":[{"op":"restore","sourceId":"weekly-jummah-fall-2026"}]}'
+  -d '{"source":"whatsapp","operations":[{"op":"restore","sourceId":"weekly-halaqa-fall-2026"}]}'
 ```
 
 ### Preview a batch first (dry run)
 
 ```bash
 curl -sS "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"whatsapp","dryRun":true,"operations":[{"op":"cancel","sourceId":"weekly-jummah-fall-2026","occurrenceDate":"2026-10-30"}]}'
+  -d '{"source":"whatsapp","dryRun":true,"operations":[{"op":"cancel","sourceId":"weekly-halaqa-fall-2026","occurrenceDate":"2026-10-28"}]}'
 ```
 
 Send the same body without `dryRun` to apply it.
@@ -481,7 +483,7 @@ curl -sS "$URL" \
           "date": "2026-11-07"
         }
       },
-      { "op": "cancel", "sourceId": "weekly-jummah-fall-2026", "occurrenceDate": "2026-10-30" }
+      { "op": "cancel", "sourceId": "weekly-halaqa-fall-2026", "occurrenceDate": "2026-10-28" }
     ]
   }'
 ```
@@ -495,7 +497,7 @@ A response to that batch:
     { "index": 0, "op": "upsert", "sourceId": "wa-3EB0C431F8A2", "status": "created", "eventId": "01JAE7…" },
     { "index": 1, "op": "upsert", "sourceId": "2026-10-31-quran-night", "status": "created", "eventId": "01JAE7…" },
     { "index": 2, "op": "upsert", "sourceId": "2026-11-07-hike", "status": "created", "eventId": "01JAE8…" },
-    { "index": 3, "op": "cancel", "sourceId": "weekly-jummah-fall-2026", "status": "cancelled", "eventId": "01JA9Q…", "occurrenceDate": "2026-10-30" }
+    { "index": 3, "op": "cancel", "sourceId": "weekly-halaqa-fall-2026", "status": "cancelled", "eventId": "01JA9Q…", "occurrenceDate": "2026-10-28" }
   ]
 }
 ```

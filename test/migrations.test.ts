@@ -99,7 +99,7 @@ describe("migration 0003 (event import columns, tombstones, rate limits)", () =>
 
       const imported = (id: string) => ({
         id,
-        title: "Jummah",
+        title: "Friday Halaqa",
         startTime: new Date("2026-10-23T20:30:00.000Z"),
         endTime: new Date("2026-10-23T21:30:00.000Z"),
         source: "whatsapp",
@@ -127,7 +127,7 @@ describe("migration 0004 (event timing)", () => {
       await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
       await client.execute("INSERT INTO admins (user_id) VALUES ('u1')");
       await client.execute(
-        "INSERT INTO events (id, title, start_time, end_time, recurrence_freq, created_by_admin_id, source, source_id) VALUES ('ev1', 'Jummah', 1792000000000, 1792003600000, 'weekly', 1, 'whatsapp', 'msg-1')"
+        "INSERT INTO events (id, title, start_time, end_time, recurrence_freq, created_by_admin_id, source, source_id) VALUES ('ev1', 'Friday Halaqa', 1792000000000, 1792003600000, 'weekly', 1, 'whatsapp', 'msg-1')"
       );
       await client.execute(
         "INSERT INTO event_rsvps (event_id, occurrence_start, user_id, status) VALUES ('ev1', 1792000000000, 'u1', 'yes')"
@@ -211,7 +211,7 @@ describe("migration 0007 (board: drafts, tags, tasks, guides)", () => {
       await client.execute("INSERT INTO user (id, email) VALUES ('u1', 'a@ucsc.edu')");
       await client.execute("INSERT INTO admins (user_id) VALUES ('u1')");
       await client.execute(
-        "INSERT INTO events (id, title, start_time, end_time, recurrence_freq, created_by_admin_id, source, source_id) VALUES ('ev1', 'Jummah', 1792000000000, 1792003600000, 'weekly', 1, 'whatsapp', 'msg-1')"
+        "INSERT INTO events (id, title, start_time, end_time, recurrence_freq, created_by_admin_id, source, source_id) VALUES ('ev1', 'Friday Halaqa', 1792000000000, 1792003600000, 'weekly', 1, 'whatsapp', 'msg-1')"
       );
       await client.execute(
         "INSERT INTO events (id, title, start_time, end_time, created_by_admin_id) VALUES ('ev2', 'Halaqa', 1792100000000, 1792103600000, 1)"

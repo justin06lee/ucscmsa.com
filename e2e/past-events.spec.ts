@@ -49,11 +49,11 @@ test("a past event says so and offers no RSVP; an upcoming one still does", asyn
 });
 
 test("a past date of a weekly event points to the next one", async ({ page }) => {
-  // A Jummah Prayer occurrence before the seed's "today" (Oct 2026).
-  await page.goto("/calendar/events/ev-jummah?occurrence=2026-10-02T20:15:00.000Z");
+  // A Weekly Halaqa occurrence (Wed Oct 7, 7:30 PM) before the seed's "today" (Oct 2026).
+  await page.goto("/calendar/events/ev-halaqa?occurrence=2026-10-08T02:30:00.000Z");
   const status = page.getByRole("status");
   await expect(status).toContainText("This event has passed.");
-  await expect(status.getByRole("link", { name: /^Next: / })).toHaveAttribute("href", "/calendar/events/ev-jummah");
+  await expect(status.getByRole("link", { name: /^Next: / })).toHaveAttribute("href", "/calendar/events/ev-halaqa");
   await expect(page.getByRole("heading", { name: "RSVP" })).toHaveCount(0);
 });
 

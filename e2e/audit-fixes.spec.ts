@@ -1,7 +1,7 @@
 import { test, expect, type Locator } from "@playwright/test";
 
 // Regression tests for the 2026-10-20 UI audit. They rely on the fixtures in
-// scripts/seed-local.ts (ev-gbm, ev-jummah, and the Fri Oct 23 2026 events),
+// scripts/seed-local.ts (ev-gbm, ev-halaqa, and the Fri Oct 23 2026 events),
 // which playwright.config.ts seeds before starting the server.
 
 // Playwright's toBeVisible() treats opacity:0 as visible, so check it directly.
@@ -39,16 +39,16 @@ test("event content is in the server HTML at full opacity, not waiting on hydrat
 });
 
 test("recurring event page shows an upcoming date, not the series' first one", async ({ page }) => {
-  await page.goto("/calendar/events/ev-jummah");
-  await expect(page.getByRole("heading", { level: 1, name: "Jummah Prayer" })).toBeVisible();
-  await expect(page.getByText("Friday, September 25, 2026")).toHaveCount(0);
-  await expect(page.locator("main")).toContainText(/Friday, \w+ \d{1,2}, 20\d\d/);
+  await page.goto("/calendar/events/ev-halaqa");
+  await expect(page.getByRole("heading", { level: 1, name: "Weekly Halaqa" })).toBeVisible();
+  await expect(page.getByText("Wednesday, September 30, 2026")).toHaveCount(0);
+  await expect(page.locator("main")).toContainText(/Wednesday, \w+ \d{1,2}, 20\d\d/);
 });
 
 test("a malformed ?occurrence= still renders the event", async ({ page }) => {
-  const res = await page.goto("/calendar/events/ev-jummah?occurrence=not-a-date");
+  const res = await page.goto("/calendar/events/ev-halaqa?occurrence=not-a-date");
   expect(res?.status()).toBe(200);
-  await expect(page.getByRole("heading", { level: 1, name: "Jummah Prayer" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Weekly Halaqa" })).toBeVisible();
 });
 
 test("day view shows events after Isha and side by side when they overlap", async ({ page }) => {
