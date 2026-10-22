@@ -50,7 +50,7 @@ function upsert(sourceId: string, event: Record<string, unknown> = {}, extra: Re
     op: "upsert",
     sourceId,
     event: {
-      title: "Halaqa",
+      title: "Friday Halaqa",
       location: "Stevenson Event Center",
       date: "2026-10-23",
       startTime: "13:30",

@@ -177,7 +177,7 @@ describe("event titles and descriptions", () => {
       OCT,
     );
     expect(jummah).toBe(
-      "Jumu'ah (Jummah), the Friday prayer, with the MSA at UC Santa Cruz. Fri, Oct 23, 2026 at 1:15 PM, Student Union Assembly Hall. Khutbah and congregational prayer.",
+      "Jumu'ah (Jummah), the Friday prayer, with the MSA at UC Santa Cruz. Fri, Oct 23, 2026 at 1:15 PM, Student Union Assembly Hall. Khutbah and congregational…",
     );
     expect(eventDescription(ev({ cancelledAt: new Date() }), OCT)).toMatch(/^Cancelled\. /);
   });
