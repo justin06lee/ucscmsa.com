@@ -23,7 +23,9 @@ vi.mock("next-auth", () => ({
     return { handlers: {}, auth: vi.fn(), signIn: vi.fn(), signOut: vi.fn() };
   },
 }));
-vi.mock("next-auth/providers/google", () => ({ default: {} }));
+vi.mock("next-auth/providers/google", () => ({
+  default: (options: Record<string, unknown>) => ({ id: "google", ...options }),
+}));
 vi.mock("@auth/drizzle-adapter", () => ({ DrizzleAdapter: () => ({}) }));
 vi.mock("@/lib/db/client", () => ({
   get db() {
@@ -98,16 +100,23 @@ describe("auth.ts sign-in", () => {
     ).toBe(false);
   });
 
-  it("still lets @ucsc.edu accounts in, and seeds them as before", async () => {
+  it("lets verified UCSC Workspace accounts in, and seeds them as before", async () => {
     const { db, client } = await createTestDb();
     state.db = db;
     const config = await loadAuth(env);
+    const ucsc = (email: string) => ({ email, email_verified: true, hd: "ucsc.edu" });
     const user = { email: "A@UCSC.edu" };
-    expect(
-      await config.callbacks.signIn({ user, profile: { email: "A@UCSC.edu", email_verified: true, hd: "ucsc.edu" } })
-    ).toBe(true);
+    expect(await config.callbacks.signIn({ user, profile: ucsc("A@UCSC.edu") })).toBe(true);
     expect(user.email).toBe("a@ucsc.edu");
-    expect(await config.callbacks.signIn({ user: { email: "slug@ucsc.edu" } })).toBe(true);
+    expect(await config.callbacks.signIn({ user: { email: "slug@ucsc.edu" }, profile: ucsc("slug@ucsc.edu") })).toBe(true);
+    // Linking by email trusts the address, so the suffix alone isn't enough.
+    expect(await config.callbacks.signIn({ user: { email: "slug@ucsc.edu" } })).toBe(false);
+    expect(
+      await config.callbacks.signIn({ user: { email: "slug@ucsc.edu" }, profile: { ...ucsc("slug@ucsc.edu"), email_verified: false } })
+    ).toBe(false);
+    expect(
+      await config.callbacks.signIn({ user: { email: "slug@ucsc.edu" }, profile: { ...ucsc("slug@ucsc.edu"), hd: undefined } })
+    ).toBe(false);
 
     await db.insert(users).values([
       { id: "u-a", email: "a@ucsc.edu" },
