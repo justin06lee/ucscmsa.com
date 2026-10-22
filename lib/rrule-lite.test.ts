@@ -238,7 +238,7 @@ describe("expandEvents", () => {
   });
   describe("keeps the Santa Cruz wall-clock time across DST", () => {
     // Fri Jan 9 2026, 1:30 PM PST (21:30Z). In April, 1:30 PM PDT is 20:30Z.
-    const jummah: EventInput = {
+    const halaqa: EventInput = {
       ...baseOneOff,
       id: "j1",
       startTime: new Date("2026-01-09T21:30:00.000Z"),
@@ -248,7 +248,7 @@ describe("expandEvents", () => {
 
     it("weekly", () => {
       const out = expandEvents(
-        [{ ...jummah, recurrenceFreq: "weekly", recurrenceByWeekday: "FR" }],
+        [{ ...halaqa, recurrenceFreq: "weekly", recurrenceByWeekday: "FR" }],
         ...april
       );
       expect(out.map((o) => o.occurrenceStart.toISOString())).toEqual([
@@ -258,13 +258,13 @@ describe("expandEvents", () => {
     });
 
     it("daily", () => {
-      const out = expandEvents([{ ...jummah, recurrenceFreq: "daily" }], ...april);
+      const out = expandEvents([{ ...halaqa, recurrenceFreq: "daily" }], ...april);
       expect(out[0].occurrenceStart.toISOString()).toBe("2026-04-01T20:30:00.000Z");
       expect(out).toHaveLength(14);
     });
 
     it("monthly", () => {
-      const out = expandEvents([{ ...jummah, recurrenceFreq: "monthly" }], ...april);
+      const out = expandEvents([{ ...halaqa, recurrenceFreq: "monthly" }], ...april);
       expect(out.map((o) => o.occurrenceStart.toISOString())).toEqual([
         "2026-04-09T20:30:00.000Z",
       ]);

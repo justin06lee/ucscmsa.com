@@ -10,34 +10,34 @@ async function setup() {
   const [admin] = await t.db.insert(admins).values({ userId: "u1" }).returning();
   // Weekly Friday 1:30 PM PST from Jan 9 2026.
   await t.db.insert(events).values({
-    id: "jummah",
-    title: "Jummah",
+    id: "halaqa",
+    title: "Friday Halaqa",
     startTime: new Date("2026-01-09T21:30:00.000Z"),
     endTime: new Date("2026-01-09T22:30:00.000Z"),
     recurrenceFreq: "weekly",
     recurrenceByWeekday: "FR",
     createdByAdminId: admin.id,
   });
-  await t.db.insert(eventCancellations).values({ eventId: "jummah", occurrenceDate: "2026-04-10" });
+  await t.db.insert(eventCancellations).values({ eventId: "halaqa", occurrenceDate: "2026-04-10" });
   return t;
 }
 
 describe("findOccurrence", () => {
   it("finds a real occurrence, including one after a DST change", async () => {
     const { db, client } = await setup();
-    const occ = await findOccurrence("jummah", new Date("2026-04-03T20:30:00.000Z"), db);
+    const occ = await findOccurrence("halaqa", new Date("2026-04-03T20:30:00.000Z"), db);
     expect(occ?.occurrenceStart.toISOString()).toBe("2026-04-03T20:30:00.000Z");
-    expect(await findOccurrence("jummah", new Date("2026-01-16T21:30:00.000Z"), db)).not.toBeNull();
+    expect(await findOccurrence("halaqa", new Date("2026-01-16T21:30:00.000Z"), db)).not.toBeNull();
     client.close();
   });
 
   it("rejects off-schedule times, cancelled dates, unknown events and invalid dates", async () => {
     const { db, client } = await setup();
-    expect(await findOccurrence("jummah", new Date("2026-04-03T21:30:00.000Z"), db)).toBeNull();
-    expect(await findOccurrence("jummah", new Date("2026-04-04T20:30:00.000Z"), db)).toBeNull();
-    expect(await findOccurrence("jummah", new Date("2026-04-10T20:30:00.000Z"), db)).toBeNull();
+    expect(await findOccurrence("halaqa", new Date("2026-04-03T21:30:00.000Z"), db)).toBeNull();
+    expect(await findOccurrence("halaqa", new Date("2026-04-04T20:30:00.000Z"), db)).toBeNull();
+    expect(await findOccurrence("halaqa", new Date("2026-04-10T20:30:00.000Z"), db)).toBeNull();
     expect(await findOccurrence("nope", new Date("2026-04-03T20:30:00.000Z"), db)).toBeNull();
-    expect(await findOccurrence("jummah", new Date("garbage"), db)).toBeNull();
+    expect(await findOccurrence("halaqa", new Date("garbage"), db)).toBeNull();
     client.close();
   });
 });
@@ -46,8 +46,8 @@ describe("cancelled events", () => {
   it("have no occurrences to RSVP to (the calendar side is tested in the import route tests)", async () => {
     const { db, client } = await setup();
     const start = new Date("2026-04-03T20:30:00.000Z");
-    await db.update(events).set({ cancelledAt: new Date() }).where(eq(events.id, "jummah"));
-    expect(await findOccurrence("jummah", start, db)).toBeNull();
+    await db.update(events).set({ cancelledAt: new Date() }).where(eq(events.id, "halaqa"));
+    expect(await findOccurrence("halaqa", start, db)).toBeNull();
     client.close();
   });
 });
@@ -75,7 +75,24 @@ describe("getPastOccurrences", () => {
     const past = await getPastOccurrences(3, now, db);
     expect(past.map((o) => o.eventId)).toEqual(["newest", "middle", "older"]);
     expect(past[0].occurrenceStart.toISOString()).toBe("2026-04-18T02:00:00.000Z");
-    expect((await getPastOccurrences(10, now, db)).map((o) => o.eventId)).not.toContain("jummah");
+    expect((await getPastOccurrences(10, now, db)).map((o) => o.eventId)).not.toContain("halaqa");
+    client.close();
+  });
+
+  it("leaves out each Friday's one-off Jummah, even when more than a page of them is newer", async () => {
+    const { db, client } = await setup();
+    const now = new Date("2026-04-20T19:00:00.000Z");
+    const at = (start: Date, id: string, title: string) => ({
+      id, title, startTime: start, endTime: new Date(start.getTime() + 3_600_000), createdByAdminId: 1,
+    });
+    const week = 7 * 86_400_000;
+    await db.insert(events).values([
+      at(new Date("2025-01-10T21:30:00.000Z"), "social", "Game Night"),
+      ...Array.from({ length: 60 }, (_, i) =>
+        at(new Date(new Date("2026-04-17T20:30:00.000Z").getTime() - i * week), `j${i}`, i % 2 ? "Jumu'ah" : "Jummah Prayer"),
+      ),
+    ]);
+    expect((await getPastOccurrences(4, now, db)).map((o) => o.eventId)).toEqual(["social"]);
     client.close();
   });
 });

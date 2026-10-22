@@ -50,7 +50,7 @@ function upsert(sourceId: string, event: Record<string, unknown> = {}, extra: Re
     op: "upsert",
     sourceId,
     event: {
-      title: "Jummah",
+      title: "Halaqa",
       location: "Stevenson Event Center",
       date: "2026-10-23",
       startTime: "13:30",
@@ -136,6 +136,8 @@ describe("validation", () => {
     ["a time repeated by DST", req(upsert("v", { date: "2026-11-01", startTime: "01:30", endTime: "02:30" }))],
     ["an end before the start", req(upsert("v", { startTime: "15:00", endTime: "14:00" }))],
     ["byWeekday on a daily event", req(upsert("v", { recurrence: { freq: "daily", byWeekday: ["MO"] } }))],
+    ["a repeating Jummah", req(upsert("v", { title: "Jummah" }))],
+    ["a repeating Jumu'ah, daily", req(upsert("v", { title: "Jumu'ah", recurrence: { freq: "daily" } }))],
     ["the reserved source \"manual\"", { source: "manual", operations: [upsert("v")] }],
     ["more than 50 operations", req(...Array.from({ length: 51 }, (_, i) => upsert(`v${i}`)))],
     ["no operations", req()],
@@ -157,6 +159,15 @@ describe("validation", () => {
     expect(r.json.error).toBe("invalid_request");
     expect(r.json.issues?.length).toBeGreaterThan(0);
     expect(await eventBySourceId("v")).toBeUndefined();
+  });
+
+  it("says why a repeating Jummah is refused, and takes each Friday as a one-off", async () => {
+    const weekly = await post(req(upsert("v", { title: "Jummah" })));
+    expect(JSON.stringify(weekly.json.issues)).toContain("week by week");
+    const oneOff = await post(req(upsert("jummah-2026-10-23", { title: "Jummah", recurrence: undefined })));
+    expect(oneOff.status).toBe(200);
+    expect(oneOff.json.results?.[0]).toMatchObject({ status: "created" });
+    expect((await eventBySourceId("jummah-2026-10-23")).recurrenceFreq).toBeNull();
   });
 
   it("rejects bad JSON and non-JSON content types", async () => {
@@ -192,10 +203,10 @@ describe("upsert", () => {
 
   it("updates changed fields", async () => {
     await post(req(upsert("wa-update")));
-    const r = await post(req(upsert("wa-update", { title: "Jummah (moved)", startTime: "13:45", endTime: "14:45" }, { sourceRef: "WhatsApp, 2026-10-20 18:04" })));
+    const r = await post(req(upsert("wa-update", { title: "Halaqa (moved)", startTime: "13:45", endTime: "14:45" }, { sourceRef: "WhatsApp, 2026-10-20 18:04" })));
     expect(r.json.results![0].status).toBe("updated");
     const row = await eventBySourceId("wa-update");
-    expect(row.title).toBe("Jummah (moved)");
+    expect(row.title).toBe("Halaqa (moved)");
     expect(row.startTime.toISOString()).toBe("2026-10-23T20:45:00.000Z");
     expect(row.sourceRef).toBe("WhatsApp, 2026-10-20 18:04");
   });
@@ -271,16 +282,16 @@ describe("conflicts with admin changes", () => {
   it("doesn't overwrite an event an admin edited, unless override is set", async () => {
     const created = await post(req(upsert("c-edit")));
     const id = created.json.results![0].eventId as string;
-    await updateEvent(id, adminForm("Jummah — Bring a friend"));
+    await updateEvent(id, adminForm("Halaqa — Bring a friend"));
 
-    const r = await post(req(upsert("c-edit", { title: "Jummah (from WhatsApp)" })));
+    const r = await post(req(upsert("c-edit", { title: "Halaqa (from WhatsApp)" })));
     expect(r.json.results![0]).toMatchObject({ status: "conflict", reason: "edited_by_admin", eventId: id });
-    expect((await eventBySourceId("c-edit")).title).toBe("Jummah — Bring a friend");
+    expect((await eventBySourceId("c-edit")).title).toBe("Halaqa — Bring a friend");
 
-    const forced = await post(req(upsert("c-edit", { title: "Jummah (from WhatsApp)" }, { override: true })));
+    const forced = await post(req(upsert("c-edit", { title: "Halaqa (from WhatsApp)" }, { override: true })));
     expect(forced.json.results![0].status).toBe("updated");
     const row = await eventBySourceId("c-edit");
-    expect(row.title).toBe("Jummah (from WhatsApp)");
+    expect(row.title).toBe("Halaqa (from WhatsApp)");
     expect(row.adminEditedAt).toBeNull();
   });
 
@@ -327,11 +338,11 @@ describe("dry run", () => {
     });
     const before = await snapshot();
     const ops = [
-      upsert("dry-a", { title: "Jummah (moved)" }),
+      upsert("dry-a", { title: "Halaqa (moved)" }),
       { op: "cancel", sourceId: "dry-b", occurrenceDate: "2026-10-30" },
       { op: "cancel", sourceId: "dry-b" },
       upsert("dry-c", {}, { override: true }),
-      upsert("dry-a", { title: "Jummah (moved)" }),
+      upsert("dry-a", { title: "Halaqa (moved)" }),
       { op: "restore", sourceId: "dry-unknown" },
     ];
     h.revalidatePath.mockClear();

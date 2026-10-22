@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { description, eventLinks, hm, location, realYmd, title, INTERVAL_MAX, WEEKDAY_CODES } from "@/lib/event-rules";
+import {
+  description,
+  eventLinks,
+  hm,
+  isRecurringJummah,
+  location,
+  realYmd,
+  title,
+  INTERVAL_MAX,
+  RECURRING_JUMMAH,
+  WEEKDAY_CODES,
+} from "@/lib/event-rules";
 
 const ymd = realYmd.or(z.literal("")).default("");
 // Both times are optional (see EVENT_TIMINGS in lib/event-rules.ts): blank
@@ -34,6 +45,10 @@ export const eventInputSchema = z
     (d) => d.recurrenceFreq !== "none" || (d.startDate && d.endDate),
     { message: "Start and end dates are required for non-recurring events", path: ["startDate"] },
   )
+  .refine((d) => !isRecurringJummah(d.title, d.recurrenceFreq !== "none"), {
+    message: RECURRING_JUMMAH,
+    path: ["recurrenceFreq"],
+  })
   .refine((d) => !d.endTime || d.startTime, {
     message: "An end time needs a start time; clear both for a date-only event",
     path: ["startTime"],

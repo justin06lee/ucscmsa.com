@@ -7,7 +7,7 @@ import { FlyerThumb } from "@/components/flyer-thumb";
 /**
  * The most recent past one-off events, newest first: a compact list under the
  * landing's Upcoming, quieter than the Upcoming cards so it never competes
- * with them. Weekly series (Jummah, halaqas) are left out.
+ * with them. Weekly series (halaqas) and Jummah are left out.
  */
 export async function PastEvents({ limit = 4 }: { limit?: number }) {
   let items;

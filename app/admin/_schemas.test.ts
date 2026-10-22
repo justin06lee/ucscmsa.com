@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { RECURRING_JUMMAH } from "@/lib/event-rules";
 import { eventInputSchema } from "./_schemas";
 
 const valid = {
-  title: "Jummah",
+  title: "General Body Meeting",
   description: "",
   location: "Stevenson Event Center",
   startDate: "2026-10-23",
@@ -24,6 +25,14 @@ describe("eventInputSchema", () => {
   it("accepts a normal event", () => {
     expect(errorFor(valid)).toBeNull();
     expect(errorFor({ ...valid, recurrenceFreq: "weekly", recurrenceByWeekday: "MO,WE,FR" })).toBeNull();
+  });
+
+  it("refuses a repeating Jummah: each Friday is posted as its own event", () => {
+    const weekly = { ...valid, recurrenceFreq: "weekly", recurrenceByWeekday: "FR" };
+    expect(errorFor({ ...weekly, title: "Jummah Prayer" })).toBe(RECURRING_JUMMAH);
+    expect(errorFor({ ...weekly, title: "Jumu'ah" })).toBe(RECURRING_JUMMAH);
+    expect(errorFor({ ...valid, title: "Jummah Prayer" })).toBeNull();
+    expect(errorFor({ ...weekly, title: "Friday Halaqa" })).toBeNull();
   });
 
   it("rejects dates that match YYYY-MM-DD but don't exist or are absurd", () => {

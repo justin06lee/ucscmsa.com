@@ -2,6 +2,7 @@ import { z } from "zod";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { endOfLocalDayUtc, SITE_TZ, startOfLocalDayUtc } from "./time";
 import { IMAGE_ALT_MAX } from "./event-image";
+import { isJummah } from "./seo";
 
 // Field rules shared by the admin event form and the event import API, so an
 // event that gets in either way can't break the calendar.
@@ -11,6 +12,14 @@ export const LOCATION_MAX = 200;
 export const DESCRIPTION_MAX = 10_000;
 export const INTERVAL_MAX = 99;
 export const WEEKDAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
+
+// Jummah comes from the WhatsApp announcements week by week, as one-off
+// events, so a cancelled Friday is an edit to that one event. A repeating
+// Jummah series isn't let back in, from the admin form or the import API.
+export const RECURRING_JUMMAH = "Jummah is posted week by week as its own event, so it can't repeat";
+export function isRecurringJummah(title: string, recurring: boolean): boolean {
+  return recurring && isJummah(title);
+}
 
 // A real calendar date in a sane range. The pattern alone let "2026-02-31"
 // and "0001-01-01" through: the first became an Invalid Date at insert time,

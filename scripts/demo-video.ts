@@ -4,7 +4,7 @@
  * an event page → a Jummah page.
  *
  *   bun scripts/demo-video.ts [--base https://ucscmsa.com] [--out ~/Movies/ucscmsa/ucscmsa-v2-demo.mp4]
- *     [--today 2026-10-21] [--date 2026-10-23] [--event "Laser Tag"] [--jummah "Jummah 1"]
+ *     [--today 2026-10-21] [--date 2026-10-23] [--event "Laser Tag"] [--jummah "Jummah"]
  *
  * --today defaults to today in Santa Cruz; pass --jummah "" to end on the event page.
  * Read-only: it only loads pages and taps links (never sign-in, RSVP or admin),
@@ -21,7 +21,7 @@ const OUT = arg("out", path.join(os.homedir(), "Movies/ucscmsa/ucscmsa-v2-demo.m
 const TODAY = arg("today", new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" }));
 const DAY = arg("date", "2026-10-23");
 const EVENT = arg("event", "Laser Tag");
-const JUMMAH = arg("jummah", "Jummah 1");
+const JUMMAH = arg("jummah", "Jummah");
 
 async function main() {
   const { page, mark, startHere, finish } = await record(OUT);

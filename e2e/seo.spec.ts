@@ -10,7 +10,7 @@ const INDEXABLE = [
   "/",
   "/calendar",
   "/calendar/events/ev-gbm", // one-off
-  "/calendar/events/ev-jummah", // weekly
+  "/calendar/events/ev-halaqa", // weekly
   "/calendar/events/ev-potluck", // imported
 ];
 
@@ -105,8 +105,8 @@ test("calendar views and event occurrences canonicalize to the bare URL", async 
     await page.goto(`/calendar${q}`);
     expect(same((await head(page)).canonical, `${baseURL}/calendar`), q).toBe(true);
   }
-  await page.goto("/calendar/events/ev-jummah?occurrence=2026-10-30T20:15:00.000Z");
-  expect(same((await head(page)).canonical, `${baseURL}/calendar/events/ev-jummah`)).toBe(true);
+  await page.goto("/calendar/events/ev-halaqa?occurrence=2026-10-29T02:30:00.000Z");
+  expect(same((await head(page)).canonical, `${baseURL}/calendar/events/ev-halaqa`)).toBe(true);
 });
 
 test("landing JSON-LD: Organization and WebSite", async ({ page, baseURL }) => {
@@ -123,7 +123,7 @@ test("landing JSON-LD: Organization and WebSite", async ({ page, baseURL }) => {
 });
 
 test("event JSON-LD has the fields Google's event results need", async ({ page }) => {
-  for (const id of ["ev-gbm", "ev-jummah"]) {
+  for (const id of ["ev-gbm", "ev-halaqa"]) {
     await page.goto(`/calendar/events/${id}`);
     const ld = await jsonLd(page);
     const ev = ld.find((x) => x["@type"] === "Event") as unknown as EventLd;
@@ -141,7 +141,7 @@ test("event JSON-LD has the fields Google's event results need", async ({ page }
     expect(ld.find((x) => x["@type"] === "BreadcrumbList"), id).toBeTruthy();
   }
   // The weekly series is marked up as its next occurrence.
-  await page.goto("/calendar/events/ev-jummah");
+  await page.goto("/calendar/events/ev-halaqa");
   const ev = (await jsonLd(page)).find((x) => x["@type"] === "Event") as unknown as EventLd;
   expect(new Date(ev.startDate).getTime()).toBeGreaterThan(Date.now() - 2 * 60 * 60 * 1000);
 });

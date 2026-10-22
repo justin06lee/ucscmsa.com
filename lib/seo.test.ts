@@ -157,8 +157,8 @@ describe("event titles and descriptions", () => {
   it("titles one-offs by date and series by pattern", () => {
     expect(eventTitle(ev(), OCT)).toBe("General Body Meeting · Oct 23, 2026");
     expect(
-      eventTitle(ev({ title: "Jummah Prayer", recurrenceFreq: "weekly", recurrenceByWeekday: "FR" }), OCT),
-    ).toBe("Jummah Prayer · Fridays");
+      eventTitle(ev({ title: "Weekly Halaqa", recurrenceFreq: "weekly", recurrenceByWeekday: "WE" }), OCT),
+    ).toBe("Weekly Halaqa · Wednesdays");
     expect(eventTitle(ev({ cancelledAt: new Date() }), OCT)).toBe(
       "Cancelled: General Body Meeting · Oct 23, 2026",
     );
@@ -173,13 +173,11 @@ describe("event titles and descriptions", () => {
         title: "Jummah Prayer",
         description: "Khutbah and congregational prayer.",
         location: "Student Union Assembly Hall",
-        recurrenceFreq: "weekly",
-        recurrenceByWeekday: "FR",
       }),
       OCT,
     );
     expect(jummah).toBe(
-      "Jumu'ah (Jummah), the Friday prayer, with the MSA at UC Santa Cruz. Fridays at 1:15 PM, Student Union Assembly Hall. Khutbah and congregational prayer.",
+      "Jumu'ah (Jummah), the Friday prayer, with the MSA at UC Santa Cruz. Fri, Oct 23, 2026 at 1:15 PM, Student Union Assembly Hall. Khutbah and congregational prayer.",
     );
     expect(eventDescription(ev({ cancelledAt: new Date() }), OCT)).toMatch(/^Cancelled\. /);
   });
