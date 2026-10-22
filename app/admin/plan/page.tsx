@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth";
 import { formatYmd, relativeDay } from "@/components/board/format";
@@ -65,7 +64,6 @@ export default async function PlanningPage() {
                       {r.overdue} overdue
                     </span>
                   ) : null}
-                  <ChevronRight size={18} aria-hidden className="text-ink/30" />
                 </span>
               </Link>
             </li>

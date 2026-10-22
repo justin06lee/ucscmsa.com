@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth";
 import { parseMarkdown, plainText } from "@/lib/markdown";
@@ -32,7 +31,6 @@ export default async function PlaybookPage() {
                 <span className="font-medium">{g.title}</span>
                 <span className="line-clamp-1 text-sm text-dim">{summary(g.body)}</span>
               </span>
-              <ChevronRight size={18} aria-hidden className="shrink-0 text-ink/30" />
             </Link>
           </li>
         ))}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FlyerThumb } from "@/components/flyer-thumb";
 import { removeEventImage, setEventImages, uploadEventImages } from "@/app/admin/_actions";
@@ -101,21 +100,21 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     variant="outline"
-                    className="!h-11 !w-11 !p-0"
+                    className="min-h-11"
                     aria-label={`Move flyer ${i + 1} up`}
                     disabled={pending || i === 0}
                     onClick={() => move(i, i - 1)}
                   >
-                    <ArrowUp className="size-4" aria-hidden />
+                    Up
                   </Button>
                   <Button
                     variant="outline"
-                    className="!h-11 !w-11 !p-0"
+                    className="min-h-11"
                     aria-label={`Move flyer ${i + 1} down`}
                     disabled={pending || i === images.length - 1}
                     onClick={() => move(i, i + 1)}
                   >
-                    <ArrowDown className="size-4" aria-hidden />
+                    Down
                   </Button>
                   <Button
                     variant="outline"

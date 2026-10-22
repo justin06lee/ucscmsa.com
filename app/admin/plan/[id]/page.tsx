@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth";
 import { tagLabel, todayMarkerIndex } from "@/lib/planning";
@@ -41,8 +40,7 @@ export default async function EventPlanPage({ params }: Props) {
         href="/admin/plan"
         className="-ml-1 mb-2 inline-flex min-h-11 items-center gap-1 text-sm text-dim hover:text-ink"
       >
-        <ChevronLeft size={16} aria-hidden />
-        Planning
+        Back to planning
       </Link>
       <h1 className="text-3xl break-words">{event.title}</h1>
       <p className="mt-1 text-dim">
