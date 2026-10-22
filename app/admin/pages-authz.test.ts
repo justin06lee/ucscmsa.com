@@ -64,9 +64,21 @@ describe("admin server actions", () => {
     }
   });
 
+  // The body starts at the "{" ending the signature line, after the
+  // parameters' closing ")": parameter types may hold braces of their own.
+  function bodyOf(fn: string): string {
+    let depth = 0;
+    let i = fn.indexOf("(");
+    for (; i < fn.length; i++) {
+      if (fn[i] === "(") depth++;
+      else if (fn[i] === ")" && --depth === 0) break;
+    }
+    return fn.slice(fn.indexOf("{\n", i) + 1);
+  }
+
   it.each(actions)("%s checks for an admin first", (_, body) => {
     // The first statement of the function body awaits requireAdmin/requireAdminId.
-    const firstStatement = body.slice(body.indexOf("{") + 1).trim().split("\n")[0];
+    const firstStatement = bodyOf(body).trim().split("\n")[0];
     expect(firstStatement).toMatch(/await requireAdmin(Id)?\(\)/);
   });
 });
