@@ -243,9 +243,9 @@ async function phone(page: Page, mark: (label: string) => void) {
 }
 
 /**
- * Loads the pages the demo can reach once, unrecorded, at both sizes, so the
- * server has the flyers resized before the takes (a cold next/image shows an
- * empty frame for a moment).
+ * Loads the pages the demo can reach once, unrecorded, at both sizes. The
+ * flyers come straight from the public Blob store (unoptimized), and a first
+ * fetch there is slow enough to film an empty frame.
  */
 async function warm(browser: Browser) {
   for (const [width, height, phone] of [[1280, 800, false], [390, 844, true]] as const) {
