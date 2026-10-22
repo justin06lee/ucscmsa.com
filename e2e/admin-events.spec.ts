@@ -72,7 +72,9 @@ test("cancel shows at once, before the server answers; a failed save rolls back 
   const release = await onActions(page, "hold");
   await row.getByRole("button", { name: "Cancel Hilltop Potluck" }).click();
   await expect(row).toContainText("Cancelled"); // the request is still held
+  const saved = page.waitForResponse((r) => r.request().method() === "POST" && !!r.request().headers()["next-action"]);
   release();
+  await saved;
   await expect(row.getByRole("button", { name: "Uncancel Hilltop Potluck" })).toBeVisible();
   await page.unrouteAll({ behavior: "wait" });
   await page.reload();
@@ -84,7 +86,9 @@ test("cancel shows at once, before the server answers; a failed save rolls back 
   await expect(row).toContainText("Cancelled");
   await page.unrouteAll({ behavior: "wait" });
 
+  const undone = page.waitForResponse((r) => r.request().method() === "POST" && !!r.request().headers()["next-action"]);
   await row.getByRole("button", { name: "Uncancel Hilltop Potluck" }).click();
+  await undone;
   await expect(row.getByRole("status")).toHaveCount(0);
   await expect(row.getByRole("button", { name: "Cancel Hilltop Potluck" })).toBeVisible();
   await page.reload();
