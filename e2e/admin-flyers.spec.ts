@@ -54,7 +54,7 @@ test.describe("admin: event links", () => {
     await page.goto(PAGE);
     await expect(page.locator("a[data-link-kind]")).toHaveCount(0);
     // With no RSVP link of its own, the site's RSVP is back.
-    await expect(page.getByRole("heading", { name: "RSVP" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "RSVP" }).getByRole("button", { name: /^Going/ })).toBeVisible();
   });
 
   test("a link that isn't http(s) is refused with a reason", async ({ page }) => {

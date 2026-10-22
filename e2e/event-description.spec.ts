@@ -12,13 +12,15 @@ test.describe("event description links at 375px", () => {
   test("an RSVP URL is a safe link, and long URLs wrap", async ({ page }) => {
     await page.goto("/calendar/events/ev-sisters");
 
-    const link = page.getByRole("link", { name: RSVP, exact: true });
+    const link = page.getByRole("link", { name: `${RSVP} (opens in a new tab)`, exact: true });
     await expect(link).toHaveCount(1);
     expect(await link.evaluate((a) => a.tagName)).toBe("A");
     await expect(link).toHaveAttribute("href", RSVP);
     await expect(link).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
-    // The sentence's full stop stays outside the link.
-    await expect(link.locator("xpath=..")).toContainText(`RSVP for the address: ${RSVP}.`);
+    await expect(link).toHaveAttribute("target", "_blank");
+    // The sentence's full stop stays outside the link (the new-tab note is
+    // screen-reader text inside it).
+    await expect(link.locator("xpath=..")).toContainText(`RSVP for the address: ${RSVP} (opens in a new tab).`);
 
     const long = page.getByRole("link", { name: /^https:\/\/drive\.google\.com\// });
     const box = (await long.boundingBox())!;

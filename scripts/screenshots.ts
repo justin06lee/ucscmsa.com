@@ -6,6 +6,11 @@
 //     --out docs/screenshots/before --seed /tmp/ucscmsa-fe/seed.json
 //
 // Admin pages use the seeded admin session token as the Auth.js cookie.
+//
+// --set snapshot shoots the public pages of the public production snapshot
+// (Backend's ~/work/snapshots on tenet) instead, by real event ids; no --seed.
+// --at fixes the browser's clock, to match a server started with
+// scripts/fake-now.cjs. --only takes a comma list of shot names.
 import { chromium, type Page } from "@playwright/test";
 import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -19,7 +24,10 @@ function arg(name: string, fallback?: string): string {
 
 const base = arg("base", "http://localhost:3100");
 const out = arg("out");
-const seed = JSON.parse(readFileSync(arg("seed"), "utf8")) as {
+const set = arg("set", "seed");
+const at = process.argv.includes("--at") ? new Date(arg("at")) : null;
+const only = process.argv.includes("--only") ? arg("only").split(",") : null;
+const seed = (set === "seed" ? JSON.parse(readFileSync(arg("seed"), "utf8")) : {}) as {
   adminToken: string;
   memberToken: string;
   singleEventId: string;
@@ -29,7 +37,26 @@ const widths = arg("widths", "375,390,768").split(",").map(Number);
 
 type Shot = { name: string; path: string; as?: "admin" | "member" };
 
-const shots: Shot[] = [
+// Real events in the snapshot of 2026-10-22: Sisters' Game Night (flyer, an
+// RSVP form), Laser Tag (start-only, flyer), Henna Tabling (no flyer), Niya
+// Summit (past, two flyers, 12 hours long).
+const snapshotShots: Shot[] = [
+  { name: "landing", path: "/" },
+  { name: "calendar-day-today", path: "/calendar?view=day&date=2026-10-21" },
+  { name: "calendar-day", path: "/calendar?view=day&date=2026-10-23" },
+  // Niya Summit, 8 AM to 8 PM: a long event, in the row above the day grid.
+  { name: "calendar-day-long", path: "/calendar?view=day&date=2026-08-29" },
+  { name: "calendar-month", path: "/calendar?view=month&date=2026-10-20" },
+  { name: "calendar-year", path: "/calendar?view=year&date=2026-10-20" },
+  { name: "event-game-night", path: "/calendar/events/01M5FP0HAZ8CFJ4R3CZH3X09AB" },
+  { name: "event-laser-tag", path: "/calendar/events/01M5FNT8YERD4HRQNZ30N7CXZQ" },
+  { name: "event-no-flyer", path: "/calendar/events/01M5GADPD79ZG7DTSZQ01KVM8Q" },
+  { name: "event-past", path: "/calendar/events/01M5GADMMNZWCBETR7PS24C0M5" },
+  { name: "login", path: "/login" },
+  { name: "not-found", path: "/this-page-does-not-exist" },
+];
+
+const seedShots: Shot[] = [
   { name: "landing", path: "/" },
   { name: "calendar-month", path: "/calendar?view=month&date=2026-10-20" },
   { name: "calendar-day", path: "/calendar?view=day&date=2026-10-23" },
@@ -44,7 +71,14 @@ const shots: Shot[] = [
   { name: "admin-event-edit", path: `/admin/events/${seed.recurringEventId}/edit`, as: "admin" },
   { name: "admin-admins", path: "/admin/admins", as: "admin" },
   { name: "admin-nominations", path: "/admin/nominations", as: "admin" },
+  { name: "admin-event-flyers", path: "/admin/events/ev-panel/edit", as: "admin" },
+  { name: "admin-plan", path: "/admin/plan", as: "admin" },
+  { name: "admin-plan-event", path: "/admin/plan/ev-bonfire", as: "admin" },
+  { name: "admin-playbook", path: "/admin/playbook", as: "admin" },
+  { name: "admin-guide", path: "/admin/playbook/promotion", as: "admin" },
 ];
+
+const shots = (set === "snapshot" ? snapshotShots : seedShots).filter((s) => !only || only.includes(s.name));
 
 async function settle(page: Page) {
   await page.waitForLoadState("networkidle");
@@ -75,6 +109,7 @@ async function main() {
         ]);
       }
       const page = await ctx.newPage();
+      if (at) await page.clock.setFixedTime(at);
       const res = await page.goto(base + s.path);
       await settle(page);
       const finalPath = new URL(page.url()).pathname;

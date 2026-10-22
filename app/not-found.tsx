@@ -48,6 +48,7 @@ export default async function NotFound() {
           className="underline-offset-2 transition-colors hover:text-ink hover:underline"
         >
           justin06lee.dev
+          <span className="sr-only"> (opens in a new tab)</span>
         </a>
       </p>
     </main>

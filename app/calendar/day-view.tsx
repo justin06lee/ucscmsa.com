@@ -31,27 +31,28 @@ const MIN_EVENT_H = 44; // also the minimum tap target
 // A start-only event is drawn this long: its end is unknown, and stretching it
 // to midnight would claim an end nobody announced.
 const OPEN_END_MIN = 60;
+// A timed event this long on one day leaves the hour grid for a row above it:
+// drawn as a block it would cover the prayer times beneath, and every event
+// beside it would be squeezed into a lane.
+const LONG_MIN = 4 * 60;
 
 function wallMinutes(utc: Date): number {
   const { h, m } = localHourAndMinute(utc);
   return h * 60 + m;
 }
 
-type Placed = {
+type Span = {
   o: Occurrence;
   start: number; // wall-clock minutes since local midnight, clipped to this day
   end: number;
-  lane: number;
-  lanes: number;
 };
 
-// Clip each occurrence to this local day, then give events that overlap
-// (visually, counting the minimum chip height) their own lane so none is
-// hidden behind another. Untimed events (see untimedOnDay) aren't placed: they
-// sit in the row above the grid.
-function placeOccurrences(occurrences: Occurrence[], ymd: string): Placed[] {
-  const minDur = (MIN_EVENT_H / HOUR_H) * 60;
-  const items = occurrences
+type Placed = Span & { lane: number; lanes: number };
+
+// Each timed occurrence clipped to this local day. Untimed events (see
+// untimedOnDay) have no span: they sit in the row above the grid.
+function spansOnDay(occurrences: Occurrence[], ymd: string): Span[] {
+  return occurrences
     .filter((o) => !untimedOnDay(o, ymd))
     .map((o) => {
       const start = toLocalYmd(o.occurrenceStart) < ymd ? 0 : wallMinutes(o.occurrenceStart);
@@ -61,8 +62,16 @@ function placeOccurrences(occurrences: Occurrence[], ymd: string): Placed[] {
           : toLocalYmd(o.occurrenceEnd) > ymd
             ? DAY_MIN
             : wallMinutes(o.occurrenceEnd);
-      return { o, start, end: Math.max(end, start), lane: 0, lanes: 1 };
-    })
+      return { o, start, end: Math.max(end, start) };
+    });
+}
+
+// Give events that overlap (visually, counting the minimum chip height) their
+// own lane so none is hidden behind another.
+function placeSpans(spans: Span[]): Placed[] {
+  const minDur = (MIN_EVENT_H / HOUR_H) * 60;
+  const items = spans
+    .map((s) => ({ ...s, lane: 0, lanes: 1 }))
     .sort((a, b) => a.start - b.start || b.end - a.end);
 
   let cluster: Placed[] = [];
@@ -87,10 +96,35 @@ function placeOccurrences(occurrences: Occurrence[], ymd: string): Placed[] {
   return items;
 }
 
+// A row above the hour grid: events listed with their time on this day.
+function DayRow({ kind, label, items, ymd }: { kind: "untimed" | "long"; label: string; items: Occurrence[]; ymd: string }) {
+  if (items.length === 0) return null;
+  return (
+    <div className={`day-grid__row day-grid__${kind}`}>
+      <div className="day-grid__row-label">{label}</div>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((o) => (
+          <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}>
+            <Link
+              href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
+              className="day-grid__row-event"
+            >
+              <span className="truncate font-medium">{o.title}</span>
+              <span className="shrink-0 text-xs text-ink/60">{timeOnDay(o, ymd)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function DayView({ ymd, occurrences, prayer }: Props) {
   const fajrUtc = parseHMInLocal(ymd, prayer.fajr);
   const ishaUtc = parseHMInLocal(ymd, prayer.isha);
-  const placed = placeOccurrences(occurrences, ymd);
+  const spans = spansOnDay(occurrences, ymd);
+  const long = spans.filter((s) => s.end - s.start >= LONG_MIN).map((s) => s.o);
+  const placed = placeSpans(spans.filter((s) => s.end - s.start < LONG_MIN));
   const untimed = occurrences.filter((o) => untimedOnDay(o, ymd));
   // The grid runs Fajr to Isha, stretched to cover any event outside that
   // window (an evening halaqa after an early winter Isha, say).
@@ -156,24 +190,8 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
         <DayAgenda ymd={ymd} occurrences={occurrences} prayer={prayer} nowMinutes={nowMinutes} />
       </div>
       <div className="hidden md:block">
-        {untimed.length > 0 ? (
-          <div className="day-grid__untimed">
-            <div className="day-grid__untimed-label">No set time</div>
-            <ul className="flex flex-col gap-1.5">
-              {untimed.map((o) => (
-                <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}>
-                  <Link
-                    href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
-                    className="day-grid__untimed-event"
-                  >
-                    <span className="truncate font-medium">{o.title}</span>
-                    <span className="shrink-0 text-xs text-ink/60">{timeOnDay(o, ymd)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        <DayRow kind="untimed" label="No set time" items={untimed} ymd={ymd} />
+        <DayRow kind="long" label="Long events" items={long} ymd={ymd} />
         <div
           className="day-grid"
           style={{ gridTemplateRows: `repeat(${hours.length}, ${HOUR_H}px)` }}
@@ -216,7 +234,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
             {occurrences.length === 0 ? (
               <div className="day-grid__empty">No events scheduled</div>
             ) : placed.length === 0 ? (
-              <div className="day-grid__empty">No timed events</div>
+              long.length === 0 ? <div className="day-grid__empty">No timed events</div> : null
             ) : (
               placed.map(({ o, start, end, lane, lanes }) => {
                 const top = (start / 60 - gridStart) * HOUR_H;

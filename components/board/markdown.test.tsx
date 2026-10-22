@@ -7,6 +7,13 @@ function html(source: string) {
   return render(<Markdown source={source} />).container;
 }
 
+/** The text on screen: without the links' "(opens in a new tab)" for screen readers. */
+function shown(el: Element): string {
+  const copy = el.cloneNode(true) as Element;
+  for (const sr of copy.querySelectorAll(".sr-only")) sr.remove();
+  return copy.textContent ?? "";
+}
+
 describe("guide markdown: no way to inject script", () => {
   it.each([
     "<script>alert(1)</script>",
@@ -19,7 +26,7 @@ describe("guide markdown: no way to inject script", () => {
     expect(el.querySelector("script, img, iframe, svg, [onerror], [onload]")).toBeNull();
     // A bare https URL inside the text may become a link; nothing else does.
     for (const a of el.querySelectorAll("a")) expect(a.getAttribute("href")).toMatch(/^https:\/\//);
-    expect(el.textContent).toContain(src);
+    expect(shown(el)).toContain(src);
   });
 
   it.each([
@@ -49,15 +56,16 @@ describe("guide markdown: no way to inject script", () => {
     for (const a of links) {
       expect(a.getAttribute("rel")).toBe("noopener noreferrer");
       expect(a.getAttribute("target")).toBe("_blank");
+      expect(a.querySelector(".sr-only")?.textContent).toBe(" (opens in a new tab)");
     }
     // Trailing punctuation stays outside a bare link.
-    expect(el.textContent).toContain("http://example.com/a.");
+    expect(shown(el)).toContain("http://example.com/a.");
   });
 
   it("escapes HTML inside link text, bold and code", () => {
     const el = html('**<b>x</b>** `<script>` [<img src=x onerror=alert(1)>](https://a.example)');
     expect(el.querySelector("b, script, img")).toBeNull();
-    expect(el.querySelector("a")?.textContent).toBe("<img src=x onerror=alert(1)>");
+    expect(shown(el.querySelector("a")!)).toBe("<img src=x onerror=alert(1)>");
   });
 
   it("never emits an attribute from guide text", () => {

@@ -22,7 +22,7 @@ test("the landing lists recent past events, newest first, after Upcoming", async
   expect((await past.boundingBox())!.y).toBeGreaterThan((await upcoming.boundingBox())!.y);
 
   const section = page.getByRole("region", { name: "Past events" });
-  await expect(section.getByRole("link", { name: "Browse the calendar →" })).toHaveAttribute("href", "/calendar?view=year");
+  await expect(section.getByRole("link", { name: "Browse the calendar", exact: true })).toHaveAttribute("href", "/calendar?view=year");
   const hrefs = await section.getByRole("listitem").getByRole("link").evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
   expect(hrefs).toHaveLength(4);
 

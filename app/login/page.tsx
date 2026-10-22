@@ -86,7 +86,7 @@ export default async function LoginPage({
         href="/"
         className="inline-flex min-h-11 items-center text-sm text-dim transition-colors hover:text-ink"
       >
-        &larr; Back to home
+        Back to home
       </Link>
     </main>
   );

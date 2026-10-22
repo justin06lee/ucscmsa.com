@@ -91,10 +91,13 @@ test.describe("flyer viewer", () => {
 });
 
 test.describe("event links", () => {
-  test("the RSVP is one clear button; other links sit beside it; all open in a new tab", async ({ page }) => {
+  test("the RSVP is one clear button; other links sit below it; all open in a new tab", async ({ page }) => {
     await page.goto(PANEL);
     const rsvp = page.locator("a[data-link-kind=rsvp]");
     await expect(rsvp).toHaveText(/^RSVP/);
+    // In the RSVP box, in the site's primary button style.
+    await expect(page.getByRole("region", { name: "RSVP" }).locator("a[data-link-kind=rsvp]")).toBeVisible();
+    await expect(rsvp).toHaveClass(/bg-ink/);
     await expect(rsvp).toHaveAttribute("href", "https://forms.gle/example-panel");
     const volunteer = page.locator("a[data-link-kind=signup]");
     await expect(volunteer).toHaveText(/^Volunteer/);
@@ -102,8 +105,10 @@ test.describe("event links", () => {
       await expect(link).toHaveAttribute("target", "_blank");
       await expect(link).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
     }
-    // The event's own button replaces the site's RSVP section.
-    await expect(page.getByRole("heading", { name: "RSVP" })).toHaveCount(0);
+    // The event's own button replaces the site's RSVP: one RSVP on the page.
+    await expect(page.locator("a[data-link-kind=rsvp], a[data-link-kind=form]")).toHaveCount(1);
+    await expect(page.getByRole("link", { name: /Sign in with UCSC to RSVP/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^(Going|Maybe|Can.t go)/ })).toHaveCount(0);
   });
 
   test("a form left with its default label reads RSVP", async ({ page }) => {
@@ -115,7 +120,8 @@ test.describe("event links", () => {
 
   test("a map link becomes the location's link", async ({ page }) => {
     await page.goto(LASER);
-    const place = page.getByRole("link", { name: /Santa Cruz Beach Boardwalk \(map, opens in a new tab\)/ });
+    const place = page.getByRole("link", { name: /^Santa Cruz Beach Boardwalk Open the map \(opens in a new tab\)$/ });
+    await expect(place).toHaveAttribute("target", "_blank");
     await expect(place).toHaveAttribute("href", "https://maps.app.goo.gl/exampleBoardwalk");
     await expect(page.locator("a[data-link-kind=map]")).toHaveCount(0);
   });

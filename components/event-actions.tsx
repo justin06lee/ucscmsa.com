@@ -1,5 +1,6 @@
-import { CalendarPlus, ExternalLink } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import { LINK_KIND_LABELS, type EventLink } from "@/lib/event-rules";
+import { buttonClasses } from "@/components/ui/button";
 import { ShareButton } from "./share-button";
 
 // Links come from the import and the admin form, so they're treated like
@@ -14,19 +15,36 @@ function primaryLabel(l: EventLink): string {
 }
 
 /**
- * The event page's actions: one clear button for the RSVP or form, quieter
- * pills for its other links (donate, sign up...), then add to calendar and
- * share. Every outside link opens in a new tab.
+ * An event's own RSVP or form as the site's primary button, on its card and
+ * its page. It opens the form in a new tab.
+ */
+export function RsvpLink({ link, className = "" }: { link: EventLink; className?: string }) {
+  return (
+    <a
+      href={link.url}
+      target="_blank"
+      rel={REL}
+      data-link-kind={link.kind}
+      className={`${buttonClasses("primary", "lg")} min-h-11 ${className}`}
+    >
+      {primaryLabel(link)}
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
+  );
+}
+
+/**
+ * The event page's other actions: quiet pills for its other links (donate,
+ * sign up...), then add to calendar and share. Every outside link opens in a
+ * new tab.
  */
 export function EventActions({
-  primary,
   secondary,
   icsHref,
   googleHref,
   title,
   pageUrl,
 }: {
-  primary: EventLink | null;
   secondary: EventLink[];
   // Null for an event that's over or cancelled: nothing to add.
   icsHref: string | null;
@@ -35,22 +53,9 @@ export function EventActions({
   pageUrl: string;
 }) {
   return (
-    <div className="mt-6 flex flex-col gap-3">
-      {primary || secondary.length ? (
+    <div className="flex flex-col gap-3">
+      {secondary.length ? (
         <div className="flex flex-wrap items-center gap-2">
-          {primary ? (
-            <a
-              href={primary.url}
-              target="_blank"
-              rel={REL}
-              data-link-kind={primary.kind}
-              className={`${PILL} border-burgundy bg-burgundy px-6 text-paper hover:border-ink hover:bg-ink`}
-            >
-              {primaryLabel(primary)}
-              <ExternalLink size={14} aria-hidden="true" />
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          ) : null}
           {secondary.map((l) => (
             <a
               key={`${l.kind}-${l.url}`}
@@ -61,7 +66,6 @@ export function EventActions({
               className={`${PILL} border-ink/20 text-ink/85 hover:border-ink/50`}
             >
               {l.label}
-              <ExternalLink size={13} aria-hidden="true" className="text-ink/50" />
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
           ))}

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth";
 import { formatLocal } from "@/lib/time";
@@ -21,8 +20,7 @@ export default async function GuidePage({ params }: Props) {
         href="/admin/playbook"
         className="-ml-1 mb-2 inline-flex min-h-11 items-center gap-1 text-sm text-dim hover:text-ink"
       >
-        <ChevronLeft size={16} aria-hidden />
-        Playbook
+        Back to the playbook
       </Link>
       <h1 className="mb-6 text-3xl">{guide.title}</h1>
       <Markdown source={guide.body} />

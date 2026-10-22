@@ -106,10 +106,10 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
           variant="ghost"
           size="sm"
           onClick={() => go(stepDate(date, view, -1), view)}
-          aria-label="Previous"
+          aria-label={`Previous ${view}`}
           className="-ml-2 !h-11 !w-11 shrink-0 !rounded-full !p-0"
         >
-          <ChevronLeft size={22} />
+          <ChevronLeft size={22} aria-hidden="true" />
         </Button>
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 sm:flex-none">
           <h1 className="text-3xl leading-none sm:text-4xl">
@@ -130,10 +130,10 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
           variant="ghost"
           size="sm"
           onClick={() => go(stepDate(date, view, 1), view)}
-          aria-label="Next"
+          aria-label={`Next ${view}`}
           className="!h-11 !w-11 shrink-0 !rounded-full !p-0"
         >
-          <ChevronRight size={22} />
+          <ChevronRight size={22} aria-hidden="true" />
         </Button>
       </div>
       <div

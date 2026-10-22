@@ -39,6 +39,7 @@ function Inlines({ nodes }: { nodes: Inline[] }) {
                 className="text-burgundy underline decoration-burgundy/40 underline-offset-2 [overflow-wrap:anywhere] hover:decoration-burgundy"
               >
                 <Inlines nodes={n.c} />
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
             );
           case "todo":

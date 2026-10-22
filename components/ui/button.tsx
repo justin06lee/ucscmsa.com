@@ -23,6 +23,11 @@ const sizeClasses: Record<Size, string> = {
   lg: "px-6 py-2.5",
 };
 
+/** The button look, for links that act as buttons (an RSVP form, say). */
+export function buttonClasses(variant: Variant = "primary", size: Size = "md"): string {
+  return `inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 disabled:pointer-events-none disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]}`;
+}
+
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
   { variant = "primary", size = "md", className = "", type, ...rest },
   ref,
@@ -31,7 +36,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     <button
       ref={ref}
       type={type ?? "button"}
-      className={`inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 disabled:pointer-events-none disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`${buttonClasses(variant, size)} ${className}`}
       {...rest}
     />
   );
