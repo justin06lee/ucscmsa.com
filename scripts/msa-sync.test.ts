@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CallModel, SourceItem } from "./eventify";
-import { eventifyItems, groupPosts, loadSyncConfig, loadSyncState, saveSyncState, yagamiCall, yagamiUp, type SyncState, type SyncSummary } from "./msa-sync";
+import { eventifyItems, groupPosts, loadSyncConfig, stripRecurrence, loadSyncState, saveSyncState, yagamiCall, yagamiUp, type SyncState, type SyncSummary } from "./msa-sync";
 import type { WaMessage } from "./wa-announcements";
 
 const item = (sourceId: string, text: string): SourceItem => ({ sourceId, sourceRef: "ref", sentDate: "2026-02-01", text });
@@ -167,6 +167,49 @@ describe("yagamiCall", () => {
     const call = yagamiCall({ baseUrl: "http://127.0.0.1:8787", apiKey: "k".repeat(32), sleep: noSleep });
     await expect(call({ model: "m", system: "s", text: "t" })).rejects.toThrow(/unreachable|running/);
     expect(n).toBe(1);
+  });
+});
+
+describe("Jummah one-offs", () => {
+  const jummah = (text: string) => ({ ...item("wa:J1", text), sentDate: "2026-10-22" });
+  const opts = (reply: unknown, summary: SyncSummary) => ({ call: mockCall(() => reply), primaryModel: "haiku", verifierModel: "sonnet", summary });
+
+  it("turns a Jummah announcement into a one-off event for that Friday, never a series", async () => {
+    const summary = emptySummary();
+    const state = emptyState();
+    const ops = await eventifyItems([jummah("Jummah tomorrow at 1:30 in the Redwood Lounge")], state, opts({
+      isEvent: true, isJummah: true, title: "Jummah", confidence: 0.95, location: "Redwood Lounge",
+      date: { value: "2026-10-23", source: "text", quote: "tomorrow" },
+      startTime: { value: "13:30", source: "text", quote: "1:30" },
+    }, summary));
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({ op: "upsert", sourceId: "wa:J1", event: { title: "Jummah", date: "2026-10-23", location: "Redwood Lounge" } });
+    expect(Object.keys(ops[0].event as object)).not.toContain("recurrence");
+    expect(state.jummah).toEqual({ "2026-10-23": "wa:J1" });
+  });
+
+  it("cancels the posted Jummah when a later message says there is none", async () => {
+    const summary = emptySummary();
+    const state: SyncState = { ...emptyState(), jummah: { "2026-10-23": "wa:J1" } };
+    const ops = await eventifyItems([item("wa:J2", "No Jummah this Friday, sorry!")], state, opts({ isEvent: false, skipReason: "Jummah cancelled", cancelsJummah: "2026-10-23", confidence: 0.9 }, summary));
+    expect(ops).toEqual([{ op: "cancel", sourceId: "wa:J1" }]);
+    expect(summary.updated[0]).toMatch(/wa:J1 \(Jummah 2026-10-23 cancelled\)/);
+  });
+
+  it("skips a cancellation when no Jummah was posted for that date", async () => {
+    const summary = emptySummary();
+    const ops = await eventifyItems([item("wa:J3", "No Jummah today")], emptyState(), opts({ isEvent: false, cancelsJummah: "2026-10-30", confidence: 0.9 }, summary));
+    expect(ops).toEqual([]);
+    expect(summary.skipped[0].reason).toMatch(/no Jummah event on file/);
+  });
+
+  it("strips any recurrence before posting", () => {
+    const ops: Record<string, unknown>[] = [
+      { op: "upsert", sourceId: "wa:S", event: { title: "Jummah", date: "2026-10-23", recurrence: { freq: "weekly" } } },
+      { op: "upsert", sourceId: "wa:T", event: { title: "Halaqa", date: "2026-10-24" } },
+    ];
+    expect(stripRecurrence(ops)).toEqual(["wa:S"]);
+    expect(ops[0].event).toEqual({ title: "Jummah", date: "2026-10-23" });
   });
 });
 

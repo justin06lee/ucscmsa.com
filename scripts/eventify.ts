@@ -61,6 +61,8 @@ const modelSchema = z.object({
   hostOrg: z.string().nullable().default(null),
   links: z.array(z.object({ kind: z.string().default("other"), label: z.string().default(""), url: z.string() })).default([]),
   confidence: z.number().min(0).max(1).default(0),
+  isJummah: z.boolean().catch(false).default(false),
+  cancelsJummah: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null).default(null),
 });
 export type ModelEvent = z.infer<typeof modelSchema>;
 
@@ -83,12 +85,16 @@ export type EventDraft = {
   confidence: number;
   needsReview: boolean;
   reviewNotes: string[];
+  /** This event is Jummah (a one-off for that Friday). */
+  isJummah?: boolean;
+  /** A not-event that says Jummah is off on this Friday (YYYY-MM-DD). */
+  cancelsJummah?: string;
 };
 
 export const SYSTEM_PROMPT = `You read one announcement from the UC Santa Cruz Muslim Student Association (MSA) and decide whether it announces a single real, dated event. You may be given the announcement text and a flyer image.
 
 Return ONE JSON object and nothing else. No prose, no code fence. Fields:
-- isEvent (boolean): true only if this announces a specific event with a determinable calendar date. False for: Jummah (the weekly Friday prayer, which admins manage separately), polls, deleted messages, forms/surveys/sign-ups with no event, giveaways, recaps, board-member intros, general reminders, and anything with no date.
+- isEvent (boolean): true only if this announces a specific event with a determinable calendar date. False for: polls, deleted messages, forms/surveys/sign-ups with no event, giveaways, recaps, board-member intros, general reminders, and anything with no date.
 - skipReason (string|null): one short phrase when isEvent is false.
 - title (string|null): a short event title, no emoji.
 - date, startTime, endTime: each an object { "value", "source", "quote" }.
@@ -102,6 +108,9 @@ Return ONE JSON object and nothing else. No prose, no code fence. Fields:
 - hostOrg (string|null): the outside organization running it (e.g. SWANA, SJP, ICSC, a named Shaykh) when the MSA is not the host; null when the MSA runs it.
 - links (array of { "kind", "label", "url" }): every URL that appears in the announcement TEXT. kind is one of rsvp, form, donate, signup, map, other. label is a short human label. Copy each url exactly as written; never invent or complete a URL, and do not include a URL that is only printed on the flyer image.
 - confidence (number 0..1): your confidence that isEvent and the date are correct.
+- isJummah (boolean): true when the event is Jummah (the Friday prayer). A Jummah announcement or Jummah card IS an event: title "Jummah", that Friday's date (a card with no date means the Friday of the week it was sent: that day if sent on a Friday, else the coming Friday), and the place and time shown. Jummah is a midday prayer, so a Jummah time like "1:30" with no AM/PM is 13:30.
+- cancelsJummah (string|null): when the message says Jummah is NOT happening (cancelled, no Jummah this week), set isEvent false and give that Friday as YYYY-MM-DD; otherwise null.
+- Every event is one date. Never describe a weekly or recurring series.
 
 All times and dates are America/Los_Angeles (Santa Cruz) wall-clock. Output only the JSON object.`;
 
@@ -255,6 +264,7 @@ export async function eventify(
       ...base,
       isEvent: false,
       skipReason: primary.skipReason ?? "not an event",
+      cancelsJummah: primary.cancelsJummah ?? undefined,
       confidence: primary.confidence,
       needsReview: false,
       reviewNotes: [],
@@ -347,6 +357,7 @@ export async function eventify(
     location: primary.location ?? undefined,
     description,
     hostOrg: host,
+    isJummah: primary.isJummah,
     confidence: primary.confidence,
     needsReview,
     reviewNotes: notes,

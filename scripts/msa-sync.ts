@@ -62,6 +62,8 @@ export type SyncState = {
   processed: Record<string, { hash: string; status: string }>;
   /** --images: file path -> its size:mtime when last matched, and the event it went to (null: review). */
   images?: Record<string, { key: string; sourceId: string | null }>;
+  /** Jummah one-offs posted, by Friday (YYYY-MM-DD) -> sourceId, so a later "no Jummah" can cancel it. */
+  jummah?: Record<string, string>;
 };
 
 export function loadSyncConfig(path: string): SyncConfig {
@@ -170,6 +172,22 @@ export function yagamiCall(cfg: { baseUrl: string; apiKey: string; effort?: stri
     }
     throw new Error(`model ${req.model} failed after ${MAX_AI_RETRIES + 1} tries: ${lastErr}`);
   };
+}
+
+/**
+ * The site's Jummah is one-off events from announcements, never a series:
+ * strip any recurrence from an upsert. Returns the sourceIds it changed.
+ */
+export function stripRecurrence(ops: Record<string, unknown>[]): string[] {
+  const changed: string[] = [];
+  for (const op of ops) {
+    const event = op.event as Record<string, unknown> | undefined;
+    if (!event) continue;
+    const keys = Object.keys(event).filter((k) => /^recurr|^rrule$/i.test(k));
+    for (const k of keys) delete event[k];
+    if (keys.length) changed.push(String(op.sourceId));
+  }
+  return changed;
 }
 
 /** Exponential backoff with jitter: 1s, 2s, 4s … capped at 60s. */
@@ -306,6 +324,18 @@ export async function eventifyItems(
   for (const item of items) {
     try {
       const draft = await eventify(item, opts);
+      if (!draft.isEvent && draft.cancelsJummah) {
+        // "No Jummah this Friday": cancel the one-off we posted for that date, if any.
+        const target = state.jummah?.[draft.cancelsJummah];
+        if (target) {
+          ops.push({ op: "cancel", sourceId: target });
+          opts.summary.updated.push(`${target} (Jummah ${draft.cancelsJummah} cancelled)`);
+        } else {
+          opts.summary.skipped.push({ sourceId: item.sourceId, reason: `Jummah cancellation for ${draft.cancelsJummah}: no Jummah event on file` });
+        }
+        state.processed[item.sourceId] = { hash: itemHash(item), status: "skipped" };
+        continue;
+      }
       if (!draft.isEvent) {
         opts.summary.skipped.push({ sourceId: item.sourceId, reason: draft.skipReason ?? "not an event" });
         state.processed[item.sourceId] = { hash: itemHash(item), status: "skipped" };
@@ -317,6 +347,7 @@ export async function eventifyItems(
         continue;
       }
       ops.push(draftToOperation(draft));
+      if (draft.isJummah && draft.date) (state.jummah ??= {})[draft.date] = item.sourceId;
       const wasPosted = state.processed[item.sourceId]?.status === "posted";
       (wasPosted ? opts.summary.updated : opts.summary.created).push(item.sourceId);
       if (draft.links.length || draft.images.length) opts.summary.enrichment.push({ sourceId: item.sourceId, links: draft.links, images: draft.images });
@@ -469,6 +500,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   // --- 3. POST ---
+  for (const sid of stripRecurrence(ops)) summary.needsReview.push({ sourceId: sid, notes: ["a recurrence was stripped: msa-sync posts one-off events only"] });
   let exit = summary.errors.length ? 1 : 0;
   if (ops.length) {
     const tmp = mkdtempSync(join(tmpdir(), "msa-sync-batch-"));
