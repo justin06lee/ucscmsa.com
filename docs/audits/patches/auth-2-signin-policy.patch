@@ -13,9 +13,9 @@
    session: { strategy: "database" },
    callbacks: {
      async signIn({ user, profile }) {
--      if (!isAllowedSignIn(user.email, profile, extraAllowedEmails)) return false;
+-      if (!isAllowedSignIn(user.email, profile, EXTRA_ALLOWED_EMAILS)) return false;
 +      // Verified address in UCSC's Google Workspace (hd), not just the suffix.
-+      if (!isAllowedGoogleSignIn(profile, extraAllowedEmails)) return false;
++      if (!isAllowedGoogleSignIn(profile, EXTRA_ALLOWED_EMAILS)) return false;
        const email = (user.email ?? "").toLowerCase();
        // Normalize email to lowercase before the adapter persists it. Without this,
        // case-sensitive lookups (eq(users.email, ...)) silently fail when Google
