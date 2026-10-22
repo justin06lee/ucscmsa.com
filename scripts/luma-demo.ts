@@ -219,8 +219,8 @@ async function phone(page: Page, mark: (label: string) => void) {
   mark("month timeline");
   await scrollToShow(page, page.locator("#month-agenda-heading"), 70, 1000);
   await sleep(1600);
-  const day = page.locator(".timeline__day h3 a").nth(1);
-  const dayLink = (await day.count()) ? day : page.locator(".timeline__day h3 a").first();
+  const days = page.locator(".timeline__day h3 a:visible");
+  const dayLink = (await days.count()) > 1 ? days.nth(1) : days.first();
   mark("tap: a day");
   await tap(page, dayLink);
   await page.waitForURL(/view=day/);
@@ -242,10 +242,52 @@ async function phone(page: Page, mark: (label: string) => void) {
   }
 }
 
+/**
+ * Loads the pages the demo can reach once, unrecorded, at both sizes, so the
+ * server has the flyers resized before the takes (a cold next/image shows an
+ * empty frame for a moment).
+ */
+async function warm(browser: Browser) {
+  for (const [width, height, phone] of [[1280, 800, false], [390, 844, true]] as const) {
+    const context = await browser.newContext({
+      viewport: { width, height },
+      deviceScaleFactor: 2,
+      isMobile: phone,
+      hasTouch: phone,
+      timezoneId: "America/Los_Angeles",
+    });
+    const page = await context.newPage();
+    await page.clock.setFixedTime(new Date(AT));
+    const seen = new Set<string>();
+    // The landing, this month with its days that have events, and Niya Summit's day.
+    const queue = ["/", "/calendar", "/calendar?view=day&date=2026-08-29"];
+    while (queue.length) {
+      const url = queue.shift()!;
+      if (seen.has(url)) continue;
+      seen.add(url);
+      await page.goto(BASE + url);
+      await settle(page);
+      for (let y = 0; y < (await page.evaluate(() => document.body.scrollHeight)); y += height) {
+        await page.evaluate((top) => window.scrollTo(0, top), y);
+        await sleep(300);
+      }
+      await page
+        .waitForFunction(() => [...document.images].every((i) => i.complete), null, { timeout: 20000 })
+        .catch(() => console.warn(`warning: images still loading on ${url}`));
+      if (url.startsWith("/calendar/events/")) continue;
+      const links = page.locator(url === "/calendar" ? "main a[href^='/calendar/events/'], .timeline__day h3 a" : "main a[href^='/calendar/events/']");
+      queue.push(...(await links.evaluateAll((as) => as.map((a) => a.getAttribute("href")!))));
+    }
+    console.log(`warmed ${seen.size} pages at ${width}px`);
+    await context.close();
+  }
+}
+
 async function main() {
   mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true });
   const tmp = mkdtempSync(path.join(os.tmpdir(), "ucscmsa-luma-"));
   const browser = await chromium.launch();
+  await warm(browser);
   const d = await clip(browser, tmp, { width: 1280, height: 800 }, false, desktop);
   const p = await clip(browser, tmp, { width: 390, height: 844 }, true, phone);
   await browser.close();
