@@ -204,15 +204,17 @@ body {
   border-bottom-right-radius: 0;
 }
 
-/* Events with no time on this day (date-only), above the hour grid. */
-.day-grid__untimed {
+/* Rows above the hour grid: events with no time on this day (date-only), and
+   long ones (LONG_MIN in day-view.tsx), which as blocks would cover the
+   prayer times. */
+.day-grid__row {
   display: grid;
   grid-template-columns: 72px 1fr;
   padding: 8px 0;
   border-top: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
 }
 
-.day-grid__untimed-label {
+.day-grid__row-label {
   padding: 14px 12px 0 0;
   text-align: right;
   color: var(--color-dim);
@@ -220,7 +222,7 @@ body {
   line-height: 1.1;
 }
 
-.day-grid__untimed-event {
+.day-grid__row-event {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -237,7 +239,7 @@ body {
   transition: border-color 120ms ease;
 }
 
-.day-grid__untimed-event:hover {
+.day-grid__row-event:hover {
   border-color: var(--color-burgundy);
 }
 

@@ -145,6 +145,48 @@ describe("DayView with untimed events", () => {
   });
 });
 
+describe("DayView with long events", () => {
+  const day = [
+    occ("niya", "Niya Summit", "2026-10-23", "09:00", "20:00"),
+    occ("jummah", "Jummah Prayer", "2026-10-23", "13:15", "14:00"),
+    untimed("henna", "Henna Night", "2026-10-23"),
+  ];
+
+  it("lists a long event in a row above the grid, so short ones keep the full width", () => {
+    const { container } = render(<DayView ymd="2026-10-23" occurrences={day} prayer={OCT_23} />);
+    const long = container.querySelector(".day-grid__long") as HTMLElement;
+    expect(within(long).getByText("Niya Summit")).toBeInTheDocument();
+    expect(within(long).getByText("9:00 AM – 8:00 PM")).toBeInTheDocument();
+    const grid = container.querySelector(".day-grid") as HTMLElement;
+    expect(within(grid).queryByText("Niya Summit")).toBeNull();
+    expect(within(grid).getByText("Jummah Prayer").closest("a")?.dataset.lane).toBe("1/1");
+    // The date-only event keeps its own row, and the grid still runs from Fajr.
+    expect(within(container.querySelector(".day-grid__untimed") as HTMLElement).getByText("Henna Night")).toBeInTheDocument();
+    expect(grid.querySelector(".day-grid__hour")?.textContent).toBe("6 AM");
+  });
+
+  it("moves events of four hours or more; shorter ones stay blocks", () => {
+    const { container } = render(
+      <DayView
+        ymd="2026-10-23"
+        occurrences={[
+          occ("wash", "Charity Car Wash", "2026-10-23", "10:00", "14:00"),
+          occ("study", "Study Night", "2026-10-23", "19:00", "22:59"),
+        ]}
+        prayer={OCT_23}
+      />
+    );
+    expect(within(container.querySelector(".day-grid__long") as HTMLElement).getByText("Charity Car Wash")).toBeInTheDocument();
+    expect(within(container.querySelector(".day-grid") as HTMLElement).getByText("Study Night")).toBeInTheDocument();
+    expect(container.querySelector(".day-grid__empty")).toBeNull();
+  });
+
+  it("keeps a long event in the phone list at its start", () => {
+    const order = buildAgenda("2026-10-23", day, OCT_23).map((i) => (i.kind === "event" ? i.occurrence.title : i.kind === "prayer" ? i.label : "now"));
+    expect(order.slice(0, 5)).toEqual(["Henna Night", "Fajr", "Sunrise", "Niya Summit", "Dhuhr"]);
+  });
+});
+
 describe("DayAgenda (phones)", () => {
   const day = [
     occ("hike", "Night Hike", "2026-10-23", "20:30", "22:00"),
