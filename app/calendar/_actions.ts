@@ -7,6 +7,7 @@ import { db } from "@/lib/db/client";
 import { eventRsvps } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth";
 import { findOccurrence } from "@/lib/db/queries";
+import { fail } from "@/lib/action-result";
 
 const rsvpSchema = z.object({
   eventId: z.string().max(64),
@@ -17,7 +18,7 @@ const rsvpSchema = z.object({
 export async function rsvp(formData: FormData) {
   const session = await getSession();
   if (!session?.user?.id) {
-    return { ok: false as const, error: "login_required" };
+    return fail("login_required");
   }
   const parsed = rsvpSchema.safeParse({
     eventId: formData.get("eventId"),
@@ -25,7 +26,7 @@ export async function rsvp(formData: FormData) {
     status: formData.get("status"),
   });
   if (!parsed.success) {
-    return { ok: false as const, error: "invalid_input" };
+    return fail("invalid_input");
   }
   const { eventId, occurrenceStart, status } = parsed.data;
   const start = new Date(occurrenceStart);
@@ -34,11 +35,11 @@ export async function rsvp(formData: FormData) {
   // be sent, adding junk rows or failing on the foreign key.
   const occurrence = await findOccurrence(eventId, start);
   if (!occurrence) {
-    return { ok: false as const, error: "invalid_input" };
+    return fail("invalid_input");
   }
   // Open until the occurrence ends (a date-only one: the end of its last day).
   if (occurrence.occurrenceEnd.getTime() <= Date.now()) {
-    return { ok: false as const, error: "event_ended" };
+    return fail("event_ended");
   }
 
   await db
@@ -66,14 +67,14 @@ const clearSchema = z.object({
 export async function clearRsvp(formData: FormData) {
   const session = await getSession();
   if (!session?.user?.id) {
-    return { ok: false as const, error: "login_required" };
+    return fail("login_required");
   }
   const parsed = clearSchema.safeParse({
     eventId: formData.get("eventId"),
     occurrenceStart: formData.get("occurrenceStart"),
   });
   if (!parsed.success) {
-    return { ok: false as const, error: "invalid_input" };
+    return fail("invalid_input");
   }
   const { eventId, occurrenceStart } = parsed.data;
   const start = new Date(occurrenceStart);

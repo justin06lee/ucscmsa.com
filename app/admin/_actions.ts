@@ -25,6 +25,7 @@ import {
 import { getStorage } from "@/lib/storage";
 import { isPlanTag } from "@/lib/planning";
 import { hasPlan, planFromForm, syncPlan } from "./plan/_plan";
+import { fail, withSentence, type ActionFailure } from "@/lib/action-result";
 
 function resolveDates(p: {
   startDate: string;
@@ -183,8 +184,9 @@ export async function updateEvent(id: string, fd: FormData) {
 
 export async function deleteEvent(id: string) {
   await requireAdminId();
+  if (typeof id !== "string" || !id) return fail("invalid");
   // Imported events leave a tombstone so the importer doesn't re-create them.
-  await deleteEventRecordingImport(db, id);
+  if (!(await deleteEventRecordingImport(db, id))) return fail("not_found", "That event no longer exists.");
   const storage = getStorage();
   if (storage) await cleanUp(`images of deleted event ${id}`, () => storage.deletePrefix(eventImagesPrefix(id)));
   revalidateEventPages(id);
@@ -197,7 +199,7 @@ export async function deleteEvent(id: string) {
 export async function setEventCancelled(id: string, cancelled: boolean) {
   await requireAdminId();
   if (typeof id !== "string" || !id || typeof cancelled !== "boolean") {
-    return { ok: false as const, error: "That request wasn't valid." };
+    return fail("invalid");
   }
   const now = new Date();
   const [row] = await db
@@ -205,7 +207,7 @@ export async function setEventCancelled(id: string, cancelled: boolean) {
     .set({ cancelledAt: cancelled ? now : null, updatedAt: now, adminEditedAt: now })
     .where(eq(events.id, id))
     .returning({ cancelledAt: events.cancelledAt });
-  if (!row) return { ok: false as const, error: "That event no longer exists." };
+  if (!row) return fail("not_found", "That event no longer exists.");
   revalidateEventPages(id);
   return { ok: true as const, cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null };
 }
@@ -215,7 +217,7 @@ export async function setEventCancelled(id: string, cancelled: boolean) {
 // so the importer won't undo it (docs/import.md). Uploads must fit the
 // server-action body limit in next.config.ts.
 
-type ImagesResult = { ok: true; images: EventImage[] } | { ok: false; error: string };
+type ImagesResult = { ok: true; images: EventImage[] } | ActionFailure;
 
 async function eventImages(id: string): Promise<EventImage[] | null> {
   const [row] = await db.select({ images: events.images }).from(events).where(eq(events.id, id)).limit(1);
@@ -243,17 +245,17 @@ async function saveEventImages(id: string, current: EventImage[], next: EventIma
 export async function uploadEventImages(id: string, fd: FormData): Promise<ImagesResult> {
   await requireAdminId();
   const storage = getStorage();
-  if (!storage) return { ok: false, error: "Image storage isn't set up" };
+  if (!storage) return fail("no_storage", "Image storage isn't set up");
   const files = fd.getAll("image").filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length === 0) return { ok: false, error: "Choose an image" };
+  if (files.length === 0) return fail("invalid", "Choose an image");
   const replaceId = String(fd.get("replaceId") ?? "");
   const current = await eventImages(id);
-  if (!current) return { ok: false, error: "Event not found" };
+  if (!current) return fail("not_found", "That event no longer exists.");
   const at = replaceId ? current.findIndex((img) => img.id === replaceId) : current.length;
-  if (at < 0) return { ok: false, error: "That image was already removed" };
+  if (at < 0) return fail("image_removed");
   const kept = current.filter((img) => img.id !== replaceId);
   if (kept.length + files.length > EVENT_IMAGES_MAX) {
-    return { ok: false, error: `An event can have at most ${EVENT_IMAGES_MAX} images` };
+    return fail("too_many", `An event can have at most ${EVENT_IMAGES_MAX} images`);
   }
 
   const added: EventImage[] = [];
@@ -262,7 +264,7 @@ export async function uploadEventImages(id: string, fd: FormData): Promise<Image
     try {
       processed = await processEventImage(Buffer.from(await file.arrayBuffer()));
     } catch (err) {
-      if (err instanceof ImageRejectedError) return { ok: false, error: `${file.name}: ${err.message}` };
+      if (err instanceof ImageRejectedError) return fail("image_rejected", `${file.name}: ${err.message}`);
       throw err;
     }
     if ([...kept, ...added].some((img) => img.id === processed.id)) continue;
@@ -286,13 +288,13 @@ export async function setEventImages(
 ): Promise<ImagesResult> {
   await requireAdminId();
   const parsed = imageOrderSchema.safeParse(order);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
+  if (!parsed.success) return fail("invalid", parsed.error.issues[0]?.message);
   const current = await eventImages(id);
-  if (!current) return { ok: false, error: "Event not found" };
+  if (!current) return fail("not_found", "That event no longer exists.");
   const next: EventImage[] = [];
   for (const o of parsed.data) {
     const img = current.find((c) => c.id === o.id);
-    if (!img) return { ok: false, error: "That image was already removed" };
+    if (!img) return fail("image_removed");
     if (next.some((n) => n.id === o.id)) continue;
     next.push(o.alt === undefined ? img : { ...img, alt: o.alt || undefined });
   }
@@ -305,7 +307,7 @@ export async function setEventImages(
 export async function removeEventImage(id: string, imageId: string): Promise<ImagesResult> {
   await requireAdminId();
   const current = await eventImages(id);
-  if (!current) return { ok: false, error: "Event not found" };
+  if (!current) return fail("not_found", "That event no longer exists.");
   if (!current.some((img) => img.id === imageId)) return { ok: true, images: current };
   return saveEventImages(id, current, current.filter((img) => img.id !== imageId));
 }
@@ -327,13 +329,15 @@ export async function nominateAdmin(fd: FormData) {
 
 export async function approveNomination(nominationId: string) {
   const approverId = await requireAdminId();
+  if (typeof nominationId !== "string" || !nominationId) return fail("invalid");
   const result = await approveNominationTx(db, approverId, nominationId);
   if (result.ok && result.applied) {
     revalidatePath("/admin");
     revalidatePath("/admin/admins");
   }
   revalidatePath("/admin/nominations");
-  return result;
+  if (!result.ok && result.error === "not_found") return fail("not_found", "That nomination no longer exists.");
+  return withSentence(result);
 }
 
 export async function cancelNomination(nominationId: string) {

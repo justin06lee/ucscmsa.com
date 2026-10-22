@@ -244,10 +244,11 @@ async function runImport(db: DB, request: ImportRequest, now: Date): Promise<Imp
  * Deletes an event; for an imported one, leaves a tombstone so the importer
  * doesn't silently bring it back. Used by the admin delete action.
  */
-export async function deleteEventRecordingImport(db: DB, id: string): Promise<void> {
-  await db.transaction(async (tx) => {
+/** Whether there was such an event to delete. */
+export async function deleteEventRecordingImport(db: DB, id: string): Promise<boolean> {
+  return db.transaction(async (tx) => {
     const [row] = await tx.select().from(events).where(eq(events.id, id)).limit(1);
-    if (!row) return;
+    if (!row) return false;
     if (row.source !== "manual" && row.sourceId) {
       await tx.insert(eventImportTombstones)
         .values({ source: row.source, sourceId: row.sourceId, eventId: row.id })
@@ -257,5 +258,6 @@ export async function deleteEventRecordingImport(db: DB, id: string): Promise<vo
         });
     }
     await tx.delete(events).where(eq(events.id, id));
+    return true;
   });
 }
