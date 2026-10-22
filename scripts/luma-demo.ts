@@ -163,12 +163,18 @@ async function desktop(page: Page, mark: (label: string) => void) {
     await settle(page);
     await sleep(700);
   }
-  // The month grid's links; the phone list under it is hidden at this width.
+  // The grid's cells open their day; the phone list under it is hidden here.
+  const cells = page.locator("main a[href*='view=day']:visible");
+  const niya = cells.filter({ hasText: /Niya Summit/ }).first();
+  mark("click: a day with a passed event");
+  await click(page, (await niya.count()) ? niya : cells.filter({ hasText: /[A-Za-z]{3}/ }).first());
+  await page.waitForURL(/view=day/);
+  await settle(page);
+  await sleep(1300);
   const links = page.locator("main a[href^='/calendar/events/']:visible");
   const past = links.filter({ hasText: /Niya Summit/ }).first();
-  const target = (await past.count()) ? past : links.first();
   mark("click: a passed event");
-  await click(page, target);
+  await click(page, (await past.count()) ? past : links.first());
   await page.waitForURL(/\/calendar\/events\//);
   await settle(page);
   mark("passed event: no RSVP");
