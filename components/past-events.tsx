@@ -1,13 +1,12 @@
-import Link from "next/link";
 import { getPastOccurrences } from "@/lib/db/queries";
-import { coverThumb } from "@/lib/event-media";
 import { formatLocal, toLocalYmd } from "@/lib/time";
-import { FlyerThumb } from "@/components/flyer-thumb";
+import { EventListCard } from "@/components/event-list-card";
 
 /**
- * The most recent past one-off events, newest first: a compact list under the
- * landing's Upcoming, quieter than the Upcoming cards so it never competes
- * with them. Weekly series (Jummah, halaqas) are left out.
+ * The most recent past one-off events, newest first: list cards under the
+ * landing's Upcoming (date, title, place, a small cover), two across from sm,
+ * quieter than the Upcoming cards so they never compete with them. Weekly
+ * series are left out.
  */
 export async function PastEvents({ limit = 4 }: { limit?: number }) {
   let items;
@@ -23,22 +22,16 @@ export async function PastEvents({ limit = 4 }: { limit?: number }) {
 
   const thisYear = toLocalYmd(new Date()).slice(0, 4);
   return (
-    <ol className="divide-y divide-ink/10 rounded-xl border border-ink/10">
+    <ol className="grid gap-3 sm:grid-cols-2">
       {items.map((o) => {
         const sameYear = toLocalYmd(o.occurrenceStart).slice(0, 4) === thisYear;
-        const thumb = coverThumb(o.cover, o.title);
         return (
-          <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}>
-            <Link
+          <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`} className="min-w-0">
+            <EventListCard
+              occurrence={o}
+              when={formatLocal(o.occurrenceStart, sameYear ? "EEE, MMM d" : "MMM d, yyyy")}
               href={`/calendar/events/${o.eventId}`}
-              className="flex min-h-11 items-baseline gap-4 px-4 py-2.5 transition-colors hover:bg-ink/[0.03]"
-            >
-              <span className="w-24 shrink-0 text-xs tabular-nums text-ink/70">
-                {formatLocal(o.occurrenceStart, sameYear ? "EEE, MMM d" : "MMM d, yyyy")}
-              </span>
-              <span className="min-w-0 font-medium leading-snug text-ink/85">{o.title}</span>
-              {thumb ? <FlyerThumb image={thumb} width={32} className="ml-auto self-center" /> : null}
-            </Link>
+            />
           </li>
         );
       })}

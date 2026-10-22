@@ -13,21 +13,21 @@ const CLOSE_DRAG = 90; // px pulled down that closes the viewer
  * before it loads), any others as thumbnails below. Each opens the
  * full-screen viewer.
  */
-export function FlyerGallery({ title, flyers }: { title: string; flyers: Flyer[] }) {
+export function FlyerGallery({ title, flyers, className = "" }: { title: string; flyers: Flyer[]; className?: string }) {
   const [open, setOpen] = useState<number | null>(null);
   if (flyers.length === 0) return null;
   const hero = flyers[0].page;
   return (
-    <div className="mt-6">
+    <div className={className}>
       <button
         type="button"
         onClick={() => setOpen(0)}
-        className="group mx-auto block cursor-zoom-in overflow-hidden rounded-lg border border-ink/10 bg-ink/[0.04]"
+        className="group mx-auto block cursor-zoom-in overflow-hidden rounded-2xl border border-ink/10 bg-ink/[0.04] shadow-sm"
         // Full column width, but no taller than most of the screen.
         style={{
           aspectRatio: `${hero.width} / ${hero.height}`,
           width: "100%",
-          maxWidth: `min(100%, calc(min(70svh, 560px) * ${hero.width / hero.height}))`,
+          maxWidth: `min(100%, calc(min(70svh, 680px) * ${hero.width / hero.height}))`,
         }}
       >
         <span className="sr-only">Open full screen: </span>
@@ -50,7 +50,7 @@ export function FlyerGallery({ title, flyers }: { title: string; flyers: Flyer[]
                 type="button"
                 onClick={() => setOpen(i)}
                 aria-label={`Open flyer ${i + 1} of ${flyers.length} full screen`}
-                className="block overflow-hidden rounded-md border border-ink/15 bg-ink/[0.04] transition-colors hover:border-ink/40"
+                className="block overflow-hidden rounded-lg border border-ink/15 bg-ink/[0.04] transition-colors hover:border-ink/40"
                 // A touch target even for a wide flyer (contained, not cropped).
                 style={{ width: 56, height: Math.round(Math.min(Math.max(56 * (f.card.height / f.card.width), 44), 75)) }}
               >
@@ -266,7 +266,7 @@ export function FlyerViewer({
                 aria-label="Previous flyer"
                 className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-paper hover:bg-black/60 disabled:opacity-0"
               >
-                <ChevronLeft size={24} />
+                <ChevronLeft size={24} aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -275,7 +275,7 @@ export function FlyerViewer({
                 aria-label="Next flyer"
                 className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-paper hover:bg-black/60 disabled:opacity-0"
               >
-                <ChevronRight size={24} />
+                <ChevronRight size={24} aria-hidden="true" />
               </button>
             </>
           ) : null}

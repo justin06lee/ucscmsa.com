@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { timeOnDay } from "@/lib/event-time";
-import { coverThumb } from "@/lib/event-media";
-import { FlyerThumb } from "@/components/flyer-thumb";
+import { EventListCard } from "@/components/event-list-card";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 
 /**
@@ -37,37 +35,28 @@ export function MonthAgenda({
   const rest = isCurrentMonth ? days.filter((d) => d >= todayYmd) : days;
   const earlierCount = earlier.reduce((n, d) => n + byDay.get(d)!.length, 0);
 
+  // After Luma: each day a stop on a dashed line down the side, its events as
+  // cards beside it.
   const dayList = (list: string[]) => (
-    <ol className="flex flex-col gap-3">
+    <ol className="timeline">
       {list.map((day) => (
-        <li key={day}>
-          <h3 className="text-sm font-medium">
+        <li key={day} className="timeline__day" data-today={day === todayYmd ? "" : undefined}>
+          <h3 className="text-sm">
             <Link
               href={`/calendar?view=day&date=${day}`}
               className="inline-flex min-h-11 items-center gap-2 hover:text-burgundy"
             >
-              {formatLocal(parseHMInLocal(day, "12:00"), "EEEE, MMMM d")}
+              <span className="font-medium">{formatLocal(parseHMInLocal(day, "12:00"), "MMM d")}</span>
+              <span className="text-ink/70">{formatLocal(parseHMInLocal(day, "12:00"), "EEEE")}</span>
               {day === todayYmd ? (
                 <span className="rounded-full bg-burgundy px-2 py-0.5 text-xs text-paper">Today</span>
               ) : null}
             </Link>
           </h3>
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-2.5">
             {byDay.get(day)!.map((o) => (
               <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}>
-                <Link
-                  href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
-                  className="flex min-h-11 items-baseline gap-3 rounded-lg border border-burgundy/20 bg-burgundy/[0.06] px-3 py-2 transition-colors hover:border-burgundy"
-                >
-                  <span className="w-24 shrink-0 text-xs tabular-nums text-ink/70">{timeOnDay(o, day)}</span>
-                  <span className="min-w-0">
-                    <span className="block font-medium leading-snug">{o.title}</span>
-                    {o.location ? <span className="block text-xs text-ink/70">{o.location}</span> : null}
-                  </span>
-                  {o.cover ? (
-                    <FlyerThumb image={coverThumb(o.cover, o.title)!} width={36} className="ml-auto self-center" />
-                  ) : null}
-                </Link>
+                <EventListCard occurrence={o} when={timeOnDay(o, day)} />
               </li>
             ))}
           </ul>
@@ -88,13 +77,16 @@ export function MonthAgenda({
           {earlier.length > 0 ? (
             <details className="month-agenda__earlier group mb-3 rounded-lg border border-ink/10">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-                <ChevronRight size={16} aria-hidden="true" className="shrink-0 transition-transform group-open:rotate-90" />
                 Earlier this month
-                <span className="ml-auto text-xs font-normal tabular-nums text-ink/70">
+                <span className="text-xs font-normal tabular-nums text-ink/70">
                   {earlierCount} event{earlierCount === 1 ? "" : "s"}
                 </span>
+                <span aria-hidden="true" className="ml-auto text-xs font-normal text-burgundy underline underline-offset-2">
+                  <span className="group-open:hidden">Show</span>
+                  <span className="hidden group-open:inline">Hide</span>
+                </span>
               </summary>
-              <div className="px-3 pb-3">{dayList(earlier)}</div>
+              <div className="px-3 pt-1 pb-3">{dayList(earlier)}</div>
             </details>
           ) : null}
           {rest.length > 0 ? (

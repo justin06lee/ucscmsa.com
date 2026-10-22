@@ -47,7 +47,7 @@ export default function Home() {
             href="/calendar"
             className="-my-3 inline-flex min-h-11 items-center text-sm text-dim hover:text-ink transition-colors"
           >
-            See all →
+            See all events
           </Link>
         </div>
         <UpcomingEvents limit={3} className="stagger" />
@@ -58,7 +58,7 @@ export default function Home() {
       >
         See the full calendar
       </Link>
-      <section aria-labelledby="past-events-heading" className="w-full max-w-2xl">
+      <section aria-labelledby="past-events-heading" className="w-full">
         <div className="mb-4 flex items-baseline justify-between gap-4">
           <h2 id="past-events-heading" className="text-xl text-ink/85">
             Past events
@@ -67,7 +67,7 @@ export default function Home() {
             href="/calendar?view=year"
             className="-my-3 inline-flex min-h-11 items-center text-sm text-dim hover:text-ink transition-colors"
           >
-            Browse the calendar →
+            Browse the calendar
           </Link>
         </div>
         <PastEvents limit={4} />

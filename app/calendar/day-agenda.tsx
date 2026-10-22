@@ -1,9 +1,7 @@
-import Link from "next/link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import type { PrayerTimes } from "@/lib/aladhan";
 import { timeOnDay, untimedOnDay } from "@/lib/event-time";
-import { coverThumb } from "@/lib/event-media";
-import { FlyerThumb } from "@/components/flyer-thumb";
+import { EventListCard } from "@/components/event-list-card";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 
 export const PRAYER_MARKERS = [
@@ -101,22 +99,9 @@ export function DayAgenda({
               </li>
             );
           }
-          const o = item.occurrence;
           return (
             <li key={item.key} className="day-agenda__item">
-              <Link
-                href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
-                className="day-agenda__event"
-              >
-                <span className="flex items-start gap-3">
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-xs tabular-nums text-ink/70">{item.when}</span>
-                    <span className="font-medium leading-snug">{o.title}</span>
-                    {o.location ? <span className="text-sm text-ink/75">{o.location}</span> : null}
-                  </span>
-                  {o.cover ? <FlyerThumb image={coverThumb(o.cover, o.title)!} width={44} /> : null}
-                </span>
-              </Link>
+              <EventListCard occurrence={item.occurrence} when={item.when} />
             </li>
           );
         })}
