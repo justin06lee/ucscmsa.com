@@ -7,6 +7,7 @@ import { recurrenceSummary } from "@/lib/seo";
 import { formatLocal, toLocalYmd } from "@/lib/time";
 import { importLabel } from "@/components/admin/event-origin";
 
+
 /** One line of the admin Events page: an event, a series once. Plain data for the client list. */
 export type AdminEventRow = {
   id: string;

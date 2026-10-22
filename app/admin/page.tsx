@@ -4,7 +4,8 @@ import { events } from "@/lib/db/schema";
 import { toLocalYmd } from "@/lib/time";
 import { requireAdmin } from "@/lib/auth";
 import { adminEventRows } from "./_event-rows";
-import { EventsList, FILTERS, type Filter } from "./events-list";
+import { FILTERS, type Filter } from "./_event-filters";
+import { EventsList } from "./events-list";
 
 export default async function AdminEvents({
   searchParams,

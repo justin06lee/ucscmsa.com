@@ -4,20 +4,13 @@ import Link from "next/link";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
 import { deleteEvent, setEventCancelled } from "@/app/admin/_actions";
 import type { AdminEventRow } from "@/app/admin/_event-rows";
+import { FILTERS, type Filter, type Tab } from "@/app/admin/_event-filters";
+import { LinkPending } from "@/components/link-pending";
 import { EventCover } from "@/components/event-cover";
 import { DraftBadge } from "@/components/board/draft-badge";
 import { attempt } from "@/lib/attempt";
 
-export const FILTERS = {
-  all: "All",
-  drafts: "Drafts",
-  cancelled: "Cancelled",
-  "no-flyer": "No flyer",
-  imported: "Imported",
-  manual: "Made here",
-} as const;
-export type Filter = keyof typeof FILTERS;
-export type Tab = "upcoming" | "past";
+
 
 const matches: Record<Filter, (r: AdminEventRow) => boolean> = {
   all: () => true,
@@ -213,12 +206,14 @@ function EventRow({
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1 sm:pl-[3.75rem]">
-        <Link href={`/admin/events/${r.id}/edit`} aria-label={`Edit ${r.title}`} className={`${action} bg-ink text-paper hover:bg-burgundy`}>
+        <Link href={`/admin/events/${r.id}/edit`} prefetch={false} aria-label={`Edit ${r.title}`} className={`${action} relative bg-ink text-paper hover:bg-burgundy`}>
           Edit
+          <LinkPending />
         </Link>
         {r.draft ? null : (
-          <Link href={`/calendar/events/${r.id}`} aria-label={`View ${r.title} on the site`} className={`${action} text-ink/75 hover:bg-ink/5 hover:text-ink`}>
+          <Link href={`/calendar/events/${r.id}`} prefetch={false} aria-label={`View ${r.title} on the site`} className={`${action} relative text-ink/75 hover:bg-ink/5 hover:text-ink`}>
             View
+            <LinkPending />
           </Link>
         )}
         <button
