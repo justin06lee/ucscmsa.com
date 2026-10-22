@@ -14,6 +14,8 @@ const PUBLIC_NAV: NavItem[] = [{ href: "/calendar", label: "Calendar" }];
 
 const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Events" },
+  { href: "/admin/plan", label: "Planning" },
+  { href: "/admin/playbook", label: "Playbook" },
   { href: "/admin/admins", label: "Admins" },
   { href: "/admin/nominations", label: "Nominations" },
   { href: "/calendar", label: "Calendar" },
@@ -41,7 +43,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
   const items = variant === "admin" ? ADMIN_NAV : PUBLIC_NAV;
   const activeHref = pickActiveHref(pathname, items);
   // One public link fits beside the logo at any width; only the admin nav
-  // collapses into a menu on phones.
+  // collapses into a menu, below md: its six links crowd the logo at 640px.
   const collapsible = items.length > 1;
   const [open, setOpen] = useState(false);
   // Reset on route change via the React 19 "compare during render" pattern,
@@ -77,7 +79,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
 
         <nav
           aria-label="Primary"
-          className={`items-center gap-3 text-sm text-ink/70 ${collapsible ? "hidden sm:flex" : "flex"}`}
+          className={`items-center gap-3 text-sm text-ink/70 ${collapsible ? "hidden md:flex" : "flex"}`}
         >
           {items.map((item) => {
             const isActive = item.href === activeHref;
@@ -105,7 +107,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
             aria-expanded={open}
             aria-controls="site-header-mobile-menu"
             onClick={() => setOpen((v) => !v)}
-            className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-ink/70 transition-colors hover:text-ink sm:hidden"
+            className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-ink/70 transition-colors hover:text-ink md:hidden"
           >
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -116,7 +118,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
         <nav
           id="site-header-mobile-menu"
           aria-label="Primary"
-          className="border-t border-ink/10 bg-paper/95 backdrop-blur sm:hidden"
+          className="border-t border-ink/10 bg-paper/95 backdrop-blur md:hidden"
         >
           <ul className="mx-auto flex max-w-6xl flex-col px-6 py-2 text-base">
             {items.map((item) => {

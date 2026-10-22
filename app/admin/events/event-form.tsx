@@ -19,6 +19,7 @@ import {
   type EventLink,
   type LinkKind,
 } from "@/lib/event-rules";
+import { PlanningFields } from "@/components/board/planning-fields";
 
 type Initial = {
   id?: string;
@@ -34,11 +35,13 @@ type Initial = {
   recurrenceInterval?: number;
   recurrenceUntil?: string;
   links?: EventLink[];
+  draft?: boolean;
+  tags?: string[];
 };
 
 type Props = {
   initial?: Initial;
-  onSubmit: (fd: FormData) => Promise<{ ok: boolean; error?: string }>;
+  onSubmit: (fd: FormData) => Promise<{ ok: boolean; error?: string; id?: string; planned?: boolean }>;
   submitLabel: string;
 };
 
@@ -192,7 +195,8 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
         setErr(null);
         start(async () => {
           const result = await onSubmit(fd);
-          if (result.ok) router.push("/admin");
+          // A planned event opens on its checklist.
+          if (result.ok) router.push(result.planned && result.id ? `/admin/plan/${result.id}` : "/admin");
           else setErr(result.error ?? "Unknown error");
         });
       }}
@@ -286,6 +290,7 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
         )}
       </div>
       <LinksField initial={initial.links ?? []} />
+      <PlanningFields draft={initial.draft} tags={initial.tags} recurring={isRecurring} />
       {err && (
         <div role="alert" className="text-sm text-burgundy">
           {err}

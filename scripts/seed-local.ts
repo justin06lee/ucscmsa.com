@@ -11,12 +11,13 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { createHash, randomBytes } from "node:crypto";
-import { eq } from "drizzle-orm";
+import * as schema from "../lib/db/schema";
 import {
   admins,
   adminApprovals,
   adminNominations,
   eventCancellations,
+  eventTasks,
   events,
   sessions,
   users,
@@ -24,6 +25,9 @@ import {
 import { eventInstants } from "../lib/event-rules";
 import type { EventImage } from "../lib/event-image";
 import { parseHMInLocal, toLocalYmd } from "../lib/time";
+import { addDaysYmd } from "../lib/planning";
+import { assignTask, planFromForm, setTaskDone } from "../app/admin/plan/_plan";
+import { and, eq } from "drizzle-orm";
 
 const url = process.argv[2];
 if (!url || !url.startsWith("file:")) {
@@ -74,10 +78,12 @@ const DAY = 24 * 60 * 60 * 1000;
 
 async function main() {
   const client = createClient({ url });
-  const db = drizzle(client);
+  const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: "./drizzle" });
 
   for (const t of [
+    "event_tasks",
+    "event_tags",
     "event_rsvps",
     "event_cancellations",
     "events",
@@ -420,6 +426,35 @@ async function main() {
     { eventId: "ev-jummah", occurrenceDate: "2026-11-27" },
   ]);
 
+  // Board planning (/admin/plan): a draft being planned and a published event
+  // with its checklist. The draft's date follows today, so its timeline always
+  // has overdue, done and upcoming tasks around the today marker.
+  const today = toLocalYmd(new Date());
+  const bonfireDay = addDaysYmd(today, 12);
+  await db.insert(events).values({
+    id: "ev-bonfire",
+    title: "Fall Bonfire Night",
+    description: "S’mores, hot cider and a short reminder after Maghrib.",
+    location: "Porter Meadow",
+    startTime: at(bonfireDay, "18:30"),
+    endTime: at(bonfireDay, "21:00"),
+    createdByAdminId: 1,
+    draft: true,
+  });
+  await planFromForm(db, "ev-bonfire", { tags: ["room", "food", "funding"], recurring: false });
+  await planFromForm(db, "ev-panel", { tags: ["big", "room"], recurring: false });
+  const taskId = async (eventId: string, templateId: string) =>
+    (
+      await db
+        .select({ id: eventTasks.id })
+        .from(eventTasks)
+        .where(and(eq(eventTasks.eventId, eventId), eq(eventTasks.templateId, templateId)))
+    )[0]?.id;
+  const bonfireRoom = await taskId("ev-bonfire", "room");
+  if (bonfireRoom) await setTaskDone(db, bonfireRoom, "u-omar", true);
+  const bonfireFood = await taskId("ev-bonfire", "purchase");
+  if (bonfireFood) await assignTask(db, bonfireFood, "u-maryam");
+
   const adminToken = randomBytes(32).toString("hex");
   const memberToken = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 30 * DAY);
@@ -434,6 +469,7 @@ async function main() {
       memberToken,
       singleEventId: "ev-gbm",
       recurringEventId: "ev-jummah",
+      plannedEventId: "ev-bonfire",
     }),
   );
   client.close();

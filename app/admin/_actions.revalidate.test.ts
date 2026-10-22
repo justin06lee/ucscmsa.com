@@ -43,7 +43,8 @@ describe("event actions", () => {
     h.revalidatePath.mockClear();
     expect((await updateEvent(id, eventForm("Jummah prayer"))).ok).toBe(true);
     expect(h.revalidatePath).toHaveBeenCalledWith("/");
-    expect(h.revalidatePath).toHaveBeenCalledWith(`/calendar/events/${id}`);
+    // "layout": the event page and its share image.
+    expect(h.revalidatePath).toHaveBeenCalledWith(`/calendar/events/${id}`, "layout");
 
     h.revalidatePath.mockClear();
     await deleteEvent(id);

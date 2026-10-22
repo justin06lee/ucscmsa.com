@@ -6,6 +6,7 @@ import { eventInstants, localInstant } from "@/lib/event-rules";
 import { expandEvents } from "@/lib/rrule-lite";
 import { endOfLocalDayUtc, startOfLocalDayUtc, toLocalYmd } from "@/lib/time";
 import type { ImportEvent, ImportOperation, ImportRequest } from "./schema";
+import { hasPlan, syncPlan } from "@/app/admin/plan/_plan";
 
 export type ImportStatus =
   | "created"
@@ -177,6 +178,8 @@ async function runImport(db: DB, request: ImportRequest, now: Date): Promise<Imp
           await tx.update(events)
             .set({ ...values, lastImportedAt: now, updatedAt: now, adminEditedAt: null })
             .where(eq(events.id, row.id));
+          // A planned event's open tasks follow its new date (lib/planning.ts).
+          if (await hasPlan(tx, row.id)) await syncPlan(tx, row.id);
           changed.add(row.id);
           results.push({ ...base, status: "updated", eventId: row.id });
         }
