@@ -191,25 +191,23 @@ export async function deleteEvent(id: string) {
   return { ok: true as const };
 }
 
-/**
- * Cancel or uncancel a whole event from the admin Events page (the importer
- * sets cancelledAt too). Counts as an admin edit, so a later import doesn't
- * flip it back. Frontend wrote this for the admin-snappy round; Backend to
- * review.
- */
+// Cancels or restores a whole event (for a series, every date) from the admin
+// Events page. It counts as an admin edit, so the importer leaves it as set
+// unless an import op says override. Errors are sentences the page can show.
 export async function setEventCancelled(id: string, cancelled: boolean) {
   await requireAdminId();
-  if (typeof id !== "string" || !id || typeof cancelled !== "boolean") return { ok: false as const, error: "invalid" };
+  if (typeof id !== "string" || !id || typeof cancelled !== "boolean") {
+    return { ok: false as const, error: "That request wasn't valid." };
+  }
   const now = new Date();
-  const cancelledAt = cancelled ? now : null;
-  const found = await db
+  const [row] = await db
     .update(events)
-    .set({ cancelledAt, adminEditedAt: now, updatedAt: now })
+    .set({ cancelledAt: cancelled ? now : null, updatedAt: now, adminEditedAt: now })
     .where(eq(events.id, id))
-    .returning({ id: events.id });
-  if (found.length === 0) return { ok: false as const, error: "not_found" };
+    .returning({ cancelledAt: events.cancelledAt });
+  if (!row) return { ok: false as const, error: "That event no longer exists." };
   revalidateEventPages(id);
-  return { ok: true as const, cancelledAt: cancelledAt?.toISOString() ?? null };
+  return { ok: true as const, cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null };
 }
 
 // Event images. Uploads are re-encoded into the variants (EXIF and GPS
