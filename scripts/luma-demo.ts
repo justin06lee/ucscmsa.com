@@ -163,8 +163,10 @@ async function desktop(page: Page, mark: (label: string) => void) {
     await settle(page);
     await sleep(700);
   }
-  const past = page.locator("main a[href^='/calendar/events/']").filter({ hasText: /Niya Summit/ }).first();
-  const target = (await past.count()) ? past : page.locator("main a[href^='/calendar/events/']").first();
+  // The month grid's links; the phone list under it is hidden at this width.
+  const links = page.locator("main a[href^='/calendar/events/']:visible");
+  const past = links.filter({ hasText: /Niya Summit/ }).first();
+  const target = (await past.count()) ? past : links.first();
   mark("click: a passed event");
   await click(page, target);
   await page.waitForURL(/\/calendar\/events\//);
