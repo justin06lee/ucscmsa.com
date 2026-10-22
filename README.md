@@ -23,6 +23,7 @@ Edit `.env.local`:
 - `AUTH_SECRET` — generate with `openssl rand -base64 32`
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — Google Cloud Console OAuth client (Web application). Authorized redirect URI: `http://localhost:3000/api/auth/callback/google`.
 - `ADMIN_SEED_EMAILS` — **at least three** `@ucsc.edu` emails, comma-separated. Because every future nomination requires 2 approvers other than the nominator, seeding fewer than three admins makes promotions impossible to pass.
+- `AUTH_EXTRA_ALLOWED_EMAILS` — optional; exact addresses, comma-separated, that may sign in besides `@ucsc.edu` ones (say, a maintainer's gmail). Each gets in only when Google reports it verified. Signing in doesn't make anyone an admin; to make one an admin, also list it in `ADMIN_SEED_EMAILS`.
 - `EVENT_IMPORT_TOKEN` — optional; turns on the event import API (`POST /api/import/events`). Generate with `openssl rand -base64 32`. See [docs/import.md](docs/import.md).
 
 ### Database

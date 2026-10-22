@@ -3,6 +3,8 @@ import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
+import { isAllowedSignIn, parseEmailList } from "@/lib/auth-policy";
+import { seedAdminIfEligible } from "@/lib/admin-seed";
 import {
   accounts,
   admins,
@@ -11,10 +13,11 @@ import {
   verificationTokens,
 } from "@/lib/db/schema";
 
-const seedEmails = (process.env.ADMIN_SEED_EMAILS ?? "")
-  .split(",")
-  .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
+const seedEmails = parseEmailList(process.env.ADMIN_SEED_EMAILS);
+// Exact addresses that may sign in besides @ucsc.edu ones, such as a
+// maintainer's gmail. Being let in isn't being an admin: that still takes
+// ADMIN_SEED_EMAILS or a nomination.
+const extraAllowedEmails = new Set(parseEmailList(process.env.AUTH_EXTRA_ALLOWED_EMAILS));
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -26,9 +29,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
   session: { strategy: "database" },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, profile }) {
+      if (!isAllowedSignIn(user.email, profile, extraAllowedEmails)) return false;
       const email = (user.email ?? "").toLowerCase();
-      if (!email.endsWith("@ucsc.edu")) return false;
       // Normalize email to lowercase before the adapter persists it. Without this,
       // case-sensitive lookups (eq(users.email, ...)) silently fail when Google
       // returns a mixed-case email.
@@ -57,11 +60,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user.email && user.email !== email) {
         await db.update(users).set({ email }).where(eq(users.id, user.id));
       }
-      if (!seedEmails.includes(email)) return;
-      await db
-        .insert(admins)
-        .values({ userId: user.id, promotedByNominationId: null })
-        .onConflictDoNothing();
+      // Skips anyone a nomination has removed, so demotions stick.
+      await seedAdminIfEligible(db, user.id, email, seedEmails);
     },
   },
   pages: {
