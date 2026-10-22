@@ -9,14 +9,18 @@ const at = Date.parse(process.env.FAKE_NOW ?? "");
 if (!Number.isNaN(at)) {
   const RealDate = Date;
   const offset = at - RealDate.now();
-  class FakeDate extends RealDate {
-    constructor(...args) {
-      if (args.length === 0) super(RealDate.now() + offset);
-      else super(...args);
-    }
-    static now() {
-      return RealDate.now() + offset;
-    }
+  // A function, not a subclass, so Date() without `new` works too; dates it
+  // makes are real Dates.
+  function FakeDate(...args) {
+    if (!new.target) return new RealDate(RealDate.now() + offset).toString();
+    return args.length === 0 ? new RealDate(RealDate.now() + offset) : new RealDate(...args);
   }
+  Object.setPrototypeOf(FakeDate, RealDate);
+  FakeDate.prototype = RealDate.prototype;
+  // Own properties, not inherited ones: Next copies Date's own statics when
+  // it wraps it, and lost parse and UTC otherwise.
+  FakeDate.now = () => RealDate.now() + offset;
+  FakeDate.parse = RealDate.parse;
+  FakeDate.UTC = RealDate.UTC;
   globalThis.Date = FakeDate;
 }
