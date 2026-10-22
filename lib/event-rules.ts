@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { endOfLocalDayUtc, SITE_TZ, startOfLocalDayUtc } from "./time";
+import { IMAGE_ALT_MAX } from "./event-image";
 
 // Field rules shared by the admin event form and the event import API, so an
 // event that gets in either way can't break the calendar.
@@ -38,6 +39,65 @@ export const title = z
 export const location = z.string().trim().max(LOCATION_MAX, "Location is too long");
 export const description = z.string().max(DESCRIPTION_MAX, "Description is too long");
 export const interval = z.number().int().min(1).max(INTERVAL_MAX);
+
+// Buttons on the event page, such as an RSVP form or a donation page. Only
+// http(s) URLs with a host: no javascript:, data: or mailto: links, and no
+// credentials in the URL. Stored as JSON in events.links, label filled in.
+export const LINKS_MAX = 5;
+export const LINK_LABEL_MAX = 40;
+export const LINK_URL_MAX = 500;
+export const LINK_KINDS = ["rsvp", "form", "donate", "signup", "map", "other"] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
+// The label a link gets when none is given.
+export const LINK_KIND_LABELS: Record<LinkKind, string> = {
+  rsvp: "RSVP",
+  form: "Form",
+  donate: "Donate",
+  signup: "Sign up",
+  map: "Map",
+  other: "Link",
+};
+
+export function isSafeLinkUrl(s: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    return false;
+  }
+  return (u.protocol === "https:" || u.protocol === "http:") &&
+    u.hostname.includes(".") && !u.username && !u.password;
+}
+
+export const eventLink = z
+  .strictObject({
+    kind: z.enum(LINK_KINDS, `Link kind must be one of ${LINK_KINDS.join(", ")}`),
+    label: z
+      .string()
+      .trim()
+      .max(LINK_LABEL_MAX, `Link labels are at most ${LINK_LABEL_MAX} characters`)
+      .regex(/^[^\p{Cc}]*$/u, "Link labels can't contain control characters")
+      .optional(),
+    url: z
+      .string()
+      .trim()
+      .max(LINK_URL_MAX, `Link URLs are at most ${LINK_URL_MAX} characters`)
+      .refine(isSafeLinkUrl, "Links must be full http:// or https:// URLs"),
+  })
+  .transform((l) => ({ kind: l.kind, label: l.label || LINK_KIND_LABELS[l.kind], url: l.url }));
+export const eventLinks = z
+  .array(eventLink)
+  .max(LINKS_MAX, `At most ${LINKS_MAX} links`);
+export type EventLink = z.output<typeof eventLink>;
+
+// Image alt text, and the id of an image an event already has (see
+// lib/event-image.ts). A blank alt removes it.
+export const imageAlt = z
+  .string()
+  .trim()
+  .max(IMAGE_ALT_MAX, `Alt text is at most ${IMAGE_ALT_MAX} characters`)
+  .regex(/^[^\p{Cc}]*$/u, "Alt text can't contain control characters");
+export const imageId = z.string().regex(/^[0-9a-f]{16}$/, "Not an image id");
 
 /**
  * How a Santa Cruz wall-clock time maps to real time on that date: "ok", or

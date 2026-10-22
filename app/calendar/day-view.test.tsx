@@ -25,13 +25,20 @@ function occ(id: string, title: string, ymd: string, start: string, end: string)
     occurrenceStart: parseHMInLocal(ymd, start),
     occurrenceEnd: parseHMInLocal(ymd, end),
     timing: "timed",
+    links: [],
+    cover: null,
+    imageCount: 0,
   };
 }
 
 // An event whose times weren't (all) announced, stored as the form stores it.
 function untimed(id: string, title: string, ymd: string, startTime?: string): Occurrence {
   const { timing, startTime: start, endTime: end } = eventInstants({ date: ymd, startTime });
-  return { eventId: id, title, description: "", location: "", occurrenceStart: start, occurrenceEnd: end, timing };
+  return {
+    eventId: id, title, description: "", location: "",
+    occurrenceStart: start, occurrenceEnd: end, timing,
+    links: [], cover: null, imageCount: 0,
+  };
 }
 
 describe("DayView", () => {

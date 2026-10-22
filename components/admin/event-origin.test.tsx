@@ -6,7 +6,8 @@ describe("event origin markers", () => {
   it("labels imports by source and leaves admin-made events unmarked", () => {
     expect(importLabel("manual")).toBeNull();
     expect(importLabel("whatsapp")).toBe("Imported from WhatsApp");
-    expect(importLabel("instagram")).toBe("Imported (instagram)");
+    expect(importLabel("instagram")).toBe("Imported from Instagram");
+    expect(importLabel("meetup")).toBe("Imported (meetup)");
   });
 
   it("shows Imported and Cancelled badges only when they apply", () => {
