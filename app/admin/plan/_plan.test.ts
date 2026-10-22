@@ -63,15 +63,18 @@ describe("planning against the database (migration 0005 seeds)", () => {
     client.close();
   });
 
-  it("gives every planned event the promotion tasks, but no plan to a repeating or past event", async () => {
+  it("gives a draft the promotion tasks, but no plan to an untagged published, repeating or past event", async () => {
     const { db, client } = await setup();
-    await addEvent(db, "plain", "2026-11-20");
+    await addEvent(db, "plain", "2026-11-20", { draft: true });
+    await addEvent(db, "published", "2026-11-20");
     await addEvent(db, "weekly", "2026-11-20", { recurrenceFreq: "weekly", recurrenceByWeekday: "FR" });
     await addEvent(db, "past", "2026-10-01");
-    for (const id of ["plain", "weekly", "past"]) {
-      await planFromForm(db, id, { tags: [], recurring: id === "weekly" }, NOW);
+    for (const id of ["plain", "published", "weekly", "past"]) {
+      await planFromForm(db, id, { tags: [], draft: id !== "published", recurring: id === "weekly" }, NOW);
     }
     expect(Object.keys(await tasksOf(db, "plain")).sort()).toEqual(["promo-eve", "promo-week"]);
+    // Saving an ordinary event through the form doesn't start a checklist.
+    expect(await tasksOf(db, "published")).toEqual({});
     expect(await tasksOf(db, "weekly")).toEqual({});
     expect(await tasksOf(db, "past")).toEqual({});
     client.close();
@@ -162,7 +165,7 @@ describe("planning against the database (migration 0005 seeds)", () => {
   it("assigns only to current board members", async () => {
     const { db, client } = await setup();
     await addEvent(db, "e1", "2026-11-20");
-    await planFromForm(db, "e1", { tags: [], recurring: false }, NOW);
+    await planFromForm(db, "e1", { tags: [], draft: true, recurring: false }, NOW);
     const t = await tasksOf(db, "e1");
     expect(await assignTask(db, t["promo-week"].id, "u-visitor")).toEqual({ ok: false, error: "not_a_board_member" });
     expect((await assignTask(db, t["promo-week"].id, "u-omar")).ok).toBe(true);
@@ -182,8 +185,8 @@ describe("planning against the database (migration 0005 seeds)", () => {
     await addEvent(db, "unplanned", "2026-11-01");
     await addEvent(db, "cancelled", "2026-11-02", { cancelledAt: NOW });
     await planFromForm(db, "soon", { tags: ["room"], recurring: false }, NOW);
-    await planFromForm(db, "later", { tags: [], recurring: false }, NOW);
-    await planFromForm(db, "cancelled", { tags: [], recurring: false }, NOW);
+    await planFromForm(db, "later", { tags: ["food"], recurring: false }, NOW);
+    await planFromForm(db, "cancelled", { tags: ["food"], recurring: false }, NOW);
 
     const rows = await getOverview(db, NOW);
     expect(rows.map((r) => r.id)).toEqual(["soon", "later"]);

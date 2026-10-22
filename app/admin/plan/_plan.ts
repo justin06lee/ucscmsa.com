@@ -95,7 +95,7 @@ export async function syncPlan(d: Exec, eventId: string, templates?: TaskTemplat
 export async function planFromForm(
   d: Exec,
   eventId: string,
-  p: { tags: PlanTag[]; recurring: boolean },
+  p: { tags: PlanTag[]; recurring: boolean; draft?: boolean },
   now: Date = new Date(),
 ) {
   const current = new Set(await getEventTags(d, eventId));
@@ -105,7 +105,9 @@ export async function planFromForm(
     if (next.length) await d.insert(eventTags).values(next.map((tag) => ({ eventId, tag })));
   }
   if (await hasPlan(d, eventId)) return syncPlan(d, eventId);
-  if (p.recurring) return;
+  // Only an event the board is planning starts a checklist: a draft, or one
+  // tagged with what it needs. Saving any other event leaves it unplanned.
+  if (p.recurring || (!p.draft && next.length === 0)) return;
   const [ev] = await d.select({ startTime: events.startTime }).from(events).where(eq(events.id, eventId)).limit(1);
   if (!ev || toLocalYmd(ev.startTime) < toLocalYmd(now)) return;
   await syncPlan(d, eventId);

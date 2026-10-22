@@ -71,6 +71,14 @@ describe("event form planning fields", () => {
     expect(tags.map((t) => t.tag)).toEqual(["room"]);
   });
 
+  it("saving an ordinary event through the form (not a draft, no tags) doesn't plan it", async () => {
+    const r = await createEvent(form({ ...base(ymd(15)), planning: "1" }));
+    expect(r).toMatchObject({ ok: true, planned: false });
+    const id = (r as { id: string }).id;
+    expect(await updateEvent(id, form({ ...base(ymd(16)), planning: "1" }))).toMatchObject({ ok: true, planned: false });
+    expect(await tasks(id)).toEqual({});
+  });
+
   it("an event made without planning fields is public and unplanned, as before", async () => {
     const r = await createEvent(form(base(ymd(10))));
     expect(r).toMatchObject({ ok: true, planned: false });

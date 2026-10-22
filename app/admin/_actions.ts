@@ -128,7 +128,7 @@ export async function createEvent(fd: FormData) {
     });
     // A one-off event that hasn't happened yet gets its planning checklist.
     if (planning) {
-      await planFromForm(tx, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
+      await planFromForm(tx, id, { tags: planning.tags, draft: planning.draft, recurring: p.recurrenceFreq !== "none" });
     }
   });
   revalidateEventPages(id);
@@ -170,7 +170,7 @@ export async function updateEvent(id: string, fd: FormData) {
     if (!row) return false;
     // Moving the date moves the open tasks; done ones stay (lib/planning.ts).
     if (planning) {
-      await planFromForm(tx, id, { tags: planning.tags, recurring: p.recurrenceFreq !== "none" });
+      await planFromForm(tx, id, { tags: planning.tags, draft: planning.draft, recurring: p.recurrenceFreq !== "none" });
     } else if (await hasPlan(tx, id)) {
       await syncPlan(tx, id);
     }
