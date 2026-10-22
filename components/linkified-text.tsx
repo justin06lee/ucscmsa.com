@@ -1,5 +1,5 @@
 // Free text with its http(s) URLs as links, e.g. an RSVP form in an event
-// description. The text is never treated as HTML: it is split into plain
+// description, opening in a new tab like every off-site link. The text is never treated as HTML: it is split into plain
 // strings and URLs, and React escapes both. Any other scheme (javascript:,
 // data:, mailto:, ...) stays text.
 
@@ -66,10 +66,12 @@ export function LinkifiedText({ text }: { text: string }) {
       <a
         key={i}
         href={p.href}
+        target="_blank"
         rel="noopener noreferrer nofollow ugc"
         className="wrap-anywhere text-burgundy underline underline-offset-2 hover:text-ink"
       >
         {p.text}
+        <span className="sr-only"> (opens in a new tab)</span>
       </a>
     ) : (
       <span key={i}>{p.text}</span>

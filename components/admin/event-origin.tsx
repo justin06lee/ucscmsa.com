@@ -47,6 +47,7 @@ export function SourceRef({ value }: { value: string }) {
     return (
       <a href={value} target="_blank" rel="noopener noreferrer" className="break-all text-burgundy underline underline-offset-2">
         {value}
+        <span className="sr-only"> (opens in a new tab)</span>
       </a>
     );
   }

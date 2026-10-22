@@ -65,13 +65,15 @@ describe("linkify", () => {
 });
 
 describe("LinkifiedText", () => {
-  it("renders http(s) URLs as safe links with the full URL as text", () => {
+  it("renders http(s) URLs as safe links in a new tab, with the full URL as text", () => {
     render(<p><LinkifiedText text="RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9." /></p>);
-    const a = screen.getByRole("link", { name: "https://forms.gle/thkacLx82yYcgxjt9" });
+    const a = screen.getByRole("link", { name: "https://forms.gle/thkacLx82yYcgxjt9 (opens in a new tab)" });
     expect(a).toHaveAttribute("href", "https://forms.gle/thkacLx82yYcgxjt9");
     expect(a).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
-    expect(a).not.toHaveAttribute("target");
-    expect(a.closest("p")).toHaveTextContent("RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9.");
+    expect(a).toHaveAttribute("target", "_blank");
+    // Only screen readers hear the new-tab note; the full stop stays outside.
+    expect(a.querySelector(".sr-only")).toHaveTextContent("(opens in a new tab)");
+    expect(a.closest("p")).toHaveTextContent("RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9 (opens in a new tab).");
   });
 
   it("escapes HTML in the description instead of interpreting it", () => {
