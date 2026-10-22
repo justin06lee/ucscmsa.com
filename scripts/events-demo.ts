@@ -71,8 +71,8 @@ async function main() {
 
   // 3. The calendar, back a few months through the history.
   await scrollTo(page, 0, 700);
-  mark("tap: Back to calendar");
-  await tap(page, page.getByRole("link", { name: "Back to calendar" }));
+  mark("tap: Back to the calendar");
+  await tap(page, page.getByRole("link", { name: "Back to the calendar" }));
   await page.waitForURL(/\/calendar(\?|$)/);
   await settle(page);
   mark("this month");
