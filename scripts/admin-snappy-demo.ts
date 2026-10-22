@@ -116,9 +116,11 @@ async function click(page: Page, el: Locator) {
 
 /** The first upcoming row with a Cancel button (a whole event, not yet cancelled). */
 async function cancellableRow(page: Page) {
-  const row = page.locator(".admin-event").filter({ has: page.getByRole("button", { name: /^Cancel / }) }).first();
-  const label = (await row.getByRole("button", { name: /^Cancel / }).getAttribute("aria-label"))!;
-  return { row, title: label.replace(/^Cancel /, "") };
+  const first = page.locator(".admin-event").filter({ has: page.getByRole("button", { name: /^Cancel / }) }).first();
+  const label = (await first.getByRole("button", { name: /^Cancel / }).getAttribute("aria-label"))!;
+  const title = label.replace(/^Cancel /, "");
+  // Held by its title, since it stops matching "has a Cancel button" once cancelled.
+  return { row: page.locator(".admin-event").filter({ hasText: title }).first(), title };
 }
 
 async function desktop(page: Page, mark: Mark, fail: { next: boolean }) {
