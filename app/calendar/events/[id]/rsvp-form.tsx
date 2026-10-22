@@ -1,13 +1,16 @@
 "use client";
 
 import { clearRsvp, rsvp } from "@/app/calendar/_actions";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { attempt } from "@/lib/attempt";
+
+type Choice = "yes" | "no" | "maybe";
 
 type Props = {
   eventId: string;
   occurrenceStart: string;
-  current: "yes" | "no" | "maybe" | null;
+  current: Choice | null;
   disabled?: boolean;
 };
 
@@ -18,67 +21,56 @@ const ERRORS: Record<string, string> = {
   event_ended: "This event has ended, so it no longer takes RSVPs.",
 };
 
+/**
+ * Going / Maybe / Can't go, and Clear. The choice shows the moment it's
+ * tapped and "Saving…" until the server has it; if the save fails, the
+ * previous answer comes back with a quiet line saying so.
+ */
 export function RsvpForm({ eventId, occurrenceStart, current, disabled }: Props) {
   const [pending, startTransition] = useTransition();
+  const [shown, show] = useOptimistic(current);
   const [error, setError] = useState<string | null>(null);
-  const choices: Array<"yes" | "maybe" | "no"> = ["yes", "maybe", "no"];
+  const choices: Choice[] = ["yes", "maybe", "no"];
+
+  function choose(next: Choice | null) {
+    setError(null);
+    startTransition(async () => {
+      show(next);
+      const fd = new FormData();
+      fd.set("eventId", eventId);
+      fd.set("occurrenceStart", occurrenceStart);
+      if (next) fd.set("status", next);
+      const res = await attempt(() => (next ? rsvp(fd) : clearRsvp(fd)));
+      if (!res.ok) startTransition(() => setError((res.code && ERRORS[res.code]) || res.error));
+    });
+  }
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" data-pending={pending ? "" : undefined}>
         {choices.map((c) => (
-          <form
+          <Button
             key={c}
-            action={(fd) => {
-              fd.set("eventId", eventId);
-              fd.set("occurrenceStart", occurrenceStart);
-              fd.set("status", c);
-              setError(null);
-              startTransition(async () => {
-                const res = await rsvp(fd);
-                setError(res.ok ? null : res.error);
-              });
-            }}
+            type="button"
+            onClick={() => choose(c)}
+            variant={shown === c ? "primary" : "outline"}
+            size="lg"
+            aria-pressed={shown === c}
+            disabled={disabled}
           >
-            <Button
-              type="submit"
-              variant={current === c ? "primary" : "outline"}
-              size="lg"
-              aria-pressed={current === c}
-              disabled={pending || disabled}
-            >
-              {c === "yes" ? "Going" : c === "maybe" ? "Maybe" : "Can't go"}
-            </Button>
-          </form>
+            {c === "yes" ? "Going" : c === "maybe" ? "Maybe" : "Can't go"}
+          </Button>
         ))}
-        {current && (
-          <form
-            action={(fd) => {
-              fd.set("eventId", eventId);
-              fd.set("occurrenceStart", occurrenceStart);
-              setError(null);
-              startTransition(async () => {
-                const res = await clearRsvp(fd);
-                setError(res.ok ? null : res.error);
-              });
-            }}
-          >
-            <Button
-              type="submit"
-              variant="ghost"
-              size="lg"
-              disabled={pending || disabled}
-            >
-              Clear
-            </Button>
-          </form>
+        {shown && (
+          <Button type="button" onClick={() => choose(null)} variant="ghost" size="lg" disabled={disabled}>
+            Clear
+          </Button>
         )}
+        <span role="status" className="text-sm text-dim">
+          {pending ? "Saving…" : ""}
+        </span>
       </div>
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-burgundy">
-          {ERRORS[error] ?? "Something went wrong."}
-        </p>
-      )}
+      {error && <p className="mt-2 text-sm text-burgundy">{error}</p>}
     </div>
   );
 }

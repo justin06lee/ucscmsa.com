@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useOptimistic, useState, useTransition } from "react";
+import { startTransition as later, useOptimistic, useState, useTransition } from "react";
+import { attempt } from "@/lib/attempt";
 import { BookOpen, Check, ChevronDown } from "lucide-react";
 import { assignTask, toggleTask } from "../_actions";
 import { formatYmd, relativeDay } from "@/components/board/format";
@@ -58,8 +59,8 @@ export function TaskItem({
             setErr(null);
             start(async () => {
               setDone(next);
-              const r = await toggleTask(task.id, next);
-              if (!r.ok) setErr("Couldn't save that. Try again.");
+              const r = await attempt(() => toggleTask(task.id, next));
+              if (!r.ok) later(() => setErr(r.error));
             });
           }}
         />
@@ -86,8 +87,8 @@ export function TaskItem({
                 setErr(null);
                 start(async () => {
                   setAssignee(next);
-                  const r = await assignTask(task.id, next);
-                  if (!r.ok) setErr("Couldn't save that. Try again.");
+                  const r = await attempt(() => assignTask(task.id, next));
+                  if (!r.ok) later(() => setErr(r.error));
                 });
               }}
               className={`min-h-11 cursor-pointer appearance-none bg-transparent pr-5 text-base [field-sizing:content] focus:outline-none ${
@@ -117,7 +118,7 @@ export function TaskItem({
         ) : null}
       </div>
       {err ? (
-        <p role="alert" className="pb-2 pl-8 text-sm text-burgundy">
+        <p role="status" className="pb-2 pl-8 text-sm text-burgundy">
           {err}
         </p>
       ) : null}

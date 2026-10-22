@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { attempt } from "@/lib/attempt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LEAD_DAYS_MAX, type TaskTemplate } from "@/lib/planning";
@@ -17,8 +18,8 @@ export function LeadTimesForm({ groups }: { groups: Group[] }) {
       action={(fd) => {
         setMsg(null);
         start(async () => {
-          const r = await saveLeadTimes(fd);
-          setMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error });
+          const r = await attempt(() => saveLeadTimes(fd));
+          start(() => setMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error }));
         });
       }}
       className="mt-8 grid gap-8"
@@ -49,8 +50,8 @@ export function LeadTimesForm({ groups }: { groups: Group[] }) {
         </fieldset>
       ))}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" disabled={pending}>
-          Save
+        <Button type="submit" size="lg" disabled={pending} aria-busy={pending}>
+          {pending ? "Saving…" : "Save"}
         </Button>
         {msg ? (
           <span role={msg.ok ? "status" : "alert"} className={`text-sm ${msg.ok ? "text-dim" : "text-burgundy"}`}>

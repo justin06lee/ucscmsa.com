@@ -1,12 +1,12 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { db } from "@/lib/db/client";
 import { events } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { EventForm } from "@/app/admin/events/event-form";
 import { FlyerEditor } from "@/app/admin/events/flyer-editor";
-import { deleteEvent, updateEvent } from "@/app/admin/_actions";
+import { updateEvent } from "@/app/admin/_actions";
+import { DeleteEvent } from "@/app/admin/events/delete-event";
 import { formatLocal } from "@/lib/time";
-import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth";
 import { EventBadges, SourceRef, importLabel, sourceName } from "@/components/admin/event-origin";
 import Link from "next/link";
@@ -24,11 +24,6 @@ export default async function EditEventPage({ params }: Props) {
   async function submit(fd: FormData) {
     "use server";
     return await updateEvent(id, fd);
-  }
-  async function del() {
-    "use server";
-    await deleteEvent(id);
-    redirect("/admin");
   }
 
   return (
@@ -95,11 +90,7 @@ export default async function EditEventPage({ params }: Props) {
         }}
       />
       <FlyerEditor eventId={row.id} initial={row.images ?? []} />
-      <form action={del} className="mt-8">
-        <Button type="submit" variant="danger-outline" size="lg">
-          Delete event
-        </Button>
-      </form>
+      <DeleteEvent eventId={row.id} />
     </div>
   );
 }

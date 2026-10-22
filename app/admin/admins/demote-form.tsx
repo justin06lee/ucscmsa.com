@@ -1,7 +1,10 @@
 "use client";
 
 import { nominateAdmin } from "@/app/admin/_actions";
-import { useTransition, useState } from "react";
+import { startTransition as later, useTransition, useState } from "react";
+import Link from "next/link";
+import { attempt } from "@/lib/attempt";
+import { NOMINATION_ERRORS } from "@/app/admin/nominations/actions-row";
 
 export function DemoteForm({
   targetAdminId,
@@ -12,6 +15,7 @@ export function DemoteForm({
 }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
   return (
     <form
       action={(fd) => {
@@ -20,20 +24,26 @@ export function DemoteForm({
         fd.set("targetAdminId", String(targetAdminId));
         setErr(null);
         start(async () => {
-          const r = await nominateAdmin(fd);
-          if (!r.ok) setErr(r.error ?? "failed");
+          const r = await attempt(() => nominateAdmin(fd));
+          later(() => (r.ok ? setDone(true) : setErr((r.code && NOMINATION_ERRORS[r.code]) || r.error)));
         });
       }}
     >
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || done}
+        aria-busy={pending}
         className="inline-flex min-h-11 items-center text-sm text-burgundy transition-opacity hover:underline disabled:opacity-50"
       >
-        Nominate removal
+        {pending ? "Nominating…" : done ? "Nominated" : "Nominate removal"}
       </button>
+      {done ? (
+        <Link href="/admin/nominations" role="status" className="ml-2 inline-flex min-h-11 items-center text-sm text-dim underline">
+          See nominations
+        </Link>
+      ) : null}
       {err && (
-        <span role="alert" className="ml-2 text-xs text-burgundy">
+        <span role="status" className="ml-2 text-sm text-burgundy">
           {err}
         </span>
       )}

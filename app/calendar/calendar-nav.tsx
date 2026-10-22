@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, addMonths, addYears, formatISO } from "date-fns";
@@ -70,12 +70,15 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
     [view, viewYmd, isCurrent]
   );
 
+  // The view being left stays up, dimmed (data-pending; see page.tsx), until
+  // the next one arrives: the click shows at once without a blank skeleton.
+  const [pending, startTransition] = useTransition();
   const go = useCallback(
     (next: Date, nextView: View) => {
       const p = new URLSearchParams(params);
       p.set("view", nextView);
       p.set("date", formatISO(next, { representation: "date" }));
-      router.push(`/calendar?${p.toString()}`);
+      startTransition(() => router.push(`/calendar?${p.toString()}`));
     },
     [params, router]
   );
@@ -100,7 +103,12 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
   }, [view, date, go]);
 
   return (
-    <header ref={toolbarRef} className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+    <header
+      ref={toolbarRef}
+      data-pending={pending ? "" : undefined}
+      aria-busy={pending}
+      className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3"
+    >
       <div className="flex w-full min-w-0 items-center gap-1 sm:w-auto sm:gap-2">
         <Button
           variant="ghost"

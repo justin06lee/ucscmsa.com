@@ -3,7 +3,7 @@ import Link from "next/link";
 import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { WiggleIcon } from "@/components/logo/wiggle-icon";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -72,15 +72,15 @@ export default async function LoginPage({
         </p>
       ) : null}
       <form action={signInWithGoogle} className="w-full">
-        <Button
-          type="submit"
+        <SubmitButton
+          pendingText="Opening Google…"
           variant="outline"
           size="lg"
           className="w-full !border-ink !px-7 !py-3 hover:!bg-ink hover:!text-paper"
         >
           <GoogleMark />
           Continue with Google
-        </Button>
+        </SubmitButton>
       </form>
       <Link
         href="/"

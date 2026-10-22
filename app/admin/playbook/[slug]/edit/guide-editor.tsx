@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { attempt } from "@/lib/attempt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,9 +28,10 @@ export function GuideEditor({ slug, title, body }: { slug: string; title: string
       action={(fd) => {
         setErr(null);
         start(async () => {
-          const r = await saveGuide(slug, fd);
-          if (r.ok) router.push(`/admin/playbook/${slug}`);
-          else setErr(r.error);
+          const r = await attempt(() => saveGuide(slug, fd));
+          // "Saving…" stays until the guide's page is up.
+          if (r.ok) start(() => router.push(`/admin/playbook/${slug}`));
+          else start(() => setErr(r.error));
         });
       }}
       className="grid gap-4"
@@ -69,13 +71,13 @@ export function GuideEditor({ slug, title, body }: { slug: string; title: string
         ) : null}
       </div>
       {err ? (
-        <p role="alert" className="text-sm text-burgundy">
+        <p role="status" className="text-sm text-burgundy">
           {err}
         </p>
       ) : null}
       <div className="flex items-center gap-5">
-        <Button type="submit" size="lg" disabled={pending}>
-          Save
+        <Button type="submit" size="lg" disabled={pending} aria-busy={pending}>
+          {pending ? "Saving…" : "Save"}
         </Button>
         <Link href={`/admin/playbook/${slug}`} className="inline-flex min-h-11 items-center text-sm text-dim hover:text-ink">
           Cancel
