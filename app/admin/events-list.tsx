@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
 import { deleteEvent, setEventCancelled } from "@/app/admin/_actions";
 import type { AdminEventRow } from "@/app/admin/_event-rows";
 import { FILTERS, type Filter, type Tab } from "@/app/admin/_event-filters";
+import { IntentLink } from "@/components/intent-link";
+import { RowMenu } from "@/app/admin/row-menu";
 import { LinkPending } from "@/components/link-pending";
 import { EventCover } from "@/components/event-cover";
 import { DraftBadge } from "@/components/board/draft-badge";
@@ -206,24 +207,16 @@ function EventRow({
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1 sm:pl-[3.75rem]">
-        <Link href={`/admin/events/${r.id}/edit`} prefetch={false} aria-label={`Edit ${r.title}`} className={`${action} relative bg-ink text-paper hover:bg-burgundy`}>
+        <IntentLink href={`/admin/events/${r.id}/edit`} aria-label={`Edit ${r.title}`} className={`${action} relative bg-ink text-paper hover:bg-burgundy`}>
           Edit
           <LinkPending />
-        </Link>
+        </IntentLink>
         {r.draft ? null : (
-          <Link href={`/calendar/events/${r.id}`} prefetch={false} aria-label={`View ${r.title} on the site`} className={`${action} relative text-ink/75 hover:bg-ink/5 hover:text-ink`}>
+          <IntentLink href={`/calendar/events/${r.id}`} aria-label={`View ${r.title} on the site`} className={`${action} relative text-ink/75 hover:bg-ink/5 hover:text-ink`}>
             View
             <LinkPending />
-          </Link>
+          </IntentLink>
         )}
-        <button
-          type="button"
-          onClick={() => onCancel(!r.cancelled)}
-          aria-label={`${r.cancelled ? "Uncancel" : "Cancel"} ${r.title}`}
-          className={`${action} text-ink/75 hover:bg-ink/5 hover:text-ink`}
-        >
-          {r.cancelled ? "Uncancel" : "Cancel event"}
-        </button>
         {confirming ? (
           <span className="inline-flex flex-wrap items-center gap-1" role="group" aria-label={`Delete ${r.title}?`}>
             <span className="px-1 text-sm text-burgundy">Delete for good?</span>
@@ -235,14 +228,13 @@ function EventRow({
             </button>
           </span>
         ) : (
-          <button
-            type="button"
-            onClick={() => setConfirming(true)}
-            aria-label={`Delete ${r.title}`}
-            className={`${action} text-burgundy/85 hover:bg-burgundy/5 hover:text-burgundy`}
-          >
-            Delete
-          </button>
+          <RowMenu
+            label={`More actions for ${r.title}`}
+            items={[
+              { label: r.cancelled ? "Uncancel event" : "Cancel event", onSelect: () => onCancel(!r.cancelled) },
+              { label: "Delete…", danger: true, onSelect: () => setConfirming(true) },
+            ]}
+          />
         )}
       </div>
       {error ? (

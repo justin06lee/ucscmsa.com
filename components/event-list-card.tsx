@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import { MapPin } from "lucide-react";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { coverThumb } from "@/lib/event-media";
@@ -26,7 +26,7 @@ export function EventListCard({
   href?: string;
 }) {
   return (
-    <Link
+    <IntentLink
       href={href}
       className="event-list-card relative flex min-h-11 gap-3 rounded-2xl border border-ink/10 bg-paper p-3 shadow-[0_1px_2px_rgb(21_19_18/0.04)] transition-colors hover:border-ink/30"
     >
@@ -42,6 +42,6 @@ export function EventListCard({
       </span>
       <EventCover image={coverThumb(o.cover, o.title)} title={o.title} date={o.occurrenceStart} compact className="w-[72px] self-start rounded-xl" />
       <LinkPending />
-    </Link>
+    </IntentLink>
   );
 }

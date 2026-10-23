@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { adminRow, pickDate, santaCruzDay, seed, signIn, typeTime } from "./fixtures";
 
 // The admin Events page (app/admin/events-list.tsx) on scripts/seed-local.ts
@@ -12,6 +12,12 @@ test.beforeEach(async ({ context, baseURL }) => {
 
 const days = (page: Page) =>
   page.locator(".timeline__day").evaluateAll((els) => els.map((e) => e.getAttribute("data-day")!));
+
+/** Open a row's "More" menu and pick an item. */
+async function chooseFromMore(row: Locator, title: string, item: string | RegExp) {
+  await row.getByRole("button", { name: `More actions for ${title}` }).click();
+  await row.getByRole("menuitem", { name: item }).click();
+}
 
 /** Hold (or fail) the page's Server Function calls; the rest of the traffic passes. */
 async function onActions(page: Page, handle: "hold" | "fail") {
@@ -70,27 +76,31 @@ test("cancel shows at once, before the server answers; a failed save rolls back 
   await expect(row).not.toContainText("Cancelled");
 
   const release = await onActions(page, "hold");
-  await row.getByRole("button", { name: "Cancel Hilltop Potluck" }).click();
+  await chooseFromMore(row, "Hilltop Potluck", "Cancel event");
   await expect(row).toContainText("Cancelled"); // the request is still held
   const saved = page.waitForResponse((r) => r.request().method() === "POST" && !!r.request().headers()["next-action"]);
   release();
   await saved;
-  await expect(row.getByRole("button", { name: "Uncancel Hilltop Potluck" })).toBeVisible();
+  await row.getByRole("button", { name: "More actions for Hilltop Potluck" }).click();
+  await expect(row.getByRole("menuitem", { name: "Uncancel event" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.unrouteAll({ behavior: "wait" });
   await page.reload();
   await expect(row).toContainText("Cancelled");
 
   await onActions(page, "fail");
-  await row.getByRole("button", { name: "Uncancel Hilltop Potluck" }).click();
+  await chooseFromMore(row, "Hilltop Potluck", "Uncancel event");
   await expect(row.getByRole("status")).toContainText("Nothing was changed");
   await expect(row).toContainText("Cancelled");
   await page.unrouteAll({ behavior: "wait" });
 
   const undone = page.waitForResponse((r) => r.request().method() === "POST" && !!r.request().headers()["next-action"]);
-  await row.getByRole("button", { name: "Uncancel Hilltop Potluck" }).click();
+  await chooseFromMore(row, "Hilltop Potluck", "Uncancel event");
   await undone;
   await expect(row.getByRole("status")).toHaveCount(0);
-  await expect(row.getByRole("button", { name: "Cancel Hilltop Potluck" })).toBeVisible();
+  await row.getByRole("button", { name: "More actions for Hilltop Potluck" }).click();
+  await expect(row.getByRole("menuitem", { name: "Cancel event" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.reload();
   await expect(row).not.toContainText("Cancelled");
 });
@@ -108,16 +118,71 @@ test("delete asks first, comes back if the server fails, and otherwise goes for 
 
   const row = await adminRow(page, "E2E Throwaway");
   await onActions(page, "fail");
-  await row.getByRole("button", { name: "Delete E2E Throwaway" }).click();
+  await chooseFromMore(row, "E2E Throwaway", /^Delete/);
   await row.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(row.getByRole("status")).toContainText("Nothing was changed");
   await page.unrouteAll({ behavior: "wait" });
 
-  await row.getByRole("button", { name: "Delete E2E Throwaway" }).click();
+  await chooseFromMore(row, "E2E Throwaway", /^Delete/);
   await row.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(row).toHaveCount(0);
   await page.reload();
   await expect(page.locator(".admin-event").filter({ hasText: "E2E Throwaway" })).toHaveCount(0);
+});
+
+test("the More menu: Edit and View stay out, keyboard and outside click work", async ({ page }) => {
+  const row = await adminRow(page, "Hilltop Potluck");
+  await expect(row.getByRole("link", { name: /^Edit / })).toBeVisible();
+  await expect(row.getByRole("button", { name: /^Cancel|^Uncancel|^Delete/ })).toHaveCount(0);
+
+  const more = row.getByRole("button", { name: "More actions for Hilltop Potluck" });
+  await expect(more).toHaveAttribute("aria-haspopup", "menu");
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  expect((await more.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+  const items = row.getByRole("menuitem");
+  await expect(items).toHaveCount(2);
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(items.last()).toBeFocused();
+  await page.keyboard.press("ArrowDown"); // wraps
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(row.getByRole("menu")).toHaveCount(0);
+  await expect(more).toBeFocused();
+
+  await page.keyboard.press("Space");
+  await expect(row.getByRole("menu")).toBeVisible();
+  await page.getByRole("heading", { level: 1 }).click();
+  await expect(row.getByRole("menu")).toHaveCount(0);
+
+  // Delete in the menu only asks; nothing is deleted.
+  await more.click();
+  await row.getByRole("menuitem", { name: /^Delete/ }).click();
+  await expect(row.getByRole("group", { name: "Delete Hilltop Potluck?" })).toBeVisible();
+  await row.getByRole("button", { name: "Keep" }).click();
+  await expect(more).toBeVisible();
+});
+
+test("row links prefetch on hover or focus, not when they scroll into view", async ({ page }) => {
+  test.skip(!process.env.PLAYWRIGHT_BASE_URL, "Next prefetches only on a production server (next start)");
+  const prefetches: string[] = [];
+  page.on("request", (r) => {
+    if (r.headers()["next-router-prefetch"] || r.headers()["rsc"]) prefetches.push(new URL(r.url()).pathname);
+  });
+  const row = await adminRow(page, "Hilltop Potluck");
+  await page.waitForTimeout(1500);
+  expect(prefetches.filter((p) => /^\/admin\/events\/.+\/edit$/.test(p))).toEqual([]);
+
+  const edit = row.getByRole("link", { name: /^Edit / });
+  const href = (await edit.getAttribute("href"))!;
+  await edit.hover();
+  await expect.poll(() => prefetches.includes(href)).toBe(true);
+  await edit.click();
+  await page.waitForURL(`**${href}`);
 });
 
 test.describe("on a phone", () => {
@@ -129,6 +194,17 @@ test.describe("on a phone", () => {
     for (const el of await page.locator(".admin-event").first().locator("a, button").all()) {
       expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
+    // The More menu opens inside the screen, even on the last row.
+    const last = page.locator(".admin-event").last();
+    await last.scrollIntoViewIfNeeded();
+    await last.getByRole("button", { name: /^More actions for/ }).tap();
+    const box = (await last.getByRole("menu").boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(812);
+    for (const item of await last.getByRole("menuitem").all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.keyboard.press("Escape");
     for (const el of await page.getByRole("tab").all()) expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   });
 });

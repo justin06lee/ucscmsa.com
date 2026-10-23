@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { monthGridDays, toLocalYmd, formatLocal, parseHMInLocal } from "@/lib/time";
 import { FadeIn } from "@/components/fade-in";
@@ -43,7 +43,7 @@ export function MonthView({ ymd, occurrences }: Props) {
             n === 0 ? "no events" : `${n} event${n === 1 ? "" : "s"}`
           }`;
           return (
-            <Link
+            <IntentLink
               key={cellYmd}
               href={`/calendar?view=day&date=${cellYmd}`}
               aria-label={label}
@@ -102,7 +102,7 @@ export function MonthView({ ymd, occurrences }: Props) {
                   +{n - 3} more
                 </div>
               )}
-            </Link>
+            </IntentLink>
           );
         })}
       </div>

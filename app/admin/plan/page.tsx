@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import { db } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth";
 import { formatYmd, relativeDay } from "@/components/board/format";
@@ -31,7 +32,7 @@ export default async function PlanningPage() {
         <ul className="flex flex-col gap-3" aria-label="Upcoming events in planning">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link
+              <IntentLink
                 href={`/admin/plan/${r.id}`}
                 className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-4 py-3 transition-colors hover:border-ink/25"
               >
@@ -65,7 +66,7 @@ export default async function PlanningPage() {
                     </span>
                   ) : null}
                 </span>
-              </Link>
+              </IntentLink>
             </li>
           ))}
         </ul>
