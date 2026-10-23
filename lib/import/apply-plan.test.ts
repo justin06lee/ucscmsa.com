@@ -38,7 +38,7 @@ describe("import upsert of a planned event", () => {
 
     const after = await due();
     expect(after.room).toBe(addDaysYmd(moved, -14));
-    expect(after["promo-week"]).toBe(addDaysYmd(moved, -7));
+    expect(after["promo-week"]).toBe(addDaysYmd(moved, -14));
     // Done tasks keep their date.
     expect(after.purchase).toBe(before.purchase);
   });

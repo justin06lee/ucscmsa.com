@@ -52,12 +52,15 @@ describe("planning against the database (migration 0005 seeds)", () => {
     await planFromForm(db, "e1", { tags: ["room", "food", "funding", "big"], recurring: false }, NOW);
     const t = await tasksOf(db, "e1");
     expect(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v.dueDate]))).toEqual({
-      funding: "2026-10-30",
-      proposal: "2026-10-30",
-      advisor: "2026-11-06",
+      funding: "2026-10-16",
+      "proposal-big": "2026-10-09",
+      proposal: "2026-11-06",
+      advisor: "2026-11-13",
       room: "2026-11-06",
-      purchase: "2026-11-13",
-      "promo-week": "2026-11-13",
+      "vendor-204": "2026-10-30",
+      purchase: "2026-11-10",
+      flyer: "2026-10-30",
+      "promo-week": "2026-11-06",
       "promo-eve": "2026-11-19",
     });
     client.close();
@@ -72,7 +75,7 @@ describe("planning against the database (migration 0005 seeds)", () => {
     for (const id of ["plain", "published", "weekly", "past"]) {
       await planFromForm(db, id, { tags: [], draft: id !== "published", recurring: id === "weekly" }, NOW);
     }
-    expect(Object.keys(await tasksOf(db, "plain")).sort()).toEqual(["promo-eve", "promo-week"]);
+    expect(Object.keys(await tasksOf(db, "plain")).sort()).toEqual(["advisor", "flyer", "promo-eve", "promo-week", "proposal"]);
     // Saving an ordinary event through the form doesn't start a checklist.
     expect(await tasksOf(db, "published")).toEqual({});
     expect(await tasksOf(db, "weekly")).toEqual({});
@@ -88,8 +91,11 @@ describe("planning against the database (migration 0005 seeds)", () => {
     expect(tl.todayYmd).toBe("2026-10-21");
     expect(tl.tasks.map((x) => [x.title, x.state])).toEqual([
       ["Apply for funding", "overdue"],
-      ["Book a room", "overdue"],
-      ["Post on Instagram and WhatsApp", "overdue"],
+      ["Design the flyer (with the access line)", "overdue"],
+      ["Book a room (after filing the proposal)", "overdue"],
+      ["File the Event Proposal (DocuSign)", "overdue"],
+      ["Post on Instagram, WhatsApp and the site", "overdue"],
+      ["Meet an advisor (Peer Advisor drop-in; SOMeCA for mid-size and up)", "overdue"],
       ["Post a reminder", "open"],
     ]);
     expect(tl.tasks[0].guide).toEqual({ slug: "funding", title: "Get funding" });
@@ -113,7 +119,7 @@ describe("planning against the database (migration 0005 seeds)", () => {
     expect(after.room.dueDate).toBe("2026-11-06");
     expect(after.room.doneAt).not.toBeNull();
     expect(after.room.doneByUserId).toBe("u-aisha");
-    expect(after["promo-week"].dueDate).toBe("2026-11-27");
+    expect(after["promo-week"].dueDate).toBe("2026-11-20");
     expect(after["promo-eve"].dueDate).toBe("2026-12-03");
 
     // Unticked, it is open again and follows the new date.
@@ -127,22 +133,34 @@ describe("planning against the database (migration 0005 seeds)", () => {
     await addEvent(db, "e1", "2026-11-20");
     await planFromForm(db, "e1", { tags: ["big", "food"], recurring: false }, NOW);
     const t = await tasksOf(db, "e1");
-    await setTaskDone(db, t.proposal.id, "u-omar", true);
+    await setTaskDone(db, t["proposal-big"].id, "u-omar", true);
     await assignTask(db, t.advisor.id, "u-aisha");
 
     await planFromForm(db, "e1", { tags: ["food"], recurring: false }, NOW);
     const after = await tasksOf(db, "e1");
-    expect(Object.keys(after).sort()).toEqual(["promo-eve", "promo-week", "proposal", "purchase"]);
-    expect(after.proposal.doneAt).not.toBeNull();
+    expect(Object.keys(after).sort()).toEqual([
+      "advisor",
+      "flyer",
+      "promo-eve",
+      "promo-week",
+      "proposal",
+      "proposal-big",
+      "purchase",
+      "vendor-204",
+    ]);
+    expect(after["proposal-big"].doneAt).not.toBeNull();
 
     // Back on: only what's missing comes back.
     await planFromForm(db, "e1", { tags: ["food", "big"], recurring: false }, NOW);
     expect(Object.keys(await tasksOf(db, "e1")).sort()).toEqual([
       "advisor",
+      "flyer",
       "promo-eve",
       "promo-week",
       "proposal",
+      "proposal-big",
       "purchase",
+      "vendor-204",
     ]);
     client.close();
   });
@@ -158,7 +176,7 @@ describe("planning against the database (migration 0005 seeds)", () => {
     await db.update(taskTemplates).set({ daysBefore: 28 }).where(eq(taskTemplates.id, "funding"));
     await syncAllPlans(db);
     expect((await tasksOf(db, "a")).funding.dueDate).toBe("2026-10-23");
-    expect((await tasksOf(db, "b")).funding.dueDate).toBe("2026-11-20"); // done: unchanged
+    expect((await tasksOf(db, "b")).funding.dueDate).toBe("2026-11-06"); // done: unchanged
     client.close();
   });
 
@@ -192,11 +210,11 @@ describe("planning against the database (migration 0005 seeds)", () => {
     expect(rows.map((r) => r.id)).toEqual(["soon", "later"]);
     expect(rows[0]).toMatchObject({
       draft: true,
-      overdue: 2,
-      open: 3,
-      next: { title: "Book a room", dueDate: "2026-10-13", state: "overdue" },
+      overdue: 5,
+      open: 6,
+      next: { title: "Design the flyer (with the access line)", dueDate: "2026-10-06", state: "overdue" },
     });
-    expect(rows[1]).toMatchObject({ draft: false, overdue: 0, next: { dueDate: "2026-11-13", state: "open" } });
+    expect(rows[1]).toMatchObject({ draft: false, overdue: 0, next: { dueDate: "2026-10-30", state: "open" } });
 
     // After the event's day it drops off.
     expect((await getOverview(db, parseHMInLocal("2026-10-28", "09:00"))).map((r) => r.id)).toEqual(["later"]);

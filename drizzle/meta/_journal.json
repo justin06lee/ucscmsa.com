@@ -57,6 +57,13 @@
       "when": 1792629689238,
       "tag": "0007_board",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792779138553,
+      "tag": "0008_playbook_factcheck",
+      "breakpoints": true
     }
   ]
 }

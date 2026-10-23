@@ -7,6 +7,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as schema from "@/lib/db/schema";
+import { createTestDb } from "@/test/db";
 
 // Builds a migrations folder holding only the first `n` migrations, so a test
 // can stand up the schema as production has it before a new migration.
@@ -235,18 +236,21 @@ describe("migration 0007 (board: drafts, tags, tasks, guides)", () => {
 
       const guides = await typed.select().from(schema.guides);
       expect(guides.map((g) => g.slug).sort()).toEqual(["bigger-events", "book-a-room", "food", "funding", "promotion"]);
-      // Each seeded guide starts with one version to restore to.
-      expect(await typed.select().from(schema.guideVersions)).toHaveLength(5);
+      // Each seeded guide starts with one version to restore to; 0008 adds one more per guide.
+      expect(await typed.select().from(schema.guideVersions)).toHaveLength(10);
       const templates = await typed.select().from(schema.taskTemplates);
       expect(Object.fromEntries(templates.map((t) => [t.id, [t.tag, t.daysBefore]]))).toEqual({
-        funding: ["funding", 21],
-        proposal: ["big", 21],
-        advisor: ["big", 14],
-        collab: ["collab", 21],
+        funding: ["funding", 35],
+        proposal: [null, 14],
+        "proposal-big": ["big", 42],
+        advisor: [null, 7],
+        collab: ["collab", 35],
         room: ["room", 14],
-        offcampus: ["offcampus", 14],
-        purchase: ["food", 7],
-        "promo-week": [null, 7],
+        offcampus: ["offcampus", 35],
+        "vendor-204": ["food", 21],
+        purchase: ["food", 10],
+        flyer: [null, 21],
+        "promo-week": [null, 14],
         "promo-eve": [null, 1],
       });
       // Every template's guide exists.
@@ -270,5 +274,24 @@ describe("drizzle journal", () => {
       expect(fs.existsSync(`drizzle/${e.tag}.sql`)).toBe(true);
       if (i > 0) expect(e.when).toBeGreaterThan(entries[i - 1].when);
     });
+  });
+});
+
+describe("migration 0008 (playbook fact-check)", () => {
+  it("is idempotent: re-running it adds no versions and changes no templates", async () => {
+    const { db, client } = await createTestDb();
+    try {
+      const snap = async () => ({
+        versions: await db.select().from(schema.guideVersions),
+        guides: await db.select().from(schema.guides),
+        templates: await db.select().from(schema.taskTemplates),
+      });
+      const before = await snap();
+      const sql = fs.readFileSync(path.join(process.cwd(), "drizzle/0008_playbook_factcheck.sql"), "utf8");
+      for (const stmt of sql.split("--> statement-breakpoint")) await client.execute(stmt);
+      expect(await snap()).toEqual(before);
+    } finally {
+      client.close();
+    }
   });
 });

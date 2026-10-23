@@ -18,14 +18,16 @@ describe("playbook guides", () => {
     expect((await listGuides(db)).map((g) => g.title)).toEqual([
       "Book a room",
       "Get funding",
-      "Run a bigger event",
+      "Run an event (any size)",
       "Buy food",
       "Promote the event",
     ]);
     const funding = await getGuide(db, "funding");
-    expect(funding?.body).toContain("TODO: college funding emails (to be filled in).");
+    expect(funding?.body).toContain("**Colleges** (form → email, meeting):");
+    expect(funding?.body).not.toContain("TODO");
     expect(funding?.editedBy).toBeNull();
-    expect(await getVersions(db, "funding")).toEqual([]);
+    // 0008 rewrote the guide and kept the original as a version.
+    expect(await getVersions(db, "funding")).toHaveLength(1);
     client.close();
   });
 
@@ -42,7 +44,7 @@ describe("playbook guides", () => {
     expect(edited.editedBy).toBe("omar");
 
     const versions = await getVersions(db, "food");
-    expect(versions).toHaveLength(1);
+    expect(versions).toHaveLength(2);
     expect(versions[0]).toMatchObject({ body: original.body, editedBy: null });
 
     expect((await restoreVersion(db, "food", versions[0].id, "u-aisha")).ok).toBe(true);
@@ -50,7 +52,8 @@ describe("playbook guides", () => {
     expect(restored.body).toBe(original.body);
     expect(restored.editedBy).toBe("Aisha Karim");
     // The bad edit is still there to go back to.
-    expect((await getVersions(db, "food")).map((v) => v.body)).toEqual(["Oops, wiped.", original.body]);
+    // (Below it sits the 0005 original that 0008 replaced.)
+    expect((await getVersions(db, "food")).map((v) => v.body).slice(0, 2)).toEqual(["Oops, wiped.", original.body]);
     client.close();
   });
 
@@ -61,7 +64,7 @@ describe("playbook guides", () => {
       ok: true,
       changed: false,
     });
-    expect(await getVersions(db, "promotion")).toEqual([]);
+    expect(await getVersions(db, "promotion")).toHaveLength(1);
     client.close();
   });
 

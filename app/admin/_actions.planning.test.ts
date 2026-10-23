@@ -55,7 +55,7 @@ describe("event form planning fields", () => {
     expect(ev.draft).toBe(true);
     const tags = await db.select().from(eventTags).where(eq(eventTags.eventId, id));
     expect(tags.map((t) => t.tag).sort()).toEqual(["food", "room"]);
-    expect(Object.keys(await tasks(id)).sort()).toEqual(["promo-eve", "promo-week", "purchase", "room"]);
+    expect(Object.keys(await tasks(id)).sort()).toEqual(["advisor", "flyer", "promo-eve", "promo-week", "proposal", "purchase", "room", "vendor-204"]);
     expect(h.revalidatePath).toHaveBeenCalledWith(`/admin/plan/${id}`);
   });
 
