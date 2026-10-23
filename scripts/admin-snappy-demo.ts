@@ -1,9 +1,9 @@
 /**
  * Short demo of the admin Events page and instant click feedback, desktop
- * then phone, as one 1920x1080 video. Desktop: search, the Past tab, a
- * filter, Cancel showing at once, and one forced failure rolling back with
- * the quiet line. Phone: an RSVP showing at once with "Saving…", a forced
- * failure rolling back, then the Events page with a filter.
+ * then phone, as one 1920x1080 video. Desktop: the More menu (keyboard and
+ * mouse), Cancel showing at once, one forced failure rolling back with the
+ * quiet line, and Edit opening at once after a hover. Phone: the More menu
+ * and Edit opening after a touch.
  *
  *   bun scripts/admin-snappy-demo.ts --base http://localhost:3300 --out tmp/admin-snappy.mp4 \
  *     --token <admin session token> [--at 2026-10-21T14:00:00-07:00] [--latency 800]
@@ -13,7 +13,7 @@
  * (scripts/fake-now.cjs). Every Server Function call is held back by
  * --latency ms so the feedback is visible; the forced failures abort the
  * call in the browser, so the server never sees them. It does change the
- * scratch database: it cancels and uncancels one event and RSVPs once.
+ * scratch database: it cancels and uncancels one event.
  */
 import { chromium, type Browser, type Locator, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
@@ -114,83 +114,81 @@ async function click(page: Page, el: Locator) {
   await page.mouse.up();
 }
 
-/** The first upcoming row with a Cancel button (a whole event, not yet cancelled). */
-async function cancellableRow(page: Page) {
-  const first = page.locator(".admin-event").filter({ has: page.getByRole("button", { name: /^Cancel / }) }).first();
-  const label = (await first.getByRole("button", { name: /^Cancel / }).getAttribute("aria-label"))!;
-  const title = label.replace(/^Cancel /, "");
-  // Held by its title, since it stops matching "has a Cancel button" once cancelled.
+/** The first row not already cancelled, held by its title (its buttons change as it is cancelled). */
+async function firstRow(page: Page) {
+  const first = page.locator(".admin-event").filter({ hasNotText: "Cancelled" }).first();
+  const label = (await first.getByRole("link", { name: /^Edit / }).getAttribute("aria-label"))!;
+  const title = label.replace(/^Edit /, "");
   return { row: page.locator(".admin-event").filter({ hasText: title }).first(), title };
 }
 
-async function desktop(page: Page, mark: Mark, fail: { next: boolean }) {
-  mark("desktop: Admin > Events, upcoming soonest first, grouped by date");
-  await sleep(1800);
-  const search = page.getByRole("searchbox", { name: "Search events" });
-  mark("search: \"night\"");
-  await click(page, search);
-  await page.keyboard.type("night", { delay: 110 });
-  await sleep(1800);
-  await search.fill("");
-  await sleep(600);
-  mark("the Past tab, newest first");
-  await click(page, page.getByRole("tab", { name: /^Past/ }));
-  await sleep(1800);
-  mark("filter: No flyer");
-  await click(page, page.getByRole("button", { name: "No flyer", exact: true }));
-  await sleep(1800);
-  await click(page, page.getByRole("button", { name: "All", exact: true }));
-  await click(page, page.getByRole("tab", { name: /^Upcoming/ }));
-  await sleep(1000);
+const more = (row: Locator, title: string) => row.getByRole("button", { name: `More actions for ${title}` });
 
-  const { row, title } = await cancellableRow(page);
-  mark(`quick action: Cancel ${title}, the badge shows at once (${LATENCY} ms server delay)`);
-  await click(page, row.getByRole("button", { name: `Cancel ${title}` }));
+async function desktop(page: Page, mark: Mark, fail: { next: boolean }) {
+  mark("desktop: Admin > Events, each row keeps Edit and View; the rest is behind a More (...) button");
+  await sleep(1800);
+  const { row, title } = await firstRow(page);
+
+  mark("keyboard: Enter opens More, arrows move, Esc closes");
+  await more(row, title).focus();
+  await page.keyboard.press("Enter");
+  await sleep(900);
+  await page.keyboard.press("ArrowDown");
+  await sleep(900);
+  await page.keyboard.press("Escape");
+  await sleep(900);
+
+  mark(`Cancel event: the badge shows at once (${LATENCY} ms server delay)`);
+  await click(page, more(row, title));
+  await sleep(600);
+  await click(page, row.getByRole("menuitem", { name: "Cancel event" }));
   await sleep(2200);
+
   mark("forced failure: Uncancel, the call is dropped, it rolls back with a quiet line");
   fail.next = true;
-  await click(page, row.getByRole("button", { name: `Uncancel ${title}` }));
+  await click(page, more(row, title));
+  await sleep(500);
+  await click(page, row.getByRole("menuitem", { name: "Uncancel event" }));
   await sleep(3200);
+
   mark("Uncancel again, saved");
-  await click(page, row.getByRole("button", { name: `Uncancel ${title}` }));
+  await click(page, more(row, title));
+  await sleep(500);
+  await click(page, row.getByRole("menuitem", { name: "Uncancel event" }));
   await sleep(2000);
+
+  mark("hover Edit: the page is fetched ahead; the click opens it at once");
+  await point(page, row.getByRole("link", { name: /^Edit / }));
+  await sleep(1500);
+  await page.mouse.down();
+  await sleep(90);
+  await page.mouse.up();
+  await page.getByLabel("Title", { exact: true }).waitFor();
+  await sleep(1800);
 }
 
-/** An upcoming event that takes the site's own RSVPs (no organizers' form). */
-async function rsvpEvent(page: Page) {
-  const hrefs = await page
-    .locator(".admin-event a[href^='/calendar/events/']")
-    .evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
-  for (const href of hrefs) {
-    await page.goto(BASE + href);
-    if (await page.getByRole("button", { name: "Going", exact: true }).count()) return href;
-  }
-  throw new Error("no upcoming event takes RSVPs on the site");
-}
-
-async function phone(page: Page, mark: Mark, fail: { next: boolean }) {
-  mark("phone: an event page, RSVP");
-  await sleep(1000);
-  const box = page.locator("[aria-labelledby=rsvp-heading]");
-  await scrollToShow(page, box, 140, 900);
-  await sleep(800);
-  mark(`tap Going: chosen at once, "Saving…" until the server has it`);
-  await tap(page, page.getByRole("button", { name: "Going", exact: true }));
-  await sleep(2200);
-  mark("forced failure: tap Maybe, it rolls back to Going with a quiet line");
-  fail.next = true;
-  await tap(page, page.getByRole("button", { name: "Maybe", exact: true }));
-  await sleep(3200);
-
-  mark("Admin > Events on the phone");
-  await page.goto(BASE + "/admin");
-  await settle(page);
+async function phone(page: Page, mark: Mark) {
+  mark("phone: Admin > Events, More is a 44px button");
   await sleep(1400);
-  mark("filter: Imported");
-  await tap(page, page.getByRole("button", { name: "Imported", exact: true }));
-  await sleep(1600);
-  await scrollToShow(page, page.locator(".admin-event").nth(2), 200, 1100);
-  await sleep(1600);
+  const { row, title } = await firstRow(page);
+  mark("tap More: the menu opens inside the screen");
+  await tap(page, more(row, title));
+  await sleep(1800);
+  await tap(page, page.getByRole("heading", { level: 1 }));
+  await sleep(700);
+  await scrollToShow(page, page.locator(".admin-event").nth(3), 200, 1000);
+  await sleep(700);
+  const last = page.locator(".admin-event").nth(3);
+  const lastTitle = (await last.getByRole("link", { name: /^Edit / }).getAttribute("aria-label"))!.replace(/^Edit /, "");
+  mark("tap More on a lower row: it opens upward if there is no room below");
+  await tap(page, more(last, lastTitle));
+  await sleep(1800);
+  await tap(page, page.getByRole("heading", { level: 1 }));
+  await sleep(500);
+  mark("tap Edit: the page was fetched on the first touch, so it opens at once");
+  await tap(page, last.getByRole("link", { name: /^Edit / }));
+  await page.getByLabel("Title", { exact: true }).waitFor();
+  await sleep(1800);
 }
 
 async function main() {
@@ -198,18 +196,8 @@ async function main() {
   mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true });
   const tmp = mkdtempSync(path.join(os.tmpdir(), "ucscmsa-snappy-"));
   const browser = await chromium.launch();
-  // Find the RSVP event first, off camera, and warm the pages the clips load.
-  const scout = await browser.newContext({ timezoneId: "America/Los_Angeles" });
-  await scout.addCookies([{ name: "authjs.session-token", value: TOKEN, url: BASE }]);
-  const sp = await scout.newPage();
-  await sp.clock.setFixedTime(new Date(AT));
-  await sp.goto(BASE + "/admin");
-  const event = await rsvpEvent(sp);
-  await scout.close();
-  console.log(`RSVP event: ${event}`);
-
   const d = await clip(browser, tmp, { width: 1280, height: 800 }, false, "/admin", desktop);
-  const p = await clip(browser, tmp, { width: 390, height: 844 }, true, event, phone);
+  const p = await clip(browser, tmp, { width: 390, height: 844 }, true, "/admin", (page, mark) => phone(page, mark));
   await browser.close();
 
   // Desktop scaled to 1080 high, then the phone centred, 1080 high, on paper.
