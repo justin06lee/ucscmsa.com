@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 
 export default function AdminError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -35,7 +35,7 @@ export default function AdminError({
           Back to site
         </Link>
         {!isUnauthorized && (
-          <Button onClick={reset}>Try again</Button>
+          <Button onClick={() => retry()}>Try again</Button>
         )}
       </div>
     </div>

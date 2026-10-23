@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 import { FadeIn } from "@/components/fade-in";
@@ -58,7 +58,7 @@ export function YearView({ ymd, occurrences }: Props) {
           const total = days.reduce((n, d) => n + (countByDay.get(d) ?? 0), 0);
           return (
             <li key={firstYmd}>
-              <Link
+              <IntentLink
                 href={`/calendar?view=month&date=${firstYmd}`}
                 aria-label={`${monthName} ${year}, ${total === 0 ? "no events" : `${total} event${total === 1 ? "" : "s"}`}`}
                 className="block rounded-xl border border-ink/10 bg-paper p-2.5 transition-colors hover:border-ink/25"
@@ -80,7 +80,7 @@ export function YearView({ ymd, occurrences }: Props) {
                     />
                   ))}
                 </span>
-              </Link>
+              </IntentLink>
             </li>
           );
         })}
@@ -94,12 +94,12 @@ export function YearView({ ymd, occurrences }: Props) {
               key={firstYmd}
               className="rounded-xl border border-ink/10 bg-paper px-4 py-3"
             >
-              <Link
+              <IntentLink
                 href={`/calendar?view=month&date=${firstYmd}`}
                 className="flex min-h-11 w-full items-center text-sm font-medium hover:text-burgundy transition-colors"
               >
                 {monthName}
-              </Link>
+              </IntentLink>
               <div className="grid grid-cols-7 gap-1 text-[10px] text-dim uppercase tracking-wider">
                 {WEEKDAY_INITIALS.map((d, i) => (
                   <div key={i} className="flex h-5 items-center justify-center">
@@ -116,7 +116,7 @@ export function YearView({ ymd, occurrences }: Props) {
                   const s = count === 1 ? "" : "s";
                   const isToday = dayYmd === todayYmd;
                   return (
-                    <Link
+                    <IntentLink
                       key={dayYmd}
                       href={`/calendar?view=day&date=${dayYmd}`}
                       title={`${dayYmd}: ${count} event${s}`}

@@ -115,9 +115,7 @@ test.describe("admin: flyers", () => {
       mimeType: "image/jpeg",
       buffer: Buffer.alloc(5 * 1024 * 1024),
     });
-    await expect(flyers.getByRole("alert")).toHaveText(
-      "huge.jpg is more than 4 MB. Use a smaller copy, such as a screenshot of it.",
-    );
+    await expect(flyers.getByText("huge.jpg is more than 4 MB. Use a smaller copy, such as a screenshot of it.")).toBeVisible();
   });
 
   test("an upload without image storage set up says so", async ({ page }) => {
@@ -130,6 +128,6 @@ test.describe("admin: flyers", () => {
       "base64",
     );
     await flyers.getByLabel("Add flyers").setInputFiles({ name: "flyer.png", mimeType: "image/png", buffer: png });
-    await expect(flyers.getByRole("alert")).toHaveText("Image storage isn't set up");
+    await expect(flyers.getByText("Image storage isn't set up")).toBeVisible();
   });
 });

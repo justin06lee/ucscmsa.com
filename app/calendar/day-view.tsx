@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import type { PrayerTimes } from "@/lib/aladhan";
 import {
@@ -105,13 +105,13 @@ function DayRow({ kind, label, items, ymd }: { kind: "untimed" | "long"; label: 
       <ul className="flex flex-col gap-1.5">
         {items.map((o) => (
           <li key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}>
-            <Link
+            <IntentLink
               href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
               className="day-grid__row-event"
             >
               <span className="truncate font-medium">{o.title}</span>
               <span className="shrink-0 text-xs text-ink/60">{timeOnDay(o, ymd)}</span>
-            </Link>
+            </IntentLink>
           </li>
         ))}
       </ul>
@@ -250,7 +250,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
                       }
                     : null;
                 return (
-                  <Link
+                  <IntentLink
                     key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
                     href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                     className="day-grid__event"
@@ -266,7 +266,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
                           : `${formatLocal(o.occurrenceStart, "h:mm a")} – ${formatLocal(o.occurrenceEnd, "h:mm a")}`}
                       </div>
                     )}
-                  </Link>
+                  </IntentLink>
                 );
               })
             )}

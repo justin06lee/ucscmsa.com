@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { seed, signIn } from "./fixtures";
+import { pickDate, santaCruzDay, seed, signIn, typeTime } from "./fixtures";
 
 // The board's pages under /admin: Planning and the Playbook. Relies on
 // scripts/seed-local.ts (a planned draft, ev-bonfire, and the seeded guides).
@@ -8,30 +8,6 @@ test.beforeEach(async ({ context, baseURL }) => {
   test.skip(!seed(), "needs the seeded session tokens (E2E_SEED_FILE)");
   await signIn(context, baseURL!, "admin");
 });
-
-/** Santa Cruz's date `days` from now, as the date picker labels it and as YYYY-MM-DD. */
-function santaCruzDay(days: number) {
-  const d = new Date(Date.now() + days * 86_400_000);
-  const tz = { timeZone: "America/Los_Angeles" } as const;
-  const label = d.toLocaleDateString("en-US", { ...tz, weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  const ymd = d.toLocaleDateString("en-CA", tz);
-  return { label, ymd };
-}
-
-async function pickDate(page: Page, field: string, label: string) {
-  await page.getByLabel(new RegExp(`^${field}`)).click();
-  const dialog = page.getByRole("dialog", { name: "Choose date" });
-  for (let i = 0; i < 3 && !(await dialog.getByRole("gridcell", { name: label }).isVisible()); i++) {
-    await dialog.getByRole("button", { name: "Next month" }).click();
-  }
-  await dialog.getByRole("gridcell", { name: label }).click();
-}
-
-async function typeTime(page: Page, field: string, value: string) {
-  const input = page.getByRole("textbox", { name: new RegExp(`^${field}`) });
-  await input.fill(value);
-  await input.press("Enter");
-}
 
 test("plan a draft: tags make a dated checklist; tick and assign tasks", async ({ page }) => {
   // 20 days out: funding (21 days before) is already overdue, the room (14) isn't.

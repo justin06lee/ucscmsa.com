@@ -5,6 +5,7 @@ import { coverThumb } from "@/lib/event-media";
 import { splitLinks } from "@/lib/event-text";
 import { formatLocal } from "@/lib/time";
 import { EventCover } from "@/components/event-cover";
+import { LinkPending } from "@/components/link-pending";
 import { occurrenceHref } from "@/components/event-list-card";
 import { RsvpLink } from "@/components/event-actions";
 
@@ -49,7 +50,7 @@ export async function UpcomingEvents({
             key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
             className="upcoming-card flex min-w-0 flex-col"
           >
-            <Link href={occurrenceHref(o)} className="group flex flex-col">
+            <Link href={occurrenceHref(o)} className="group relative flex flex-col">
               <EventCover
                 image={coverThumb(o.cover, o.title)}
                 title={o.title}
@@ -63,7 +64,8 @@ export async function UpcomingEvents({
               <h3 className="mt-1 text-lg font-medium leading-snug text-ink [overflow-wrap:anywhere] group-hover:text-burgundy">
                 {o.title}
               </h3>
-            </Link>
+              <LinkPending />
+              </Link>
             {rsvp ? <RsvpLink link={rsvp} className="mt-3 self-start" /> : null}
           </li>
         );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { startTransition as later, useState, useTransition } from "react";
+import { attempt } from "@/lib/attempt";
 import { Button } from "@/components/ui/button";
 import { publishEvent } from "../_actions";
 
@@ -12,19 +13,20 @@ export function PublishButton({ eventId }: { eventId: string }) {
       <Button
         size="lg"
         disabled={pending}
+        aria-busy={pending}
         onClick={() => {
           setErr(null);
           start(async () => {
-            const r = await publishEvent(eventId);
-            if (!r.ok) setErr("Couldn't publish it. Try again.");
+            const r = await attempt(() => publishEvent(eventId));
+            if (!r.ok) later(() => setErr(r.error));
           });
         }}
       >
-        Publish
+        {pending ? "Publishing…" : "Publish"}
       </Button>
       <span className="text-sm text-dim">Only admins can see it until it&apos;s published.</span>
       {err ? (
-        <span role="alert" className="text-sm text-burgundy">
+        <span role="status" className="text-sm text-burgundy">
           {err}
         </span>
       ) : null}

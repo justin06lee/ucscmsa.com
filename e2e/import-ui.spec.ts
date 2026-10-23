@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seed, signIn } from "./fixtures";
+import { adminRow, seed, signIn } from "./fixtures";
 
 // UI for events from the import API (docs/import.md). Fixtures from
 // scripts/seed-local.ts: ev-potluck (imported from WhatsApp) and ev-cleanup
@@ -36,13 +36,13 @@ test.describe("admin", () => {
   });
 
   test("the event list marks imported and cancelled events", async ({ page }) => {
-    await page.goto("/admin");
-    const row = (title: string) => page.getByRole("row").filter({ hasText: title });
-    await expect(row("Beach Cleanup at Natural Bridges")).toContainText("Imported from WhatsApp");
-    await expect(row("Beach Cleanup at Natural Bridges")).toContainText("Cancelled");
-    await expect(row("Community Potluck")).toContainText("Imported from WhatsApp");
-    await expect(row("Community Potluck")).not.toContainText("Cancelled");
-    await expect(row("Fall General Body Meeting")).not.toContainText("Imported");
+    let row = await adminRow(page, "Beach Cleanup at Natural Bridges");
+    await expect(row).toContainText("Imported from WhatsApp");
+    await expect(row).toContainText("Cancelled");
+    row = await adminRow(page, "Community Potluck");
+    await expect(row).toContainText("Imported from WhatsApp");
+    await expect(row).not.toContainText("Cancelled");
+    await expect(await adminRow(page, "Fall General Body Meeting")).not.toContainText("Imported");
   });
 
   test("the edit form explains the import and shows where it came from", async ({ page }) => {

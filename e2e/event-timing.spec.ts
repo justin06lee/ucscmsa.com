@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { seed, signIn } from "./fixtures";
+import { adminRow, seed, signIn } from "./fixtures";
 
 // Events whose times weren't announced (scripts/seed-local.ts, dated relative
 // to the seed and kept off the fixed fixtures' days): ev-date-only today with
@@ -119,9 +119,8 @@ test.describe("admin", () => {
   });
 
   test("the list and the form leave unknown times blank", async ({ page }) => {
-    await page.goto("/admin");
-    await expect(page.getByRole("row").filter({ hasText: "Henna Night" })).toContainText("time not announced");
-    await expect(page.getByRole("row").filter({ hasText: "Laser Tag + Arcade Social" })).toContainText("6:00 PM");
+    await expect(await adminRow(page, "Henna Night")).toContainText("Time not announced");
+    await expect(await adminRow(page, "Laser Tag + Arcade Social")).toContainText("6:00 PM");
 
     await page.goto("/admin/events/ev-date-only/edit");
     await expect(page.locator('input[name="startTime"]')).toHaveValue("");

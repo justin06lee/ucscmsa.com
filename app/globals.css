@@ -368,3 +368,28 @@ body {
   background: var(--color-burgundy);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-burgundy) 20%, transparent);
 }
+
+/* components/link-pending.tsx: a link whose page is on its way. */
+.link-pending {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0;
+  transform: scaleX(0.2);
+  pointer-events: none;
+}
+.link-pending[data-pending] {
+  opacity: 0.6;
+  animation: link-pending 0.9s ease-in-out infinite alternate;
+}
+@keyframes link-pending {
+  from { transform: scaleX(0.2); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .link-pending[data-pending] { animation: none; transform: none; }
+}

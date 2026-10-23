@@ -283,16 +283,16 @@ describe("admin edits and images", () => {
     const id = await importEvent("img-9");
     const bad = new FormData();
     bad.append("image", new File(["hello"], "notes.txt", { type: "text/plain" }));
-    expect(await uploadEventImages(id, bad)).toEqual({ ok: false, error: "notes.txt: Not a readable image." });
+    expect(await uploadEventImages(id, bad)).toEqual({ ok: false, code: "image_rejected", error: "notes.txt: Not a readable image." });
 
     const ten = new FormData();
     for (let n = 20; n < 30; n++) ten.append("image", await file(n));
     expect((await uploadEventImages(id, ten)).ok).toBe(true);
     const one = new FormData();
     one.append("image", await file(30));
-    expect(await uploadEventImages(id, one)).toEqual({ ok: false, error: "An event can have at most 10 images" });
+    expect(await uploadEventImages(id, one)).toEqual({ ok: false, code: "too_many", error: "An event can have at most 10 images" });
 
-    expect(await setEventImages(id, [{ id: "0123456789abcdef" }])).toEqual({ ok: false, error: "That image was already removed" });
+    expect(await setEventImages(id, [{ id: "0123456789abcdef" }])).toEqual({ ok: false, code: "image_removed", error: "That image was already removed. Reload the page." });
   });
 
   it("imports never touch images, and deleting the event deletes its files", async () => {

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { attempt } from "@/lib/attempt";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/board/markdown";
 import { restoreGuide } from "../../_actions";
@@ -11,6 +12,7 @@ type Version = { id: number; title: string; body: string; when: string; by: stri
 export function VersionList({ slug, versions }: { slug: string; versions: Version[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [restoring, setRestoring] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   return (
@@ -20,7 +22,7 @@ export function VersionList({ slug, versions }: { slug: string; versions: Versio
       </h2>
       <p className="mt-1 text-sm text-dim">Restoring one saves it as the newest version, so it can be undone too.</p>
       {err ? (
-        <p role="alert" className="mt-2 text-sm text-burgundy">
+        <p role="status" className="mt-2 text-sm text-burgundy">
           {err}
         </p>
       ) : null}
@@ -36,16 +38,18 @@ export function VersionList({ slug, versions }: { slug: string; versions: Versio
                 size="sm"
                 className="min-h-11"
                 disabled={pending}
+                aria-busy={pending && restoring === v.id}
                 onClick={() => {
                   setErr(null);
+                  setRestoring(v.id);
                   start(async () => {
-                    const r = await restoreGuide(slug, v.id);
-                    if (r.ok) router.push(`/admin/playbook/${slug}`);
-                    else setErr("Couldn't restore that version. Try again.");
+                    const r = await attempt(() => restoreGuide(slug, v.id));
+                    if (r.ok) start(() => router.push(`/admin/playbook/${slug}`));
+                    else start(() => setErr(r.error));
                   });
                 }}
               >
-                Restore
+                {pending && restoring === v.id ? "Restoring…" : "Restore"}
               </Button>
             </div>
             <details className="group">

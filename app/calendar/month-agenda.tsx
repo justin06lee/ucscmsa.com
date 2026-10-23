@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { timeOnDay } from "@/lib/event-time";
 import { EventListCard } from "@/components/event-list-card";
@@ -42,7 +42,7 @@ export function MonthAgenda({
       {list.map((day) => (
         <li key={day} className="timeline__day" data-today={day === todayYmd ? "" : undefined}>
           <h3 className="text-sm">
-            <Link
+            <IntentLink
               href={`/calendar?view=day&date=${day}`}
               className="inline-flex min-h-11 items-center gap-2 hover:text-burgundy"
             >
@@ -51,7 +51,7 @@ export function MonthAgenda({
               {day === todayYmd ? (
                 <span className="rounded-full bg-burgundy px-2 py-0.5 text-xs text-paper">Today</span>
               ) : null}
-            </Link>
+            </IntentLink>
           </h3>
           <ul className="flex flex-col gap-2.5">
             {byDay.get(day)!.map((o) => (

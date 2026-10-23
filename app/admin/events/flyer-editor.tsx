@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { startTransition, useOptimistic, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { FlyerThumb } from "@/components/flyer-thumb";
 import { removeEventImage, setEventImages, uploadEventImages } from "@/app/admin/_actions";
 import { EVENT_IMAGES_MAX, type EventImage } from "@/lib/event-image";
 import { toFlyers } from "@/lib/event-media";
+import { attempt } from "@/lib/attempt";
 
 // The server-action body limit in next.config.ts; a bigger upload never
 // reaches the action, so it's refused here with a readable message.
@@ -16,10 +17,12 @@ type Result = { ok: true; images: EventImage[] } | { ok: false; error: string };
 
 /**
  * The event's flyers on its edit page: add, replace, reorder and remove.
- * Each change saves at once, apart from the event form's Save.
+ * Each change saves at once, apart from the event form's Save. A move or a
+ * removal shows before the server answers and comes back if it fails.
  */
 export function FlyerEditor({ eventId, initial }: { eventId: string; initial: EventImage[] }) {
   const [images, setImages] = useState(initial);
+  const [shown, show] = useOptimistic(images);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
@@ -27,17 +30,18 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
   const replaceInput = useRef<HTMLInputElement>(null);
   const replacing = useRef<string | null>(null);
 
-  function run(action: () => Promise<Result>, done: string) {
+  function run(action: () => Promise<Result>, done: string, expected?: EventImage[]) {
     setError(null);
     setStatus("");
     start(async () => {
-      const result = await action();
-      if (result.ok) {
-        setImages(result.images);
-        setStatus(done);
-      } else {
-        setError(result.error);
-      }
+      if (expected) show(expected);
+      const result = await attempt(action);
+      startTransition(() => {
+        if (result.ok && result.value.ok) {
+          setImages(result.value.images);
+          setStatus(done);
+        } else if (!result.ok) setError(result.error);
+      });
     });
   }
 
@@ -64,18 +68,19 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
   }
 
   function move(from: number, to: number) {
-    const next = [...images];
+    const next = [...shown];
     const [img] = next.splice(from, 1);
     next.splice(to, 0, img);
     run(
       () => setEventImages(eventId, next.map((i) => ({ id: i.id }))),
       `Flyer moved to position ${to + 1}.`,
+      next,
     );
   }
 
   function remove(img: EventImage, n: number) {
     if (!window.confirm(`Remove flyer ${n}? It is deleted, not hidden.`)) return;
-    run(() => removeEventImage(eventId, img.id), "Flyer removed.");
+    run(() => removeEventImage(eventId, img.id), "Flyer removed.", shown.filter((i) => i.id !== img.id));
   }
 
   return (
@@ -85,17 +90,17 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
         Changes here are saved straight away. The first flyer is the one on
         cards. JPEG, PNG, WebP or GIF, under 4 MB each.
       </p>
-      {images.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="text-sm text-dim">No flyers yet.</p>
       ) : (
         <ol className="grid gap-3">
-          {images.map((img, i) => (
+          {shown.map((img, i) => (
             <li key={img.id} className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-3">
               <FlyerThumb image={toFlyers([img], "")[0].card} width={64} />
               <div className="grid gap-1.5">
                 <span className="text-sm">
                   Flyer {i + 1}
-                  {i === 0 && images.length > 1 ? <span className="text-dim"> · on cards</span> : null}
+                  {i === 0 && shown.length > 1 ? <span className="text-dim"> · on cards</span> : null}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   <Button
@@ -111,7 +116,7 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
                     variant="outline"
                     className="min-h-11"
                     aria-label={`Move flyer ${i + 1} down`}
-                    disabled={pending || i === images.length - 1}
+                    disabled={pending || i === shown.length - 1}
                     onClick={() => move(i, i + 1)}
                   >
                     Down
@@ -143,14 +148,14 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
           ))}
         </ol>
       )}
-      {images.length < EVENT_IMAGES_MAX && (
+      {shown.length < EVENT_IMAGES_MAX && (
         <Button
           variant="outline"
           className="min-h-11 justify-self-start"
           disabled={pending}
           onClick={() => addInput.current?.click()}
         >
-          {images.length ? "Add flyers" : "Add a flyer"}
+          {shown.length ? "Add flyers" : "Add a flyer"}
         </Button>
       )}
       <input
@@ -177,7 +182,7 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
         }}
       />
       {error ? (
-        <p role="alert" className="text-sm text-burgundy">
+        <p role="status" className="text-sm text-burgundy">
           {error}
         </p>
       ) : null}

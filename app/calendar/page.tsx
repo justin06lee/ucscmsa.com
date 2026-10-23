@@ -58,11 +58,13 @@ export default async function CalendarPage({
   // so it sets LCP); only the view waits for events and prayer times. A
   // route-level loading.tsx held the title back with the data.
   return (
-    <main id="main" tabIndex={-1} className="max-w-6xl mx-auto px-4 py-8 w-full flex-1 sm:px-6 sm:py-12">
+    <main id="main" tabIndex={-1} className="group/cal max-w-6xl mx-auto px-4 py-8 w-full flex-1 sm:px-6 sm:py-12">
       <CalendarNav view={view} date={date} />
-      <Suspense key={`${view}:${ymd}`} fallback={<CalendarSkeleton />}>
-        <CalendarBody view={view} ymd={ymd} />
-      </Suspense>
+      <div className="transition-opacity duration-150 group-has-data-pending/cal:opacity-50">
+        <Suspense key={`${view}:${ymd}`} fallback={<CalendarSkeleton />}>
+          <CalendarBody view={view} ymd={ymd} />
+        </Suspense>
+      </div>
     </main>
   );
 }

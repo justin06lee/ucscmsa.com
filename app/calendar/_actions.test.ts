@@ -40,15 +40,15 @@ describe("rsvp", () => {
     vi.setSystemTime(new Date("2026-10-22T02:30:00Z"));
     expect(await rsvp(form("tonight", start, "maybe"))).toEqual({ ok: true });
     vi.setSystemTime(new Date("2026-10-22T03:00:00Z"));
-    expect(await rsvp(form("tonight", start, "no"))).toEqual({ ok: false, error: "event_ended" });
+    expect(await rsvp(form("tonight", start, "no"))).toEqual({ ok: false, code: "event_ended", error: "This event has ended, so it no longer takes RSVPs." });
     const [row] = await db.select().from(eventRsvps);
     expect(row.status).toBe("maybe");
   });
 
   it("still rejects unknown occurrences and signed-out users", async () => {
-    expect(await rsvp(form("tonight", new Date("2026-10-22T02:00:00Z")))).toEqual({ ok: false, error: "invalid_input" });
+    expect(await rsvp(form("tonight", new Date("2026-10-22T02:00:00Z")))).toMatchObject({ ok: false, code: "invalid_input" });
     h.userId = null;
-    expect(await rsvp(form("tonight", new Date("2026-10-22T01:00:00Z")))).toEqual({ ok: false, error: "login_required" });
+    expect(await rsvp(form("tonight", new Date("2026-10-22T01:00:00Z")))).toEqual({ ok: false, code: "login_required", error: "Please sign in first." });
     h.userId = "u1";
   });
 });

@@ -1,7 +1,9 @@
 "use client";
 
+import { attempt } from "@/lib/attempt";
+import { NOMINATION_ERRORS } from "./actions-row";
 import { nominateAdmin } from "@/app/admin/_actions";
-import { useState, useTransition } from "react";
+import { startTransition as later, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -16,9 +18,11 @@ export function NominateForm() {
         setOk(false);
         fd.set("action", "promote");
         start(async () => {
-          const r = await nominateAdmin(fd);
-          if (r.ok) setOk(true);
-          else setErr(r.error ?? "failed");
+          const r = await attempt(() => nominateAdmin(fd));
+          later(() => {
+            if (r.ok) setOk(true);
+            else setErr((r.code && NOMINATION_ERRORS[r.code]) || r.error);
+          });
         });
       }}
       className="flex flex-wrap items-end gap-4"
@@ -36,15 +40,15 @@ export function NominateForm() {
         />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" disabled={pending}>
-          Create nomination
+        <Button type="submit" size="lg" disabled={pending} aria-busy={pending}>
+          {pending ? "Creating…" : "Create nomination"}
         </Button>
         {err && (
-          <span role="alert" className="text-sm text-burgundy">
+          <span role="status" className="text-sm text-burgundy">
             {err}
           </span>
         )}
-        {ok && <span className="text-sm text-dim">Nomination created.</span>}
+        {ok && <span role="status" className="text-sm text-dim">Nomination created.</span>}
       </div>
     </form>
   );

@@ -40,8 +40,9 @@ test.describe("flyer viewer", () => {
     await page.keyboard.press("Escape");
     await expect(viewer(page)).toBeHidden();
     await expect(hero).toBeFocused();
-    // The page scrolls again once the viewer is gone.
-    expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+    // The page scrolls again once the viewer is gone (the lock lifts in an
+    // effect cleanup, which can land just after focus returns).
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("");
   });
 
   test("a thumbnail opens its own flyer; the close button closes", async ({ page }) => {

@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { attempt } from "@/lib/attempt";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -194,10 +195,13 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
       action={(fd) => {
         setErr(null);
         start(async () => {
-          const result = await onSubmit(fd);
-          // A planned event opens on its checklist.
-          if (result.ok) router.push(result.planned && result.id ? `/admin/plan/${result.id}` : "/admin");
-          else setErr(result.error ?? "Unknown error");
+          const result = await attempt(() => onSubmit(fd));
+          // A planned event opens on its checklist. The button keeps saying
+          // "Saving…" until that page is up (the push is part of the transition).
+          if (result.ok) {
+            const { planned, id } = result.value;
+            start(() => router.push(planned && id ? `/admin/plan/${id}` : "/admin"));
+          } else start(() => setErr(result.error));
         });
       }}
       className="grid max-w-xl gap-4"
@@ -296,8 +300,8 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
           {err}
         </div>
       )}
-      <Button type="submit" size="lg" disabled={pending} className="justify-self-start">
-        {submitLabel}
+      <Button type="submit" size="lg" disabled={pending} aria-busy={pending} className="justify-self-start">
+        {pending ? "Saving…" : submitLabel}
       </Button>
     </form>
   );

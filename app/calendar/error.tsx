@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 
 export default function CalendarError({
   error,
-  reset,
+  retry,
 }: {
   error: Error;
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error("Calendar route error:", error);
@@ -18,7 +18,7 @@ export default function CalendarError({
       <p className="italic text-dim">
         The calendar couldn&apos;t load right now. Please try again in a moment.
       </p>
-      <Button variant="outline" onClick={reset} className="mt-4">
+      <Button variant="outline" onClick={() => retry()} className="mt-4">
         Retry
       </Button>
     </main>
