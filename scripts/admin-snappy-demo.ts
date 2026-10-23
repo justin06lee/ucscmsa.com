@@ -176,11 +176,11 @@ async function phone(page: Page, mark: Mark) {
   await sleep(1800);
   await tap(page, page.getByRole("heading", { level: 1 }));
   await sleep(700);
-  await scrollToShow(page, page.locator(".admin-event").nth(3), 200, 1000);
+  await scrollToShow(page, page.locator(".admin-event").last(), 200, 1000);
   await sleep(700);
-  const last = page.locator(".admin-event").nth(3);
+  const last = page.locator(".admin-event").last();
   const lastTitle = (await last.getByRole("link", { name: /^Edit / }).getAttribute("aria-label"))!.replace(/^Edit /, "");
-  mark("tap More on a lower row: it opens upward if there is no room below");
+  mark("tap More on a last row: it opens upward if there is no room below");
   await tap(page, more(last, lastTitle));
   await sleep(1800);
   await tap(page, page.getByRole("heading", { level: 1 }));
