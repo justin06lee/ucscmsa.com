@@ -92,8 +92,8 @@ describe("planning against the database (migration 0005 seeds)", () => {
     expect(tl.tasks.map((x) => [x.title, x.state])).toEqual([
       ["Apply for funding", "overdue"],
       ["Design the flyer (with the access line)", "overdue"],
-      ["Book a room (after filing the proposal)", "overdue"],
       ["File the Event Proposal (DocuSign)", "overdue"],
+      ["Book a room (after filing the proposal)", "overdue"],
       ["Post on Instagram, WhatsApp and the site", "overdue"],
       ["Meet an advisor (Peer Advisor drop-in; SOMeCA for mid-size and up)", "overdue"],
       ["Post a reminder", "open"],

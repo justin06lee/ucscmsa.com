@@ -5,28 +5,24 @@ import { requireAdmin } from "@/lib/auth";
 import { formatYmd, relativeDay } from "@/components/board/format";
 import { DraftBadge } from "@/components/board/draft-badge";
 import { getOverview } from "./_plan";
+import { listCards } from "../playbook/_cards";
+import { PlanComposer } from "./plan-composer";
 import { toLocalYmd } from "@/lib/time";
 
 export default async function PlanningPage() {
   await requireAdmin();
-  const rows = await getOverview(db);
+  const [rows, cards] = await Promise.all([getOverview(db), listCards(db)]);
   const today = toLocalYmd(new Date());
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-3xl">Planning</h1>
-        <Link
-          href="/admin/events/new?draft=1"
-          className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-ink px-5 text-sm font-medium text-paper transition-colors hover:bg-burgundy"
-        >
-          Plan an event
-        </Link>
-      </div>
+      <h1 className="mb-6 text-3xl">Planning</h1>
+      <PlanComposer cards={cards} today={today} />
+      <h2 className="mb-4 text-2xl">Upcoming plans</h2>
 
       {rows.length === 0 ? (
         <p className="py-8 text-center text-dim">
-          Nothing in planning. Plan an event to get its checklist, with due dates worked back from the day.
+          No upcoming plans yet. Tell us about your next event above.
         </p>
       ) : (
         <ul className="flex flex-col gap-3" aria-label="Upcoming events in planning">
@@ -74,10 +70,10 @@ export default async function PlanningPage() {
 
       <p className="mt-10 text-sm">
         <Link
-          href="/admin/plan/settings"
+          href="/admin/playbook"
           className="inline-flex min-h-11 items-center text-dim underline decoration-ink/20 underline-offset-4 hover:text-ink"
         >
-          Lead times
+          Edit the playbook and lead times
         </Link>
       </p>
     </div>

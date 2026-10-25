@@ -36,6 +36,7 @@ export type TaskTemplate = {
   title: string;
   daysBefore: number;
   guideSlug: string | null;
+  dependencies?: string[];
 };
 
 export type PlanTask = {
@@ -62,12 +63,44 @@ export function dueDate(eventYmd: string, daysBefore: number): string {
 
 /** Templates that apply to an event with these tags. */
 export function templatesFor(tags: readonly string[], templates: readonly TaskTemplate[]) {
-  return templates.filter((t) => t.tag == null || tags.includes(t.tag));
+  return includeDependencies(templates.filter((t) => t.tag == null || tags.includes(t.tag)).map((t) => t.id), templates);
+}
+
+/** Prerequisite closure in topological order. Refuse cycles and missing cards. */
+export function includeDependencies(ids: readonly string[], templates: readonly TaskTemplate[]): TaskTemplate[] {
+  const byId = new Map(templates.map((t) => [t.id, t]));
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const ordered: TaskTemplate[] = [];
+  function visit(id: string) {
+    if (visited.has(id)) return;
+    if (visiting.has(id)) throw new Error("Steps cannot depend on each other in a circle.");
+    const t = byId.get(id);
+    if (!t) throw new Error("A prerequisite no longer exists. Update the selection.");
+    visiting.add(id);
+    for (const dep of t.dependencies ?? []) visit(dep);
+    visiting.delete(id);
+    visited.add(id);
+    ordered.push(t);
+  }
+  for (const id of ids) visit(id);
+  return ordered;
+}
+
+/** A prerequisite may never be due after the step that needs it. */
+export function scheduleTemplates(eventYmd: string, ordered: readonly TaskTemplate[]): Map<string, string> {
+  const dates = new Map(ordered.map((t) => [t.id, dueDate(eventYmd, t.daysBefore)]));
+  for (const t of [...ordered].reverse()) {
+    for (const dep of t.dependencies ?? []) {
+      if (dates.has(dep) && dates.get(dep)! > dates.get(t.id)!) dates.set(dep, dates.get(t.id)!);
+    }
+  }
+  return dates;
 }
 
 export type PlanChanges = {
   insert: Array<{ templateId: string; tag: PlanTag | null; title: string; dueDate: string }>;
-  redate: Array<{ id: string; dueDate: string }>;
+  redate: Array<{ id: string; dueDate: string; title?: string }>;
   remove: string[];
 };
 
@@ -89,16 +122,17 @@ export function reconcilePlan(p: {
   tasks: readonly PlanTask[];
 }): PlanChanges {
   const applicable = templatesFor(p.tags, p.templates);
+  const dates = scheduleTemplates(p.eventYmd, applicable);
   const byTemplate = new Map(p.tasks.filter((t) => t.templateId).map((t) => [t.templateId!, t]));
   const changes: PlanChanges = { insert: [], redate: [], remove: [] };
 
   for (const tpl of applicable) {
-    const due = dueDate(p.eventYmd, tpl.daysBefore);
+    const due = dates.get(tpl.id)!;
     const task = byTemplate.get(tpl.id);
     if (!task) {
       changes.insert.push({ templateId: tpl.id, tag: tpl.tag, title: tpl.title, dueDate: due });
-    } else if (!task.doneAt && task.dueDate !== due) {
-      changes.redate.push({ id: task.id, dueDate: due });
+    } else if (!task.doneAt && (task.dueDate !== due || task.title !== tpl.title)) {
+      changes.redate.push({ id: task.id, dueDate: due, ...(task.title !== tpl.title ? { title: tpl.title } : {}) });
     }
   }
 
