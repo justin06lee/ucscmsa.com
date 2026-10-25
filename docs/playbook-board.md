@@ -1,6 +1,6 @@
 # Playbook board and planning from a description
 
-This work is on `feat/playbook-agent`, based on master `223c19a`. It has not been pushed, merged or deployed. Migration `0009_playbook_cards.sql` is required before running this version on a database. Use a scratch **file:** database for review; do not use production credentials.
+This work is on `feat/playbook-agent`, based on master `223c19a`. It remains unmerged and undeployed. Automatic Vercel deployments are disabled for this branch in `vercel.json` so pushing it for review does not deploy it; the setting applies only to this branch and leaves `master` unchanged. Migration `0009_playbook_cards.sql` is required before running this version on a database. Use a scratch **file:** database for review; do not use production credentials.
 
 ## Try it
 
