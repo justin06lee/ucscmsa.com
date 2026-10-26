@@ -34,7 +34,10 @@ test("the landing lists recent past events, newest first, after Upcoming", async
     starts.push(await eventStart(page));
   }
   expect(starts.every((t) => t < Date.now())).toBe(true);
-  expect([...starts].sort((a, b) => b - a)).toEqual(starts);
+  // Newest first by day: within one day a date-only event has no time to
+  // order by, so only the campus-local dates must run backwards.
+  const days = starts.map((t) => new Date(t).toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" }));
+  expect([...days].sort().reverse()).toEqual(days);
 });
 
 test("a past event says so and offers no RSVP; an upcoming one still does", async ({ page }) => {

@@ -330,7 +330,9 @@ async function main() {
       title: "Grappling Night",
       description: "Open mat with the brothers' grappling group.",
       location: "East Field House",
-      ...eventInstants({ date: dayBack(4) }),
+      // The nearest free day before today, so it stays among the landing's
+      // most recent past events (history starts two days back).
+      ...eventInstants({ date: dayBack(1) }),
     },
     {
       id: "ev-past-start-only",

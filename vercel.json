@@ -3,7 +3,8 @@
   "regions": ["pdx1"],
   "git": {
     "deploymentEnabled": {
-      "feat/playbook-agent": false
+      "feat/playbook-agent": false,
+      "site-pass": false
     }
   }
 }
