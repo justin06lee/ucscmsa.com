@@ -29,31 +29,31 @@ test("plan a draft: tags make a dated checklist; tick and assign tasks", async (
   await expect(page.getByRole("heading", { name: "E2E Iftar Planning" })).toBeVisible();
   const checklist = page.getByRole("list", { name: "Checklist" });
   await expect(checklist.getByRole("listitem", { name: "Today" })).toBeVisible();
-  for (const t of ["Apply for funding", "Book a room", "Submit the purchase form", "Post on Instagram and WhatsApp", "Post a reminder"]) {
+  for (const t of ["Apply for funding", "Book a room (after filing the proposal)", "Submit the Purchase Request (DocuSign)", "Post on Instagram, WhatsApp and the site", "Post a reminder"]) {
     await expect(checklist.getByText(t, { exact: true })).toBeVisible();
   }
   const funding = checklist.locator("[data-state]").filter({ hasText: "Apply for funding" });
   await expect(funding).toHaveAttribute("data-state", "overdue");
   await expect(funding).toContainText("Overdue");
-  await expect(page.getByText("0 of 5 done · 1 overdue")).toBeVisible();
+  await expect(page.getByText("0 of 9 done · 3 overdue")).toBeVisible();
 
   // Tick a task: it stays ticked, says who did it, and the count moves.
-  await checklist.getByText("Book a room", { exact: true }).click();
+  await checklist.getByText("Book a room (after filing the proposal)", { exact: true }).click();
   const room = checklist.locator("[data-state]").filter({ hasText: "Book a room" });
   await expect(room).toHaveAttribute("data-state", "done");
   await expect(room).toContainText(/Done by/);
 
   // Assign one.
-  await page.getByLabel('Who\'s doing "Submit the purchase form"').selectOption({ label: "Maryam Siddiqui" });
-  await expect(page.getByLabel('Who\'s doing "Submit the purchase form"')).toBeEnabled();
+  await page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"').selectOption({ label: "Maryam Siddiqui" });
+  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"')).toBeEnabled();
 
   await page.reload();
   await expect(checklist.locator("[data-state]").filter({ hasText: "Book a room" })).toHaveAttribute("data-state", "done");
-  await expect(page.getByLabel('Who\'s doing "Submit the purchase form"')).toHaveValue(/.+/);
-  await expect(page.getByLabel('Who\'s doing "Submit the purchase form"').locator("option:checked")).toHaveText(
+  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"')).toHaveValue(/.+/);
+  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"').locator("option:checked")).toHaveText(
     "Maryam Siddiqui"
   );
-  await expect(page.getByText("1 of 5 done · 1 overdue")).toBeVisible();
+  await expect(page.getByText("1 of 9 done · 3 overdue")).toBeVisible();
 
   // The overview lists it with its next step.
   await page.goto("/admin/plan");
