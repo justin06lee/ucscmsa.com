@@ -9,7 +9,8 @@ import { defineConfig } from "@playwright/test";
 const external = process.env.PLAYWRIGHT_BASE_URL;
 const port = 3210;
 const baseURL = external ?? `http://localhost:${port}`;
-const dbUrl = `file:${path.join(os.tmpdir(), "ucscmsa-e2e.db")}`;
+const dbPath = path.join(os.tmpdir(), "ucscmsa-e2e.db");
+const dbUrl = `file:${dbPath}`;
 // Session tokens from the seed, for specs that sign in (e2e/fixtures.ts).
 // With PLAYWRIGHT_BASE_URL, point E2E_SEED_FILE at your own seed's output.
 process.env.E2E_SEED_FILE ??= path.join(os.tmpdir(), "ucscmsa-e2e-seed.json");
@@ -20,7 +21,10 @@ export default defineConfig({
   webServer: external
     ? undefined
     : {
-        command: `bun scripts/seed-local.ts ${dbUrl} > ${process.env.E2E_SEED_FILE} && bun run dev --port ${port}`,
+        // A new file each run: the seed resets events and people, but the
+        // playbook's cards and guide versions come from migrations, so cards
+        // a previous run added would otherwise still be there.
+        command: `rm -f ${dbPath} ${dbPath}-wal ${dbPath}-shm && bun scripts/seed-local.ts ${dbUrl} > ${process.env.E2E_SEED_FILE} && bun run dev --port ${port}`,
         url: baseURL,
         reuseExistingServer: false,
         timeout: 120_000,

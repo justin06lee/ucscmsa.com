@@ -78,6 +78,8 @@ test.describe("admin: flyers", () => {
   test("reorder, keep on cancel, remove: saved at once and shown on the event", async ({ page }) => {
     await page.goto(EDIT);
     const flyers = page.getByRole("region", { name: "Flyers" });
+    // The admin pages stream in behind a loading screen: wait for the form.
+    await expect(flyers.locator("li img")).toHaveCount(3);
     const [a, b, c] = await thumbs(page);
     expect([a, b, c].every(Boolean)).toBe(true);
     await expect(flyers.getByRole("button", { name: "Move flyer 1 up" })).toBeDisabled();
@@ -101,6 +103,7 @@ test.describe("admin: flyers", () => {
     expect(await thumbs(page)).toEqual([b, a]);
 
     await page.reload();
+    await expect(flyers.locator("li img")).toHaveCount(2);
     expect(await thumbs(page)).toEqual([b, a]);
     await page.goto(PAGE);
     await expect(page.getByRole("button", { name: /^Open full screen/ }).getByRole("img")).toHaveAttribute("src", b);
