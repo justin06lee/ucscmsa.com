@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { LinkifiedText, linkify } from "./linkified-text";
+import { LinkifiedText, linkLabel, linkify } from "./linkified-text";
 
 const links = (text: string) => linkify(text).flatMap((p) => (p.kind === "link" ? [p.href] : []));
 
@@ -65,15 +65,29 @@ describe("linkify", () => {
 });
 
 describe("LinkifiedText", () => {
-  it("renders http(s) URLs as safe links in a new tab, with the full URL as text", () => {
+  it("renders http(s) URLs as safe links in a new tab, labelled by where they go", () => {
     render(<p><LinkifiedText text="RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9." /></p>);
-    const a = screen.getByRole("link", { name: "https://forms.gle/thkacLx82yYcgxjt9 (opens in a new tab)" });
+    const a = screen.getByRole("link", { name: "Google Form (opens in a new tab)" });
     expect(a).toHaveAttribute("href", "https://forms.gle/thkacLx82yYcgxjt9");
+    expect(a).toHaveAttribute("title", "https://forms.gle/thkacLx82yYcgxjt9");
     expect(a).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
     expect(a).toHaveAttribute("target", "_blank");
     // Only screen readers hear the new-tab note; the full stop stays outside.
     expect(a.querySelector(".sr-only")).toHaveTextContent("(opens in a new tab)");
-    expect(a.closest("p")).toHaveTextContent("RSVP for the address: https://forms.gle/thkacLx82yYcgxjt9 (opens in a new tab).");
+    expect(a.closest("p")).toHaveTextContent("RSVP for the address: Google Form (opens in a new tab).");
+  });
+
+  it("labels a link by a known place, else by its domain", () => {
+    expect(linkLabel("https://docs.google.com/forms/d/e/abc/viewform")).toBe("Google Form");
+    expect(linkLabel("https://docs.google.com/document/d/abc/edit")).toBe("Google Doc");
+    expect(linkLabel("https://maps.app.goo.gl/xyz")).toBe("Map");
+    expect(linkLabel("https://www.google.com/maps/place/Santa+Cruz")).toBe("Map");
+    expect(linkLabel("https://www.google.com/search?q=maps")).toBe("google.com");
+    expect(linkLabel("https://www.instagram.com/ucscmsa/")).toBe("Instagram");
+    expect(linkLabel("https://chat.whatsapp.com/AbC")).toBe("WhatsApp group");
+    expect(linkLabel("https://WWW.Eventbrite.com/e/123")).toBe("eventbrite.com");
+    // A look-alike host is not the known place.
+    expect(linkLabel("https://forms.gle.evil.example/x")).toBe("forms.gle.evil.example");
   });
 
   it("escapes HTML in the description instead of interpreting it", () => {

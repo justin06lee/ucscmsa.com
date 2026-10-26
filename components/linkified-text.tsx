@@ -1,5 +1,6 @@
 // Free text with its http(s) URLs as links, e.g. an RSVP form in an event
-// description, opening in a new tab like every off-site link. The text is never treated as HTML: it is split into plain
+// description, opening in a new tab like every off-site link. Each link shows
+// a short label (linkLabel) instead of the raw URL, which stays in its title. The text is never treated as HTML: it is split into plain
 // strings and URLs, and React escapes both. Any other scheme (javascript:,
 // data:, mailto:, ...) stays text.
 
@@ -60,17 +61,46 @@ export function linkify(text: string): TextPart[] {
   return parts;
 }
 
+// Well-known places, named the way people say them. Matched on host, then
+// on path, so a label never claims more than the URL shows.
+const KNOWN: { host: RegExp; path?: RegExp; label: string }[] = [
+  { host: /^forms\.gle$/, label: "Google Form" },
+  { host: /^docs\.google\.com$/, path: /^\/forms\//, label: "Google Form" },
+  { host: /^docs\.google\.com$/, path: /^\/document\//, label: "Google Doc" },
+  { host: /^docs\.google\.com$/, path: /^\/spreadsheets\//, label: "Google Sheet" },
+  { host: /^drive\.google\.com$/, label: "Google Drive" },
+  { host: /^maps\.app\.goo\.gl$/, label: "Map" },
+  { host: /^(www\.)?google\.com$/, path: /^\/maps/, label: "Map" },
+  { host: /^(www\.)?instagram\.com$/, label: "Instagram" },
+  { host: /^chat\.whatsapp\.com$/, label: "WhatsApp group" },
+  { host: /^(www\.)?(youtube\.com|youtu\.be)$/, label: "YouTube" },
+  { host: /^(lu\.ma|luma\.com)$/, label: "Luma page" },
+];
+
+/**
+ * The words a link shows: a known place by name ("Google Form"), else the
+ * site's domain ("eventbrite.com"). A bare 40-character URL reads as noise in
+ * a description, and the domain still says honestly where the link goes.
+ */
+export function linkLabel(href: string): string {
+  const u = new URL(href);
+  const host = u.hostname.toLowerCase();
+  const known = KNOWN.find((k) => k.host.test(host) && (!k.path || k.path.test(u.pathname)));
+  return known ? known.label : host.replace(/^www\./, "");
+}
+
 export function LinkifiedText({ text }: { text: string }) {
   return linkify(text).map((p, i) =>
     p.kind === "link" ? (
       <a
         key={i}
         href={p.href}
+        title={p.href}
         target="_blank"
         rel="noopener noreferrer nofollow ugc"
         className="wrap-anywhere text-burgundy underline underline-offset-2 hover:text-ink"
       >
-        {p.text}
+        {linkLabel(p.href)}
         <span className="sr-only"> (opens in a new tab)</span>
       </a>
     ) : (

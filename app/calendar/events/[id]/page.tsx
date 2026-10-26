@@ -143,7 +143,12 @@ export default async function EventDetail({ params, searchParams }: Props) {
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="text-3xl leading-tight break-words sm:text-[2.5rem]">{row.title}</h1>
+            {/* A long title steps down a size on phones so it doesn't fill the screen. */}
+            <h1
+              className={`${row.title.length > 60 ? "text-2xl" : "text-3xl"} leading-tight text-balance break-words sm:text-[2.5rem]`}
+            >
+              {row.title}
+            </h1>
             {hostedBy ? <p className="mt-2 text-sm font-medium text-ink/75">Hosted by {hostedBy}</p> : null}
             <div className="mt-5 flex flex-col gap-3">
               <div className="flex items-center gap-3">
