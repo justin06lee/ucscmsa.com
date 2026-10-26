@@ -34,7 +34,7 @@ export default async function EditGuidePage({ params }: Props) {
             title: v.title,
             body: v.body,
             when: formatLocal(v.createdAt, "MMM d, yyyy, h:mm a"),
-            by: v.editedBy ?? "the board's notes",
+            by: v.editedBy ?? "first version",
           }))}
         />
       ) : null}

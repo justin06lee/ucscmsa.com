@@ -165,9 +165,9 @@ export default function VisualEditorClient({
   const toolClass =
     "flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-sm hover:bg-ink/5 disabled:opacity-40";
   return (
-    <div className={styles.root} onFocus={selectionChanged}>
+    <div onFocus={selectionChanged}>
       <p className="mb-2 text-sm text-dim">
-        Write directly in each block. Drag its grip to move it.
+        Write in any block. To move one, drag the grip that appears beside it.
       </p>
       <div className={styles.frame}>
         <div

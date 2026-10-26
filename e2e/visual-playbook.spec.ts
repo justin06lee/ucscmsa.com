@@ -1,10 +1,25 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { seed, signIn } from "./fixtures";
 
 test.beforeEach(async ({ context, baseURL }) => {
   test.skip(!seed(), "needs seeded sessions");
   await signIn(context, baseURL!, "admin");
 });
+
+/** The grip follows the pointer, so it can still sit beside the block typed
+ * last. Wait until it is beside `block` before dragging it. */
+async function gripBeside(page: Page, block: Locator) {
+  const grip = page.locator('.bn-side-menu [draggable="true"]');
+  await expect
+    .poll(async () => {
+      const [g, b] = await Promise.all([grip.boundingBox(), block.boundingBox()]);
+      if (!g || !b) return false;
+      const y = g.y + g.height / 2;
+      return y >= b.y - 12 && y <= b.y + b.height + 12;
+    })
+    .toBe(true);
+  return grip;
+}
 
 for (const width of [375, 1280]) {
   test(`visual blocks, subtasks and editable labeled links at ${width}px`, async ({
@@ -141,9 +156,11 @@ test("dragging a text block moves its content and survives a save", async ({
   const third = editor
     .locator(".bn-inline-content")
     .filter({ hasText: "Third block" });
+  // The grip follows real pointer movement, so move within the block too.
   await first.hover();
-  const grip = page.locator('.bn-side-menu [draggable="true"]');
-  await expect(grip).toBeVisible();
+  const box = await first.boundingBox();
+  if (box) await page.mouse.move(box.x + 20, box.y + 5, { steps: 3 });
+  const grip = await gripBeside(page, first);
   const target = await third.boundingBox();
   const from = await grip.boundingBox();
   if (!target || !from) throw new Error("Missing block target");
@@ -195,8 +212,7 @@ test("text blocks drag by touch, and a cancelled touch keeps the original order"
       type: "touchEnd",
       touchPoints: [],
     });
-    const grip = page.locator('.bn-side-menu [draggable="true"]');
-    await expect(grip).toBeVisible();
+    const grip = await gripBeside(page, first);
     const a = await grip.boundingBox(),
       b = await third.boundingBox();
     if (!a || !b) throw new Error("Missing touch drag target");
