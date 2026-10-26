@@ -13,7 +13,7 @@ import {
 } from "./_cards";
 
 function refreshBoard() {
-  revalidatePath("/admin/playbook");
+  revalidatePath("/admin/playbook", "layout");
   revalidatePath("/admin/plan", "layout");
 }
 const revisionSchema = z.number().int().positive();

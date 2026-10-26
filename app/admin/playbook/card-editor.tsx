@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { VisualEditor } from "@/components/board/visual-editor";
 import { CardText } from "./card-text";
 import { attempt } from "@/lib/attempt";
-import { PLAN_TAGS, tagLabel } from "@/lib/planning";
+import { tagLabel } from "@/lib/planning";
+import { PLAYBOOK_TASKS, taskForTag } from "./_tasks";
 import { leadLabel, type CardInput, type PlaybookCard } from "@/lib/playbook";
 import {
   deletePlaybookCard,
@@ -25,10 +26,13 @@ export function CardEditor({
   card,
   cards,
   onClose,
+  defaultTag = null,
 }: {
   card?: PlaybookCard;
   cards: PlaybookCard[];
   onClose: () => void;
+  /** Category a new step starts in. */
+  defaultTag?: PlaybookCard["tag"];
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
@@ -121,16 +125,15 @@ export function CardEditor({
         </select>
       </fieldset>
       <label className="grid gap-1.5 text-sm text-dim">
-        Applies to
+        Category
         <select
           name="tag"
-          defaultValue={card?.tag ?? ""}
+          defaultValue={card ? (card.tag ?? "") : (defaultTag ?? "")}
           className={`${selectStyle} text-ink`}
         >
-          <option value="">Every event</option>
-          {PLAN_TAGS.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
+          {PLAYBOOK_TASKS.map((t) => (
+            <option key={t.slug} value={t.tag ?? ""}>
+              {t.name}
             </option>
           ))}
         </select>
@@ -266,7 +269,7 @@ export function CardEditor({
                     <p className="mt-2 font-medium">{v.snapshot.title}</p>
                     <p className="my-2 text-sm text-dim">
                       {leadLabel(v.snapshot.daysBefore)} ·{" "}
-                      {tagLabel(v.snapshot.tag)}
+                      {taskForTag(v.snapshot.tag)?.name ?? tagLabel(v.snapshot.tag)}
                     </p>
                     <CardText source={v.snapshot.body} />
                     {v.snapshot.dependencies.length ? (
