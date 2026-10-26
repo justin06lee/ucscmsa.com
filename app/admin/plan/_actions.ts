@@ -2,13 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { events, taskTemplates } from "@/lib/db/schema";
+import { events } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { LEAD_DAYS_MAX } from "@/lib/planning";
-import { title as eventTitle } from "@/lib/event-rules";
-import { assignTask as assignTaskDb, setTaskDone, syncAllPlans } from "./_plan";
+import { assignTask as assignTaskDb, setTaskDone } from "./_plan";
 import { fail, withSentence } from "@/lib/action-result";
 
 // Every action checks for an admin itself: server actions are reachable by a
@@ -59,45 +57,5 @@ export async function publishEvent(eventId: string) {
   revalidatePath("/sitemap.xml");
   revalidatePath("/admin");
   revalidatePlan(row.id);
-  return { ok: true as const };
-}
-
-const leadTimeSchema = z.object({
-  id: idSchema,
-  title: eventTitle,
-  daysBefore: z.coerce
-    .number({ message: "Days before must be a number" })
-    .int("Days before must be a whole number")
-    .min(0, "Days before can't be negative")
-    .max(LEAD_DAYS_MAX, `Days before can be at most ${LEAD_DAYS_MAX}`),
-});
-
-/** Saves the lead-time defaults; open tasks everywhere follow them. */
-export async function saveLeadTimes(fd: FormData) {
-  await requireAdmin();
-  const ids = fd.getAll("id").map(String);
-  const rows = ids.map((id) => ({
-    id,
-    title: fd.get(`title:${id}`),
-    daysBefore: fd.get(`days:${id}`),
-  }));
-  const parsed = z.array(leadTimeSchema).min(1).max(100).safeParse(rows);
-  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
-  await db.transaction(async (tx) => {
-    const known = new Set(
-      (await tx.select({ id: taskTemplates.id }).from(taskTemplates).where(inArray(taskTemplates.id, ids))).map(
-        (r) => r.id,
-      ),
-    );
-    for (const r of parsed.data) {
-      if (!known.has(r.id)) continue;
-      await tx
-        .update(taskTemplates)
-        .set({ title: r.title, daysBefore: r.daysBefore })
-        .where(eq(taskTemplates.id, r.id));
-    }
-    await syncAllPlans(tx);
-  });
-  revalidatePath("/admin/plan", "layout");
   return { ok: true as const };
 }

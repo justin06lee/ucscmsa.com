@@ -319,11 +319,31 @@ export const taskTemplates = sqliteTable(
     daysBefore: integer("days_before").notNull(),
     guideSlug: text("guide_slug"),
     sort: integer("sort").notNull().default(0),
+    body: text("body").notNull().default(""),
+    dependencies: text("dependencies", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    revision: integer("revision").notNull().default(1),
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
   },
   (t) => ({
     daysCheck: check("task_templates_days_before_check", sql`${t.daysBefore} BETWEEN 0 AND 120`),
   })
 );
+
+// Card snapshots include timing and dependencies; deleting a card archives it.
+export const cardVersions = sqliteTable("card_versions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  cardId: text("card_id").notNull().references(() => taskTemplates.id),
+  snapshot: text("snapshot", { mode: "json" }).$type<import("../playbook").CardSnapshot>().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+  createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+}, (t) => ({ cardIdx: index("card_versions_card_idx").on(t.cardId) }));
+
+// An agent-created plan keeps its reviewed selection when the event moves.
+export const eventPlanSelections = sqliteTable("event_plan_selections", {
+  eventId: text("event_id").primaryKey().references(() => events.id, { onDelete: "cascade" }),
+  cardIds: text("card_ids", { mode: "json" }).$type<string[]>().notNull(),
+  requestId: text("request_id").notNull().unique(),
+});
 
 // One event's checklist. People are user ids, not admins ids, so demoting a
 // board member doesn't erase who did a task.

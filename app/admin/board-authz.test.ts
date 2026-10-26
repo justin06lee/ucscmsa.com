@@ -32,6 +32,8 @@ vi.mock("@/lib/db/client", () => ({
   ),
 }));
 
+import * as cardActions from "./playbook/_card-actions";
+import * as agentActions from "./plan/_agent-actions";
 import * as planActions from "./plan/_actions";
 import * as playbookActions from "./playbook/_actions";
 import * as eventActions from "./_actions";
@@ -48,7 +50,13 @@ const actions: Array<[string, () => Promise<unknown>]> = [
   ["toggleTask", () => planActions.toggleTask("t1", true)],
   ["assignTask", () => planActions.assignTask("t1", "u1")],
   ["publishEvent", () => planActions.publishEvent("e1")],
-  ["saveLeadTimes", () => planActions.saveLeadTimes(fd())],
+  ["savePlaybookCard", () => cardActions.savePlaybookCard(null, {}, null)],
+  ["deletePlaybookCard", () => cardActions.deletePlaybookCard("room", 1)],
+  ["movePlaybookCards", () => cardActions.movePlaybookCards([], [])],
+  ["loadCardHistory", () => cardActions.loadCardHistory("room")],
+  ["restorePlaybookCard", () => cardActions.restorePlaybookCard("room", 1, 1)],
+  ["suggestEventPlan", () => agentActions.suggestEventPlan("Iftar, March 12")],
+  ["createEventFromPlan", () => agentActions.createEventFromPlan({})],
   ["saveGuide", () => playbookActions.saveGuide("funding", fd())],
   ["restoreGuide", () => playbookActions.restoreGuide("funding", 1)],
   ["createEvent (draft + tags)", () => eventActions.createEvent(fd())],

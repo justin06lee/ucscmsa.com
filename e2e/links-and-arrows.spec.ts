@@ -37,7 +37,6 @@ const ADMIN = [
   "/admin/nominations",
   "/admin/plan",
   "/admin/plan/ev-bonfire",
-  "/admin/plan/settings",
   "/admin/playbook",
   "/admin/playbook/promotion",
   "/admin/playbook/promotion/edit",
@@ -91,21 +90,27 @@ function findArrows(page: Page): Promise<string[]> {
   }, ARROWS.source);
 }
 
-test("off-site links open in a new tab, site links don't, and nothing shows an arrow", async ({ page, context, baseURL }) => {
+test("off-site links open in a new tab, site links don't, and nothing shows an arrow", async ({ context, baseURL }) => {
   test.setTimeout(120_000);
   const pages = [...PUBLIC];
-  if (seed()) {
-    await signIn(context, baseURL!, "admin");
-    pages.push(...ADMIN);
-  }
+  if (seed()) pages.push(...ADMIN);
   let offSite = 0;
   const problems: string[] = [];
   for (const path of pages) {
-    await page.goto(path);
-    const check = await checkLinks(page);
-    offSite += check.offSite;
-    problems.push(...check.problems.map((p) => `${path}: ${p}`));
-    problems.push(...(await findArrows(page)).map((p) => `${path}: arrow in ${p}`));
+    // Public pages, especially /login, must be checked signed out. Signing in
+    // earlier starts a client redirect while the audit is reading that page.
+    if (path === ADMIN[0]) await signIn(context, baseURL!, "admin");
+    // Each audit is independent. Release prefetched calendar payloads between routes.
+    const page = await context.newPage();
+    try {
+      await page.goto(path);
+      const check = await checkLinks(page);
+      offSite += check.offSite;
+      problems.push(...check.problems.map((p) => `${path}: ${p}`));
+      problems.push(...(await findArrows(page)).map((p) => `${path}: arrow in ${p}`));
+    } finally {
+      await page.close();
+    }
   }
   expect(problems).toEqual([]);
   // The pages above carry RSVP and form buttons, description URLs, maps,

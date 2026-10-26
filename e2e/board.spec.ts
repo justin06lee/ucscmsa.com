@@ -14,12 +14,12 @@ test("plan a draft: tags make a dated checklist; tick and assign tasks", async (
   const day = santaCruzDay(20);
   await page.goto("/admin/events/new?draft=1");
   await expect(page.getByRole("heading", { name: "Plan an event" })).toBeVisible();
-  await page.getByLabel("Title", { exact: true }).fill("E2E Iftar Planning");
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill("E2E Iftar Planning");
   await pickDate(page, "Start date", day.label);
   await typeTime(page, "Start time", "6:00 PM");
   await pickDate(page, "End date", day.label);
   await typeTime(page, "End time", "8:00 PM");
-  await expect(page.getByLabel(/^Draft/)).toBeChecked();
+  await expect(page.getByLabel(/^Draft/).filter({ visible: true })).toBeChecked();
   const needs = page.getByRole("group", { name: "It needs" });
   for (const tag of ["Room", "Food", "Funding"]) await needs.getByText(tag, { exact: true }).click();
   await page.getByRole("button", { name: "Create event" }).click();
@@ -29,31 +29,31 @@ test("plan a draft: tags make a dated checklist; tick and assign tasks", async (
   await expect(page.getByRole("heading", { name: "E2E Iftar Planning" })).toBeVisible();
   const checklist = page.getByRole("list", { name: "Checklist" });
   await expect(checklist.getByRole("listitem", { name: "Today" })).toBeVisible();
-  for (const t of ["Apply for funding", "Book a room", "Submit the purchase form", "Post on Instagram and WhatsApp", "Post a reminder"]) {
+  for (const t of ["Apply for funding", "Book a room (after filing the proposal)", "Submit the Purchase Request (DocuSign)", "Post on Instagram, WhatsApp and the site", "Post a reminder"]) {
     await expect(checklist.getByText(t, { exact: true })).toBeVisible();
   }
   const funding = checklist.locator("[data-state]").filter({ hasText: "Apply for funding" });
   await expect(funding).toHaveAttribute("data-state", "overdue");
   await expect(funding).toContainText("Overdue");
-  await expect(page.getByText("0 of 5 done · 1 overdue")).toBeVisible();
+  await expect(page.getByText("0 of 9 done · 3 overdue")).toBeVisible();
 
   // Tick a task: it stays ticked, says who did it, and the count moves.
-  await checklist.getByText("Book a room", { exact: true }).click();
+  await checklist.getByText("Book a room (after filing the proposal)", { exact: true }).click();
   const room = checklist.locator("[data-state]").filter({ hasText: "Book a room" });
   await expect(room).toHaveAttribute("data-state", "done");
   await expect(room).toContainText(/Done by/);
 
   // Assign one.
-  await page.getByLabel('Who\'s doing "Submit the purchase form"').selectOption({ label: "Maryam Siddiqui" });
-  await expect(page.getByLabel('Who\'s doing "Submit the purchase form"')).toBeEnabled();
+  await page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"').selectOption({ label: "Maryam Siddiqui" });
+  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"')).toBeEnabled();
 
   await page.reload();
   await expect(checklist.locator("[data-state]").filter({ hasText: "Book a room" })).toHaveAttribute("data-state", "done");
-  await expect(page.getByLabel('Who\'s doing "Submit the purchase form"')).toHaveValue(/.+/);
-  await expect(page.getByLabel('Who\'s doing "Submit the purchase form"').locator("option:checked")).toHaveText(
+  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"')).toHaveValue(/.+/);
+  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"').locator("option:checked")).toHaveText(
     "Maryam Siddiqui"
   );
-  await expect(page.getByText("1 of 5 done · 1 overdue")).toBeVisible();
+  await expect(page.getByText("1 of 9 done · 3 overdue")).toBeVisible();
 
   // The overview lists it with its next step.
   await page.goto("/admin/plan");
@@ -70,10 +70,14 @@ test("edit a guide, then restore the earlier version", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Promote the event" })).toBeVisible();
   await page.getByRole("link", { name: /Edit/ }).click();
 
-  const body = page.getByLabel("Guide text, in markdown");
-  await body.fill("## Steps\n\n1. E2E edited step with a [link](https://example.com).\n");
-  await page.getByRole("tab", { name: "Preview" }).click();
-  await expect(page.getByRole("link", { name: "link" })).toHaveAttribute("rel", /noopener/);
+  const body = page.getByRole("textbox", { name: "Guide text", exact: true });
+  await body.fill("E2E edited step with a ");
+  await body.press("End");
+  await page.getByRole("button", { name: "Link", exact: true }).click();
+  await page.getByLabel("Link label").fill("link");
+  await page.getByLabel("Web address").fill("https://example.com");
+  await page.getByRole("button", { name: "Save link", exact: true }).click();
+  await expect(body.getByRole("link", { name: "link", exact: true })).toHaveAttribute("rel", /noopener/);
   await page.getByRole("button", { name: "Save" }).click();
 
   await page.waitForURL(/\/admin\/playbook\/promotion$/);
@@ -81,10 +85,10 @@ test("edit a guide, then restore the earlier version", async ({ page }) => {
   await expect(page.getByText(/Last edited by/)).toBeVisible();
 
   await page.goto("/admin/playbook/promotion/edit");
-  await page.getByRole("button", { name: "Restore" }).last().click();
+  await page.getByRole("button", { name: "Restore" }).first().click();
   await page.waitForURL(/\/admin\/playbook\/promotion$/);
   await expect(page.getByText("E2E edited step")).toHaveCount(0);
-  await expect(page.getByText("Post a reminder.")).toBeVisible();
+  await expect(page.getByText("1 day before:")).toBeVisible();
 });
 
 /**
@@ -114,7 +118,6 @@ function smallTargets(page: Page, min: number) {
 const BOARD_PAGES = [
   "/admin/plan",
   "/admin/plan/ev-bonfire",
-  "/admin/plan/settings",
   "/admin/playbook",
   "/admin/playbook/book-a-room",
   "/admin/playbook/book-a-room/edit",

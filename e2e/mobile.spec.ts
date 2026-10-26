@@ -179,6 +179,11 @@ test.describe("month view on phones", () => {
     await expect(cell).toBeVisible();
     await expect(cell.getByText("Jummah Prayer")).toBeHidden();
     const list = page.getByRole("region", { name: "October events" });
+    // Once Oct 23 is past in the current month, its list moves into the fold.
+    const earlier = list.locator("details.month-agenda__earlier");
+    if ((await earlier.count()) && (await earlier.getAttribute("open")) === null) {
+      await earlier.locator("summary").click();
+    }
     await expect(list.getByRole("link", { name: /Night Hike to the Lookout/ })).toBeVisible();
   });
 });

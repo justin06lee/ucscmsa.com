@@ -1,0 +1,132 @@
+.root {
+  min-width: 0;
+}
+.frame {
+  border: 1px solid #1d191725;
+  border-radius: 12px;
+  background: #ffffff50;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-bottom: 1px solid #1d191715;
+}
+.toolbar [aria-pressed="true"] {
+  background: #761b2d12;
+  color: var(--color-burgundy);
+}
+.menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  width: 210px;
+  max-width: 75vw;
+  padding: 6px;
+  border: 1px solid #1d191725;
+  border-radius: 10px;
+  background: var(--color-paper);
+  box-shadow: 0 8px 24px #1d191715;
+}
+.menu button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.menu button:hover {
+  background: #1d191709;
+}
+.linkPanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #1d191715;
+  background: var(--color-paper);
+}
+.root :global(.bn-container) {
+  --bn-font-family: var(--font-inter), sans-serif;
+  --bn-colors-editor-background: transparent;
+  --bn-colors-editor-text: var(--color-ink);
+  --bn-border-radius: 8px;
+}
+.root :global(.bn-editor) {
+  min-height: 150px;
+  padding: 16px 16px 16px 56px;
+  background: transparent;
+  font-size: 16px;
+}
+.root :global(.bn-block-content) {
+  border-radius: 7px;
+  padding: 9px 10px;
+  margin-block: 3px;
+  border: 1px solid #1d191712;
+  background: #ffffff40;
+  transition: background-color 120ms;
+}
+.root :global(.bn-block-content:hover),
+.root :global(.bn-block-content:focus-within) {
+  border-color: #1d191712;
+  background: #ffffff60;
+}
+.root :global(.bn-block-group .bn-block-group) {
+  border-left: 1px solid #1d191720;
+  margin-left: 12px;
+}
+.root :global(.bn-inline-content a) {
+  color: var(--color-burgundy);
+  background: #761b2d0c;
+  border-radius: 4px;
+  padding: 2px 3px;
+  text-decoration-color: #761b2d45;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.root :global(.bn-side-menu button) {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: none;
+}
+.root :global(.bn-side-menu) {
+  gap: 0;
+}
+.root :global(.bn-editor h1),
+.root :global(.bn-editor h2),
+.root :global(.bn-editor h3) {
+  font-family: var(--font-inter), sans-serif;
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.5;
+}
+.root :global(.bn-editor h1) {
+  font-size: 24px;
+}
+.root :global(.bn-editor h2) {
+  font-size: 20px;
+}
+.root :global(.bn-editor h3) {
+  font-size: 17px;
+}
+@media (max-width: 480px) {
+  .root :global(.bn-editor) {
+    padding: 12px 8px 12px 36px;
+  }
+  .toolbar {
+    gap: 0;
+  }
+  .toolbar > select {
+    max-width: 110px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .root :global(*) {
+    transition: none !important;
+    animation: none !important;
+  }
+}

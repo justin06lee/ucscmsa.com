@@ -5,6 +5,7 @@ import {
   admins,
   eventTags,
   eventTasks,
+  eventPlanSelections,
   events,
   guides,
   taskTemplates,
@@ -14,12 +15,13 @@ import {
   isPlanTag,
   planSummary,
   reconcilePlan,
-  sortTasks,
   taskState,
+  includeDependencies,
   type PlanTag,
   type TaskState,
   type TaskTemplate,
 } from "@/lib/planning";
+import { buildTimeline } from "@/lib/playbook";
 import { startOfLocalDayUtc, toLocalYmd } from "@/lib/time";
 
 // Database half of event planning, taking the db (or a transaction) so it can
@@ -35,13 +37,14 @@ type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 export type Exec = DB | Tx;
 
 export async function loadTemplates(d: Exec): Promise<TaskTemplate[]> {
-  const rows = await d.select().from(taskTemplates).orderBy(asc(taskTemplates.sort));
+  const rows = await d.select().from(taskTemplates).where(isNull(taskTemplates.archivedAt)).orderBy(asc(taskTemplates.sort), asc(taskTemplates.id));
   return rows.map((r) => ({
     id: r.id,
     tag: r.tag,
     title: r.title,
     daysBefore: r.daysBefore,
     guideSlug: r.guideSlug,
+    dependencies: r.dependencies,
   }));
 }
 
@@ -67,7 +70,10 @@ export async function syncPlan(d: Exec, eventId: string, templates?: TaskTemplat
   const tags = await getEventTags(d, eventId);
   const tasks = await d.select().from(eventTasks).where(eq(eventTasks.eventId, eventId));
   const tpls = templates ?? (await loadTemplates(d));
-  const changes = reconcilePlan({ eventYmd: toLocalYmd(ev.startTime), tags, templates: tpls, tasks });
+  const [selection] = await d.select().from(eventPlanSelections).where(eq(eventPlanSelections.eventId, eventId));
+  const selected = selection ? includeDependencies(selection.cardIds.filter((id) => tpls.some((t) => t.id === id)), tpls) : tpls;
+  const changes = reconcilePlan({ eventYmd: toLocalYmd(ev.startTime), tags: selection ? [] : tags,
+    templates: selection ? selected.map((t) => ({ ...t, tag: null })) : tpls, tasks });
   if (changes.remove.length) {
     await d
       .delete(eventTasks)
@@ -76,7 +82,7 @@ export async function syncPlan(d: Exec, eventId: string, templates?: TaskTemplat
   for (const r of changes.redate) {
     await d
       .update(eventTasks)
-      .set({ dueDate: r.dueDate })
+      .set({ dueDate: r.dueDate, ...(r.title ? { title: r.title } : {}) })
       .where(and(eq(eventTasks.id, r.id), isNull(eventTasks.doneAt)));
   }
   if (changes.insert.length) {
@@ -171,13 +177,17 @@ export type TimelineTask = {
   doneByName: string | null;
   assigneeUserId: string | null;
   guide: { slug: string; title: string } | null;
+  cardId?: string | null;
+  dependencies?: string[];
+  warnings?: string[];
+  prerequisites?: { title: string; done: boolean }[];
 };
 
 export async function getTimeline(d: Exec, eventId: string, now: Date = new Date()) {
   const [ev] = await d.select().from(events).where(eq(events.id, eventId)).limit(1);
   if (!ev) return null;
   const todayYmd = toLocalYmd(now);
-  const [tags, rows, guideRows, people] = await Promise.all([
+  const [tags, rows, guideRows, people, templates] = await Promise.all([
     getEventTags(d, eventId),
     d
       .select({ task: eventTasks, guideSlug: taskTemplates.guideSlug })
@@ -188,12 +198,25 @@ export async function getTimeline(d: Exec, eventId: string, now: Date = new Date
     d.select({ id: users.id, name: users.name, email: users.email }).from(users)
       .innerJoin(eventTasks, eq(eventTasks.doneByUserId, users.id))
       .where(eq(eventTasks.eventId, eventId)),
+    loadTemplates(d),
   ]);
   const guideBySlug = new Map(guideRows.map((g) => [g.slug, g]));
   const nameById = new Map(people.map((u) => [u.id, displayName(u)]));
-  const tasks: TimelineTask[] = sortTasks(rows.map((r) => ({ ...r.task, guideSlug: r.guideSlug }))).map((t) => ({
+  const taskTemplateIds = new Set(rows.map((r) => r.task.templateId));
+  const schedule = buildTimeline(toLocalYmd(ev.startTime), templates.filter((c) => taskTemplateIds.has(c.id)).map((c) => c.id), templates, todayYmd);
+  const rank = new Map(schedule.map((t, i) => [t.cardId, i]));
+  const scheduled = new Map(schedule.map((t) => [t.cardId, t]));
+  const sorted = rows.map((r) => ({ ...r.task, guideSlug: r.guideSlug })).sort((a, b) => a.dueDate.localeCompare(b.dueDate) ||
+    (rank.get(a.templateId ?? "") ?? 999) - (rank.get(b.templateId ?? "") ?? 999) || a.title.localeCompare(b.title));
+  const tasks: TimelineTask[] = sorted.map((t) => ({
     id: t.id,
+    cardId: templates.some((c) => c.id === t.templateId) ? t.templateId : null,
+    warnings: t.templateId ? (scheduled.get(t.templateId)?.warnings ?? []) : [],
     title: t.title,
+    prerequisites: (templates.find((c) => c.id === t.templateId)?.dependencies ?? []).flatMap((id) => {
+      const dep = rows.find((r) => r.task.templateId === id)?.task;
+      return dep ? [{ title: dep.title, done: dep.doneAt !== null }] : [];
+    }),
     dueDate: t.dueDate,
     state: taskState(t, todayYmd),
     doneByName: t.doneByUserId ? (nameById.get(t.doneByUserId) ?? null) : null,

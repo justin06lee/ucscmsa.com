@@ -106,17 +106,19 @@ export function TaskItem({
             <ChevronDown size={14} aria-hidden className="pointer-events-none absolute right-0 text-dim" />
           </span>
         )}
-        {task.guide ? (
+        {task.cardId || task.guide ? (
           <Link
-            href={`/admin/playbook/${task.guide.slug}`}
+            href={task.cardId ? `/admin/playbook#step-${task.cardId}` : `/admin/playbook/${task.guide!.slug}`}
             className="inline-flex min-h-11 items-center gap-1.5 text-burgundy hover:underline"
           >
             <BookOpen size={14} aria-hidden />
-            <span>Guide</span>
-            <span className="sr-only">: {task.guide.title}</span>
+            <span>{task.cardId ? "Playbook step" : "Guide"}</span>
+            <span className="sr-only">: {task.guide?.title ?? task.title}</span>
           </Link>
         ) : null}
       </div>
+      {!done && task.prerequisites?.some((p) => !p.done) ? <p className="pb-1 pl-8 text-xs text-dim">Needs first: {task.prerequisites.filter((p) => !p.done).map((p) => p.title).join("; ")}</p> : null}
+      {task.warnings?.length && !done ? <div className="pb-2 pl-8">{task.warnings.map((w) => <p key={w} className="mt-1 text-xs text-burgundy">{w}</p>)}</div> : null}
       {err ? (
         <p role="status" className="pb-2 pl-8 text-sm text-burgundy">
           {err}

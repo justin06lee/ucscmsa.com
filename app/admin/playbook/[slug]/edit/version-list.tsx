@@ -58,7 +58,7 @@ export function VersionList({ slug, versions }: { slug: string; versions: Versio
               </summary>
               <div className="mb-3 border-l-2 border-ink/10 pl-4">
                 <p className="mb-2 font-medium">{v.title}</p>
-                <Markdown source={v.body} className="text-sm" />
+                <Markdown source={v.body} className="text-sm" compactLinks />
               </div>
             </details>
           </li>

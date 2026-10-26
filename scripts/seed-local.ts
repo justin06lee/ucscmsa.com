@@ -273,7 +273,13 @@ async function main() {
     ["Charity Car Wash", "Base of Campus", "10:00", 240, "All proceeds go to local food banks."],
   ];
   const now = Date.now();
-  const pastDay = (daysAgo: number) => toLocalYmd(new Date(now - daysAgo * DAY));
+  // Relative history must not change the fixed calendar fixtures' event counts.
+  const fixedDays = new Set(ev.flatMap((e) => "recurrenceFreq" in e ? [] : [toLocalYmd(e.startTime)]));
+  const pastDay = (daysAgo: number) => {
+    let day = toLocalYmd(new Date(now - daysAgo * DAY));
+    while (fixedDays.has(day)) day = addDaysYmd(day, -1);
+    return day;
+  };
   const history = Array.from({ length: 48 }, (_, i) => {
     const [title, location, hm, minutes, description] = HISTORY[i % HISTORY.length];
     const startTime = at(pastDay(2 + Math.floor(i * 6.8)), hm);

@@ -2,14 +2,15 @@ import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "@/lib/db/client";
 import { guideVersions, guides, users } from "@/lib/db/schema";
-import { GUIDE_BODY_MAX, GUIDE_TITLE_MAX } from "@/lib/markdown";
+import { GUIDE_TITLE_MAX } from "@/lib/markdown";
+import { boardBodySchema } from "@/lib/board-document";
 
-// Database half of the playbook: guides are markdown, and every save keeps a
+// Database half of the playbook: guides accept legacy and visual text; each save keeps a
 // version so a bad edit can be put back.
 
 export const guideInputSchema = z.object({
   title: z.string().trim().min(1, "A guide needs a title").max(GUIDE_TITLE_MAX, "That title is too long"),
-  body: z.string().max(GUIDE_BODY_MAX, "That guide is too long"),
+  body: boardBodySchema,
 });
 
 // Flat columns, not a nested { name, email } object: Drizzle turns a nested
