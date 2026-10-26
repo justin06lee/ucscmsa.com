@@ -4,7 +4,7 @@ import { adminRow, seed, signIn } from "./fixtures";
 // Events whose times weren't announced (scripts/seed-local.ts, dated relative
 // to the seed and kept off the fixed fixtures' days): ev-date-only today with
 // no times, ev-start-only a couple of days out at 6 PM with no end, ev-retreat
-// a date-only weekend, and ev-past-date-only a few days back. None may show
+// a date-only weekend, and ev-past-date-only on the nearest free day before today. None may show
 // the stored 12:00 AM start or 11:59 PM end that stand in for unknown times.
 
 const TZ = "America/Los_Angeles";

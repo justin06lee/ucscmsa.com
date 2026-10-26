@@ -29,7 +29,7 @@ export function santaCruzDay(days: number) {
 }
 
 export async function pickDate(page: Page, field: string, label: string) {
-  await page.getByLabel(new RegExp(`^${field}`)).click();
+  await page.getByLabel(new RegExp(`^${field}`)).filter({ visible: true }).click();
   const dialog = page.getByRole("dialog", { name: "Choose date" });
   for (let i = 0; i < 3 && !(await dialog.getByRole("gridcell", { name: label }).isVisible()); i++) {
     await dialog.getByRole("button", { name: "Next month" }).click();

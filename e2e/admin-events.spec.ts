@@ -68,7 +68,12 @@ test("search by title or place and filter, at once, kept in the URL", async ({ p
   await expect(drafts).toHaveAttribute("aria-pressed", "true");
 
   await page.getByRole("button", { name: "Cancelled", exact: true }).click();
-  await expect(page.locator(".admin-event").filter({ hasText: "Beach Cleanup at Natural Bridges" })).toContainText("Cancelled");
+  const cancelled = page.locator(".admin-event").filter({ hasText: "Beach Cleanup at Natural Bridges" });
+  // This fixed-date fixture moves to Past once it has ended.
+  if ((await cancelled.count()) === 0) await page.getByRole("tab", { name: /^Past/ }).click();
+  await expect(cancelled).toContainText("Cancelled");
+  await expect(page.getByRole("button", { name: "Cancelled", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/show=cancelled/);
 });
 
 test("cancel shows at once, before the server answers; a failed save rolls back with a quiet line", async ({ page }) => {
