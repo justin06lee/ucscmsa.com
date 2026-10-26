@@ -1,3 +1,4 @@
+import { createDeepInfraPlanningAgent } from "./deepinfra-planner";
 import { isRealYmd } from "./event-rules";
 import { templatesFor, type PlanTag } from "./planning";
 import type { PlanningAgent } from "./playbook";
@@ -17,8 +18,8 @@ const MONTHS = [
   "december",
 ];
 
-/** No model is configured in the app. This bounded local fallback is explicit
- * about assumptions; replacing it requires only the PlanningAgent interface. */
+/** Keyword rules: the planner when no model key is set, and the fallback when
+ * the model errors, times out or replies with something that fails validation. */
 export const localPlanningAgent: PlanningAgent = {
   async propose({ description, todayYmd, cards }) {
     const notes = [
@@ -97,6 +98,21 @@ export const localPlanningAgent: PlanningAgent = {
   },
 };
 
+let deepInfra: { key: string; agent: PlanningAgent } | null = null;
+
+/** DeepInfra when DEEPINFRA_API_KEY is set (server-only), else the keyword rules. */
 export function getPlanningAgent(): PlanningAgent {
-  return localPlanningAgent;
+  const key = process.env.DEEPINFRA_API_KEY?.trim();
+  if (!key) return localPlanningAgent;
+  // One agent per key keeps its result cache warm across requests on an instance.
+  if (deepInfra?.key !== key)
+    deepInfra = {
+      key,
+      agent: createDeepInfraPlanningAgent({
+        apiKey: key,
+        model: process.env.DEEPINFRA_MODEL?.trim(),
+        fallback: localPlanningAgent,
+      }),
+    };
+  return deepInfra.agent;
 }

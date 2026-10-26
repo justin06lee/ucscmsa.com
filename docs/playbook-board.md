@@ -28,7 +28,7 @@ At `/admin/plan`, describe an event, then select “Make a timeline.” Review t
 
 ## Agent boundary and decision
 
-The app has no configured LLM, model credentials or model SDK. This branch therefore uses an explicit local keyword planner behind `PlanningAgent` in `lib/playbook.ts`; `getPlanningAgent()` is the single server-side provider selection point. No model calls, services or keys were added.
+`getPlanningAgent()` in `lib/planning-agent.ts` is the single server-side provider selection point behind `PlanningAgent` (`lib/playbook.ts`). With `DEEPINFRA_API_KEY` set it uses `lib/deepinfra-planner.ts`: one call to DeepInfra's OpenAI-compatible endpoint (temperature 0, at most 300 output tokens, 8 second timeout), whose JSON reply may only name a title, a date and known planning tags; the steps come from those tags, never from the model. Results are cached in memory per instance for a day, keyed by the description, the date and the board's card revisions. With no key, or when the call errors, times out or fails validation, the local keyword planner below answers instead.
 
 The local planner understands ISO dates, English month names, attendance numbers and planning keywords. Missing dates stay blank. A missing year is suggested as the next occurrence and called out for review. It cannot interpret arbitrary language reliably. The preview tells the admin to review its choices and that the local planner uses keywords.
 
