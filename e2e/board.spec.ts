@@ -70,10 +70,14 @@ test("edit a guide, then restore the earlier version", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Promote the event" })).toBeVisible();
   await page.getByRole("link", { name: /Edit/ }).click();
 
-  const body = page.getByLabel("Guide text, in markdown");
-  await body.fill("## Steps\n\n1. E2E edited step with a [link](https://example.com).\n");
-  await page.getByRole("tab", { name: "Preview" }).click();
-  await expect(page.getByRole("link", { name: "link" })).toHaveAttribute("rel", /noopener/);
+  const body = page.getByRole("textbox", { name: "Guide text", exact: true });
+  await body.fill("E2E edited step with a ");
+  await body.press("End");
+  await page.getByRole("button", { name: "Link", exact: true }).click();
+  await page.getByLabel("Link label").fill("link");
+  await page.getByLabel("Web address").fill("https://example.com");
+  await page.getByRole("button", { name: "Save link", exact: true }).click();
+  await expect(body.getByRole("link", { name: "link", exact: true })).toHaveAttribute("rel", /noopener/);
   await page.getByRole("button", { name: "Save" }).click();
 
   await page.waitForURL(/\/admin\/playbook\/promotion$/);

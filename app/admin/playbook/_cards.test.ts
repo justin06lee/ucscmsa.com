@@ -21,6 +21,7 @@ import { saveReviewedPlan } from "../plan/_agent-plan";
 import { syncPlan, setTaskDone } from "../plan/_plan";
 import { toLocalYmd, startOfLocalDayUtc } from "@/lib/time";
 import type { CardInput, ReviewedPlan } from "@/lib/playbook";
+import { documentBlocks, encodeDocument } from "@/lib/board-document";
 const close: Array<() => void> = [];
 afterEach(() => {
   for (const fn of close.splice(0)) fn();
@@ -54,6 +55,48 @@ const plan = (): ReviewedPlan => ({
 });
 
 describe("playbook cards and reviewed plans", () => {
+  it("versions visual documents and restores the exact legacy guide", async () => {
+    const { db } = await setup();
+    const card = (await listCards(db)).find((c) => c.id === "room")!;
+    const blocks = documentBlocks(card.body);
+    blocks[0].children.push({
+      type: "paragraph",
+      props: {},
+      content: [{ type: "text", text: "New subtask", styles: { bold: true } }],
+      children: [],
+    });
+    const body = encodeDocument(blocks);
+    expect(
+      (
+        await saveCard(
+          db,
+          card.id,
+          { ...input(card), body },
+          card.revision,
+          "editor",
+        )
+      ).ok,
+    ).toBe(true);
+    expect((await listCards(db)).find((c) => c.id === card.id)?.body).toBe(
+      body,
+    );
+    const versions = await cardHistory(db, card.id);
+    expect(versions[0].snapshot.body).toBe(body);
+    expect(
+      (
+        await restoreCard(
+          db,
+          card.id,
+          versions[1].id,
+          card.revision + 1,
+          "editor",
+        )
+      ).ok,
+    ).toBe(true);
+    expect((await listCards(db)).find((c) => c.id === card.id)?.body).toBe(
+      card.body,
+    );
+  });
   it("seeds exact current guide text and lead times without losing guide versions", async () => {
     const { db } = await setup();
     const cards = await listCards(db);

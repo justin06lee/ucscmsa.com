@@ -23,7 +23,7 @@ export default async function GuidePage({ params }: Props) {
         Back to the playbook
       </Link>
       <h1 className="mb-6 text-3xl">{guide.title}</h1>
-      <Markdown source={guide.body} />
+      <Markdown source={guide.body} compactLinks />
       <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-4">
         <span className="text-sm text-dim">
           {guide.editedBy

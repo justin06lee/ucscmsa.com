@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { VisualEditor } from "@/components/board/visual-editor";
 import { CardText } from "./card-text";
 import { attempt } from "@/lib/attempt";
 import { PLAN_TAGS, tagLabel } from "@/lib/planning";
@@ -42,7 +42,7 @@ export function CardEditor({
   const [confirming, setConfirming] = useState(false);
   const [versions, setVersions] = useState<Version[] | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [validBody, setValidBody] = useState(true);
   const [body, setBody] = useState(card?.body ?? "");
   function run(
     action: () => Promise<{ ok: boolean; error?: string }>,
@@ -86,29 +86,10 @@ export function CardEditor({
           className="text-base text-ink"
         />
       </label>
-      <label className="grid gap-1.5 text-sm text-dim">
-        What to do
-        <Textarea
-          name="body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={7}
-          maxLength={20000}
-          className="text-base text-ink"
-        />
-      </label>
-      {body ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowPreview(!showPreview)}
-            className="min-h-11 text-sm text-dim underline"
-          >
-            {showPreview ? "Hide preview" : "Preview text"}
-          </button>
-          {showPreview ? <CardText source={body} /> : null}
-        </div>
-      ) : null}
+      <div className="grid gap-1.5">
+        <p className="text-sm text-dim">What to do</p>
+        <VisualEditor label="What to do" value={body} onChange={setBody} onValidityChange={setValidBody} disabled={pending} />
+      </div>
       <fieldset className="flex flex-wrap items-center gap-2">
         <legend className="mb-2 text-sm text-dim">When</legend>
         {unit !== "day-of" ? (
@@ -191,7 +172,7 @@ export function CardEditor({
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
-          disabled={pending}
+          disabled={pending || !validBody}
           aria-busy={pending}
           className="min-h-11"
         >

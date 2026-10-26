@@ -15,10 +15,12 @@ The seed output includes local session tokens for browser tests (`e2e/fixtures.t
 At `/admin/playbook`:
 
 - Click a step's title or text to edit it inline. Timing supports days, weeks and the day of the event. “Applies to” uses the existing planning tags.
+- Write directly in the visual blocks, including in the full reference guides. The toolbar changes block type (text, heading, bullets, numbered steps, checklist or callout) and applies bold/italic. Select text and choose Link, or click an existing link, to edit its readable label and web address. A blank label becomes a short resource name.
+- Drag a block's grip to reorder it. Add a subtask creates an indented block under the current one. More also offers move up/down, nest/unnest, duplicate and delete; these work on touch screens and with a keyboard. Undo/redo apply to unsaved text edits. Save step or Save commits the document, including nesting and link labels.
 - Expand “Depends on” to choose prerequisites. Cycles, missing prerequisites and deleting a step that others need are refused.
 - Drag the handle to reorder. A focused handle also moves with the arrow keys; Escape cancels a pointer drag. Touch scrolling works outside the handle. Reduced motion removes reorder animation.
 - Every save, reorder, delete and restore records a snapshot. Version history includes title, text, timing and dependencies. Deleted steps can be restored below the board.
-- The five original full guides and their edit history are preserved under “Full reference guides.” Cards start with the current guide text, copied verbatim, and existing task-template lead times. Reference guides remain editable separately.
+- The five original full guides and their edit history are preserved under “Full reference guides.” Cards start with the current guide text, copied verbatim, and existing task-template lead times. Reference guides remain editable separately, with the same visual editor. Long raw URLs display as short highlighted resource labels while their exact destinations stay intact. An admin can change any label or destination in the editor.
 
 At `/admin/plan`, describe an event, then select “Make a timeline.” Review the inferred title, date, needs and included steps. Prerequisites are added automatically. Saving creates a **date-only draft** and a persistent checklist; it never publishes. The existing checklist supports completion, assignment and links back to the cards. Moving the event re-dates its open tasks. Editing the board updates open tasks; completed tasks keep their dates, titles and attribution.
 
@@ -46,19 +48,22 @@ For large/public events and off-campus plans, read the guide and confirm require
 
 Cards extend `task_templates`; this keeps one lead-time source for manual and generated plans. `card_versions` stores snapshots. Soft deletion preserves completed event tasks and card history. `event_plan_selections` stores the reviewed selection and a unique request key so retrying a save does not create a second draft. Existing guides, guide versions, events and completed tasks are not rewritten by the migration.
 
+Visual edits store a versioned `playbook-blocks-v1` document in the existing body column, so nested content survives save/reload without a lossy Markdown export. Legacy Markdown and every earlier version remain readable and restorable; opening a guide alone never rewrites it. No additional migration or service is needed. BlockNote is loaded only when an editor opens; reading remains server rendered through React elements, with no raw HTML. The shared server validator accepts only supported blocks/styles and safe http(s) links, up to 20,000 text characters, 250 blocks, 8 nesting levels and 200,000 serialized characters. Malformed structured bodies are refused on save and fail closed on read. Older app versions cannot read the new structured bodies; keep the compatible renderer when rolling back after visual edits have been saved.
+
 Each page and every action calls the existing admin gate before database access. Generation is also admin-only because the playbook is private. Card edits use a revision check to refuse stale overwrites. Reordering checks the expected current order and exact card set. Generated-plan saves validate the current playbook again, use a transaction and keep drafts out of public reads.
 
 ## Demo screenshots
 
 Captured against a clean scratch database with fake board members:
 
-- [Desktop board](screenshots/playbook-board/board-desktop.png)
-- [Inline editor](screenshots/playbook-board/inline-editor-desktop.png)
-- [Phone board](screenshots/playbook-board/board-phone.png)
+- [Visual editor on desktop](screenshots/playbook-visual/editor-1280.png)
+- [Visual editor on a phone](screenshots/playbook-visual/editor-375.png)
+- [Editing a link](screenshots/playbook-visual/link-editor-1280.png)
+- [Room guide with labeled links](screenshots/playbook-visual/guide-1280.png)
 - [Timeline review on a phone](screenshots/playbook-board/plan-review-phone.png)
 - [Saved checklist on a phone](screenshots/playbook-board/saved-timeline-phone.png)
 
-The capture script is `scripts/playbook-agent-demo.ts`.
+Capture scripts: `scripts/playbook-agent-demo.ts` for the board/timeline and `scripts/visual-playbook-demo.ts` for visual editing and the compact resource links.
 
 ## Verification
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { GUIDE_BODY_MAX, GUIDE_TITLE_MAX } from "./markdown";
+import { GUIDE_TITLE_MAX } from "./markdown";
+import { boardBodySchema } from "./board-document";
 import {
   LEAD_DAYS_MAX,
   PLAN_TAG_IDS,
@@ -20,7 +21,7 @@ export const cardInputSchema = z
       .trim()
       .min(1, "Give the step a title.")
       .max(GUIDE_TITLE_MAX),
-    body: z.string().max(GUIDE_BODY_MAX),
+    body: boardBodySchema,
     daysBefore: z.number().int().min(0).max(LEAD_DAYS_MAX),
     tag: z.enum(PLAN_TAG_IDS).nullable(),
     dependencies: z

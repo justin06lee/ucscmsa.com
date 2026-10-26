@@ -1,5 +1,7 @@
 import { Fragment } from "react";
 import { parseMarkdown, type Block, type Inline } from "@/lib/markdown";
+import { DOCUMENT_PREFIX } from "@/lib/board-document";
+import { RichDocument } from "./rich-document";
 
 // Renders a playbook guide. Everything goes through React elements, so text is
 // always escaped; lib/markdown.ts only ever produces http(s) links.
@@ -111,7 +113,8 @@ function List({ list, nested = false }: { list: Extract<Block, { t: "list" }>; n
   );
 }
 
-export function Markdown({ source, className = "" }: { source: string; className?: string }) {
+export function Markdown({ source, className = "", compactLinks = false }: { source: string; className?: string; compactLinks?: boolean }) {
+  if (compactLinks || source.startsWith(DOCUMENT_PREFIX)) return <div className={className}><RichDocument source={source} /></div>;
   return (
     <div className={`text-base leading-relaxed [overflow-wrap:anywhere] ${className}`}>
       <Blocks blocks={parseMarkdown(source)} />

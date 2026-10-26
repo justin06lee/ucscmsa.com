@@ -67,6 +67,9 @@ bun run typecheck     # tsc --noEmit
 ## Board playbook and planning
 
 Admins can edit, reorder and restore playbook step cards at `/admin/playbook`.
+Cards and full guides use a visual block editor: type and format text directly,
+drag blocks, add nested subtasks, and edit readable link labels and addresses.
+No Markdown syntax is needed. The More menu also moves blocks without dragging.
 Each step has a lead time, planning tag and prerequisites. The original full
 guides and their version history remain available. `/admin/plan` can turn an
 event description into a reviewed, dated checklist and save it as a private

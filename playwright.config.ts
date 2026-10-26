@@ -37,6 +37,10 @@ export default defineConfig({
         },
       },
   use: {
+    // Full Chromium in new headless mode. The default headless shell stalls
+    // after many rich-editor mounts in one worker (seen on tenet, also on the
+    // branch before the visual editor); real Chromium does not.
+    channel: "chromium",
     baseURL,
     timezoneId: "America/Los_Angeles",
     trace: "retain-on-failure",

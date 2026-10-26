@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CardText } from "./card-text";
 import { tagLabel } from "@/lib/planning";
 import { leadLabel, type PlaybookCard } from "@/lib/playbook";
-import { parseMarkdown, plainText } from "@/lib/markdown";
+import { documentSummary } from "@/lib/board-document";
 import { attempt } from "@/lib/attempt";
 import {
   loadCardHistory,
@@ -23,12 +23,7 @@ import { CardEditor } from "./card-editor";
 import styles from "./playbook-board.module.css";
 
 function cardSummary(body: string): string {
-  for (const block of parseMarkdown(body)) {
-    if (block.t === "para") return plainText(block.c);
-    if (block.t === "list" && block.items[0])
-      return plainText(block.items[0].c);
-  }
-  return "Add the details for this step.";
+  return documentSummary(body);
 }
 
 type Archived = PlaybookCard & { archivedAt: Date | null };
