@@ -119,6 +119,7 @@ const BOARD_PAGES = [
   "/admin/plan",
   "/admin/plan/ev-bonfire",
   "/admin/playbook",
+  "/admin/playbook/task/every",
   "/admin/playbook/book-a-room",
   "/admin/playbook/book-a-room/edit",
   "/admin/events/new?draft=1",

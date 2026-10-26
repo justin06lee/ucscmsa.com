@@ -45,7 +45,7 @@ export function TaskSteps({ task, initialCards }: { task: PlaybookTask; initialC
   return (
     <div className="mt-6">
       <div className="flex min-h-11 items-center justify-between gap-3 border-b border-ink/10 pb-2">
-        <p className="text-sm text-dim" aria-live="polite">
+        <p className="text-sm text-dim" role="status">
           {status || (steps.length ? `${steps.length} ${steps.length === 1 ? "step" : "steps"}, in order` : "No steps yet")}
         </p>
         <Button

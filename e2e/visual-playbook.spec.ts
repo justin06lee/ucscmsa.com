@@ -1,6 +1,17 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import { seed, signIn } from "./fixtures";
 
+// New steps go in through a category page in edit mode.
+async function addStep(page: Page) {
+  await page.goto("/admin/playbook/task/every");
+  await page.getByRole("button", { name: "Edit steps", exact: true }).click();
+  await page.getByRole("button", { name: "Add a step", exact: true }).click();
+}
+
+function editButton(page: Page, title: string) {
+  return page.getByRole("button", { name: `Edit “${title}”`, exact: true });
+}
+
 test.beforeEach(async ({ context, baseURL }) => {
   test.skip(!seed(), "needs seeded sessions");
   await signIn(context, baseURL!, "admin");
@@ -26,8 +37,7 @@ for (const width of [375, 1280]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
-    await page.goto("/admin/playbook");
-    await page.getByRole("button", { name: "Add step", exact: true }).click();
+    await addStep(page);
     const title = `Visual room checklist ${width} ${crypto.randomUUID().slice(0, 6)}`;
     await page.getByLabel("Step title").fill(title);
     const editor = page.getByRole("textbox", {
@@ -71,10 +81,11 @@ for (const width of [375, 1280]) {
     ).toBeLessThanOrEqual(width);
     await page.getByRole("button", { name: "Save step", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: title, exact: true }),
+      editButton(page, title),
     ).toBeVisible();
     await page.reload();
-    await page.getByRole("button", { name: title, exact: true }).click();
+    await page.getByRole("button", { name: "Edit steps", exact: true }).click();
+    await editButton(page, title).click();
     await expect(
       editor.locator(".bn-block-group .bn-block-group"),
     ).toContainText("Ask the advisor");
@@ -103,15 +114,15 @@ for (const width of [375, 1280]) {
       editor.locator(".bn-block-group .bn-block-group"),
     ).toContainText("Ask the advisor");
     await page.getByRole("button", { name: "Save step", exact: true }).click();
-    await page.getByRole("button", { name: title, exact: true }).click();
+    await editButton(page, title).click();
     await expect(
       editor.locator(".bn-block-group .bn-block-group"),
     ).toContainText("Ask the advisor");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     const card = page
-      .locator("[data-card]")
-      .filter({ has: page.getByRole("button", { name: title, exact: true }) });
-    await card.getByText("Read step", { exact: true }).click();
+      .locator("[data-step]")
+      .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+    await card.getByText("How to do it", { exact: true }).click();
     await expect(card.locator("ol > li ul > li")).toContainText(
       "Ask the advisor",
     );
@@ -139,8 +150,7 @@ test("reference guide replaces raw URLs with readable resource links", async ({
 test("dragging a text block moves its content and survives a save", async ({
   page,
 }) => {
-  await page.goto("/admin/playbook");
-  await page.getByRole("button", { name: "Add step", exact: true }).click();
+  await addStep(page);
   const title = `Block drag ${crypto.randomUUID().slice(0, 6)}`;
   await page.getByLabel("Step title").fill(title);
   const editor = page.getByRole("textbox", { name: "What to do", exact: true });
@@ -174,7 +184,7 @@ test("dragging a text block moves its content and survives a save", async ({
     /Second block[\s\S]*Third block[\s\S]*First block/,
   );
   await page.getByRole("button", { name: "Save step", exact: true }).click();
-  await page.getByRole("button", { name: title, exact: true }).click();
+  await editButton(page, title).click();
   await expect(editor).toHaveText(
     /Second block[\s\S]*Third block[\s\S]*First block/,
   );
@@ -184,8 +194,7 @@ test("text blocks drag by touch, and a cancelled touch keeps the original order"
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 960 });
-  await page.goto("/admin/playbook");
-  await page.getByRole("button", { name: "Add step", exact: true }).click();
+  await addStep(page);
   const editor = page.getByRole("textbox", { name: "What to do", exact: true });
   await editor.fill("First block");
   await editor.press("End");
