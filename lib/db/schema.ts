@@ -474,3 +474,107 @@ export const eventsRelations = relations(events, ({ many }) => ({
   cancellations: many(eventCancellations),
   rsvps: many(eventRsvps),
 }));
+
+// Playbook v3: the instruction manual. General task categories, each with
+// numbered steps in plain text (no markdown). Removed rows are archived, not
+// deleted, so an admin can bring them back.
+export const playbookCategories = sqliteTable("playbook_categories", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  summary: text("summary").notNull().default(""),
+  sort: integer("sort").notNull().default(0),
+  archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  updatedByUserId: text("updated_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+});
+
+export const playbookSteps = sqliteTable(
+  "playbook_steps",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => playbookCategories.id, { onDelete: "cascade" }),
+    sort: integer("sort").notNull().default(0),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    // "Skip if there's no food", "Only if the vendor is new to UCSC".
+    whenNote: text("when_note").notNull().default(""),
+    // Days before the event the step should be done; negative = after it.
+    leadDays: integer("lead_days"),
+    formLabel: text("form_label").notNull().default(""),
+    formUrl: text("form_url").notNull().default(""),
+    revision: integer("revision").notNull().default(1),
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedByUserId: text("updated_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => ({
+    byCategory: index("playbook_steps_category_idx").on(t.categoryId, t.sort),
+    leadRange: check(
+      "playbook_steps_lead_days_range",
+      sql`${t.leadDays} IS NULL OR (${t.leadDays} BETWEEN -60 AND 120)`
+    ),
+  })
+);
+
+// A board member's saved timeline for one event. Items are a snapshot of the
+// steps it was made from, so later playbook edits never rewrite a plan.
+export type TimelineItem = {
+  id: string;
+  stepId: string | null;
+  category: string;
+  title: string;
+  body: string;
+  whenNote: string;
+  formLabel: string;
+  formUrl: string;
+  leadDays: number;
+  due: string;
+  done: boolean;
+};
+export type TimelineChatTurn = { role: "user" | "assistant"; text: string };
+
+export const timelines = sqliteTable(
+  "timelines",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    prompt: text("prompt").notNull().default(""),
+    eventDate: text("event_date").notNull(),
+    size: text("size").notNull().default("small"),
+    items: text("items", { mode: "json" }).$type<TimelineItem[]>().notNull(),
+    chat: text("chat", { mode: "json" }).$type<TimelineChatTurn[]>().notNull(),
+    source: text("source").notNull().default("rules"),
+    isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+    shareSlug: text("share_slug").notNull().unique(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    byOwner: index("timelines_owner_idx").on(t.ownerUserId, t.createdAt),
+    dateFormat: check("timelines_event_date_format", sql`${t.eventDate} GLOB '????-??-??'`),
+  })
+);

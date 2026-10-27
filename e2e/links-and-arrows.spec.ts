@@ -36,10 +36,10 @@ const ADMIN = [
   "/admin/admins",
   "/admin/nominations",
   "/admin/plan",
-  "/admin/plan/ev-bonfire",
   "/admin/playbook",
-  "/admin/playbook/promotion",
-  "/admin/playbook/promotion/edit",
+  "/admin/playbook?edit=1",
+  "/admin/playbook/get-funding",
+  "/admin/playbook/get-funding?edit=1",
 ];
 
 type Check = { offSite: number; problems: string[] };

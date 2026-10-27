@@ -28,6 +28,8 @@ import { parseHMInLocal, toLocalYmd } from "../lib/time";
 import { addDaysYmd } from "../lib/planning";
 import { assignTask, planFromForm, setTaskDone } from "../app/admin/plan/_plan";
 import { and, eq } from "drizzle-orm";
+import { seedPlaybook } from "../lib/playbook-db";
+import { PLAYBOOK_SEED } from "../lib/playbook-content";
 
 const url = process.argv[2];
 if (!url || !url.startsWith("file:")) {
@@ -463,6 +465,9 @@ async function main() {
   if (bonfireFood) await assignTask(db, bonfireFood, "u-maryam");
 
   const adminToken = randomBytes(32).toString("hex");
+  // The Playbook: its six categories and their steps, as production starts with.
+  await seedPlaybook(db, PLAYBOOK_SEED);
+
   const memberToken = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 30 * DAY);
   await db.insert(sessions).values([

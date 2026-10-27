@@ -71,6 +71,13 @@
       "when": 1792912032284,
       "tag": "0009_playbook_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793061711792,
+      "tag": "0010_playbook_v3",
+      "breakpoints": true
     }
   ]
 }

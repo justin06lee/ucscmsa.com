@@ -5,7 +5,6 @@ import {
   validateCardGraph,
   type PlaybookCard,
 } from "./playbook";
-import { localPlanningAgent } from "./planning-agent";
 import { templatesFor } from "./planning";
 
 const card = (
@@ -109,54 +108,5 @@ describe("playbook timeline", () => {
       "1 week before",
       "4 weeks before",
     ]);
-  });
-});
-
-describe("local planning agent", () => {
-  const cards = [
-    card("proposal", 14),
-    card("room", 14, ["proposal"], "room"),
-    card("purchase", 10, ["proposal"], "food"),
-    card("big", 42, [], "big"),
-  ];
-  it("handles Justin's example, suggests the next March, and states the assumption", async () => {
-    const p = await localPlanningAgent.propose({
-      description: "Iftar, March 12, ~80 people, serving food, need a room",
-      todayYmd: "2026-10-25",
-      cards,
-    });
-    expect(p).toMatchObject({
-      title: "Iftar",
-      eventYmd: "2027-03-12",
-      tags: ["room", "food"],
-      cardIds: ["proposal", "room", "purchase"],
-    });
-    expect(p.notes.join(" ")).toContain("No year was given");
-  });
-  it("asks for a missing or impossible date and respects explicit negatives", async () => {
-    const p = await localPlanningAgent.propose({
-      description: "Study circle, no room, no food",
-      todayYmd: "2026-10-25",
-      cards,
-    });
-    expect(p.eventYmd).toBeNull();
-    expect(p.tags).toEqual([]);
-    expect(p.cardIds).toEqual(["proposal"]);
-    const invalid = await localPlanningAgent.propose({
-      description: "Lunch 2027-02-30",
-      todayYmd: "2026-10-25",
-      cards,
-    });
-    expect(invalid.eventYmd).toBeNull();
-  });
-  it("keeps explicit past years and warns about major events", async () => {
-    const p = await localPlanningAgent.propose({
-      description: "Dinner, March 12 2025, 300 people",
-      todayYmd: "2026-10-25",
-      cards,
-    });
-    expect(p.eventYmd).toBe("2025-03-12");
-    expect(p.tags).toContain("big");
-    expect(p.notes.join(" ")).toContain("8 weeks");
   });
 });

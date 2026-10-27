@@ -196,11 +196,10 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
         setErr(null);
         start(async () => {
           const result = await attempt(() => onSubmit(fd));
-          // A planned event opens on its checklist. The button keeps saying
-          // "Saving…" until that page is up (the push is part of the transition).
+          // The button keeps saying "Saving…" until the events page is up
+          // (the push is part of the transition).
           if (result.ok) {
-            const { planned, id } = result.value;
-            start(() => router.push(planned && id ? `/admin/plan/${id}` : "/admin"));
+            start(() => router.push("/admin"));
           } else start(() => setErr(result.error));
         });
       }}

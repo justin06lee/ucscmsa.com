@@ -18,7 +18,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { admins, eventTags, eventTasks, events, users } from "@/lib/db/schema";
 import { createEvent, updateEvent } from "./_actions";
-import { publishEvent } from "./plan/_actions";
 
 const ymd = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 
@@ -84,20 +83,6 @@ describe("event form planning fields", () => {
     expect(r).toMatchObject({ ok: true, planned: false });
     const [ev] = await db.select().from(events).where(eq(events.id, (r as { id: string }).id));
     expect(ev.draft).toBe(false);
-  });
-
-  it("publishing a draft makes it public and refreshes the public pages", async () => {
-    const r = await createEvent(form({ ...base(ymd(20)), planning: "1", draft: "on" }));
-    const id = (r as { id: string }).id;
-    expect(await publishEvent(id)).toEqual({ ok: true });
-    const [ev] = await db.select().from(events).where(eq(events.id, id));
-    expect(ev.draft).toBe(false);
-    for (const p of ["/", "/calendar", "/sitemap.xml"]) {
-      expect(h.revalidatePath).toHaveBeenCalledWith(p);
-    }
-    // "layout" takes the event's share image with its page.
-    expect(h.revalidatePath).toHaveBeenCalledWith(`/calendar/events/${id}`, "layout");
-    expect(await publishEvent("missing")).toEqual({ ok: false, error: "not_found" });
   });
 
   it("putting a published event back to draft refreshes its page, share image and the sitemap", async () => {

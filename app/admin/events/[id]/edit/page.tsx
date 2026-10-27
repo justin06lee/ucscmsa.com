@@ -9,8 +9,7 @@ import { DeleteEvent } from "@/app/admin/events/delete-event";
 import { formatLocal } from "@/lib/time";
 import { requireAdmin } from "@/lib/auth";
 import { EventBadges, SourceRef, importLabel, sourceName } from "@/components/admin/event-origin";
-import Link from "next/link";
-import { getEventTags, hasPlan } from "@/app/admin/plan/_plan";
+import { getEventTags } from "@/app/admin/plan/_plan";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -19,7 +18,7 @@ export default async function EditEventPage({ params }: Props) {
   const { id } = await params;
   const row = (await db.select().from(events).where(eq(events.id, id)).limit(1))[0];
   if (!row) notFound();
-  const [tags, planned] = await Promise.all([getEventTags(db, id), hasPlan(db, id)]);
+  const tags = await getEventTags(db, id);
 
   async function submit(fd: FormData) {
     "use server";
@@ -29,16 +28,6 @@ export default async function EditEventPage({ params }: Props) {
   return (
     <div>
       <h1 className="mb-6 text-3xl">Edit event</h1>
-      {planned ? (
-        <p className="-mt-3 mb-5">
-          <Link
-            href={`/admin/plan/${id}`}
-            className="inline-flex min-h-11 items-center text-sm text-burgundy underline decoration-burgundy/30 underline-offset-4 hover:decoration-burgundy"
-          >
-            Planning checklist
-          </Link>
-        </p>
-      ) : null}
       {(importLabel(row.source) || row.cancelledAt) && (
         <section aria-label="Event origin" className="mb-6 grid max-w-xl gap-1.5 rounded-md border border-ink/15 px-4 py-3 text-sm">
           <EventBadges source={row.source} cancelledAt={row.cancelledAt} />

@@ -38,6 +38,8 @@ export default defineConfig({
           AUTH_URL: baseURL,
           ADMIN_SEED_EMAILS: "aisha.karim@ucsc.edu,omar.farouk@ucsc.edu,maryam.siddiqui@ucsc.edu",
           NEXT_PUBLIC_SITE_URL: baseURL,
+          // The timeline planner uses its keyword rules, never the model.
+          PLANNER_LLM: "off",
         },
       },
   use: {

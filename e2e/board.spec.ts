@@ -1,16 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
 import { pickDate, santaCruzDay, seed, signIn, typeTime } from "./fixtures";
 
-// The board's pages under /admin: Planning and the Playbook. Relies on
-// scripts/seed-local.ts (a planned draft, ev-bonfire, and the seeded guides).
+// The board's pages under /admin: the Playbook and the Timeline planner.
+// Relies on scripts/seed-local.ts (the default Playbook and a few admins).
 
 test.beforeEach(async ({ context, baseURL }) => {
   test.skip(!seed(), "needs the seeded session tokens (E2E_SEED_FILE)");
   await signIn(context, baseURL!, "admin");
 });
 
-test("plan a draft: tags make a dated checklist; tick and assign tasks", async ({ page }) => {
-  // 20 days out: funding (21 days before) is already overdue, the room (14) isn't.
+test("a draft event stays off the public site", async ({ page }) => {
   const day = santaCruzDay(20);
   await page.goto("/admin/events/new?draft=1");
   await expect(page.getByRole("heading", { name: "Plan an event" })).toBeVisible();
@@ -20,75 +19,89 @@ test("plan a draft: tags make a dated checklist; tick and assign tasks", async (
   await pickDate(page, "End date", day.label);
   await typeTime(page, "End time", "8:00 PM");
   await expect(page.getByLabel(/^Draft/).filter({ visible: true })).toBeChecked();
-  const needs = page.getByRole("group", { name: "It needs" });
-  for (const tag of ["Room", "Food", "Funding"]) await needs.getByText(tag, { exact: true }).click();
   await page.getByRole("button", { name: "Create event" }).click();
+  await page.waitForURL(/\/admin$/);
 
-  await page.waitForURL(/\/admin\/plan\/[0-9A-Z]{26}$/);
-  const id = page.url().split("/").pop()!;
-  await expect(page.getByRole("heading", { name: "E2E Iftar Planning" })).toBeVisible();
-  const checklist = page.getByRole("list", { name: "Checklist" });
-  await expect(checklist.getByRole("listitem", { name: "Today" })).toBeVisible();
-  for (const t of ["Apply for funding", "Book a room (after filing the proposal)", "Submit the Purchase Request (DocuSign)", "Post on Instagram, WhatsApp and the site", "Post a reminder"]) {
-    await expect(checklist.getByText(t, { exact: true })).toBeVisible();
-  }
-  const funding = checklist.locator("[data-state]").filter({ hasText: "Apply for funding" });
-  await expect(funding).toHaveAttribute("data-state", "overdue");
-  await expect(funding).toContainText("Overdue");
-  await expect(page.getByText("0 of 9 done · 3 overdue")).toBeVisible();
-
-  // Tick a task: it stays ticked, says who did it, and the count moves.
-  await checklist.getByText("Book a room (after filing the proposal)", { exact: true }).click();
-  const room = checklist.locator("[data-state]").filter({ hasText: "Book a room" });
-  await expect(room).toHaveAttribute("data-state", "done");
-  await expect(room).toContainText(/Done by/);
-
-  // Assign one.
-  await page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"').selectOption({ label: "Maryam Siddiqui" });
-  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"')).toBeEnabled();
-
-  await page.reload();
-  await expect(checklist.locator("[data-state]").filter({ hasText: "Book a room" })).toHaveAttribute("data-state", "done");
-  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"')).toHaveValue(/.+/);
-  await expect(page.getByLabel('Who\'s doing "Submit the Purchase Request (DocuSign)"').locator("option:checked")).toHaveText(
-    "Maryam Siddiqui"
-  );
-  await expect(page.getByText("1 of 9 done · 3 overdue")).toBeVisible();
-
-  // The overview lists it with its next step.
-  await page.goto("/admin/plan");
-  await expect(page.getByRole("link", { name: /E2E Iftar Planning/ })).toBeVisible();
-
-  // A draft stays off the public site.
+  const link = page.getByRole("link", { name: /E2E Iftar Planning/ }).first();
+  const id = (await link.getAttribute("href"))!.split("/").filter(Boolean).at(-2)!;
   const res = await page.request.get(`/calendar/events/${id}`);
   expect(res.status()).toBe(404);
   expect(await (await page.request.get("/sitemap.xml")).text()).not.toContain(id);
 });
 
-test("edit a guide, then restore the earlier version", async ({ page }) => {
-  await page.goto("/admin/playbook/promotion");
-  await expect(page.getByRole("heading", { name: "Promote the event" })).toBeVisible();
-  await page.getByRole("link", { name: /Edit/ }).click();
+test("the Playbook: categories, numbered steps, and form links in a new tab", async ({ page }) => {
+  await page.goto("/admin/playbook");
+  await expect(page.getByRole("heading", { name: "Playbook", level: 1 })).toBeVisible();
+  const names = ["Event proposal", "Reserve a room", "Get funding", "Purchase orders & receipts", "Promote the event", "After the event"];
+  for (const n of names) await expect(page.getByRole("link", { name: new RegExp(n) })).toBeVisible();
 
-  const body = page.getByRole("textbox", { name: "Guide text", exact: true });
-  await body.fill("E2E edited step with a ");
-  await body.press("End");
-  await page.getByRole("button", { name: "Link", exact: true }).click();
-  await page.getByLabel("Link label").fill("link");
-  await page.getByLabel("Web address").fill("https://example.com");
-  await page.getByRole("button", { name: "Save link", exact: true }).click();
-  await expect(body.getByRole("link", { name: "link", exact: true })).toHaveAttribute("rel", /noopener/);
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("link", { name: /Get funding/ }).click();
+  await page.waitForURL(/\/admin\/playbook\/get-funding$/);
+  await expect(page.getByRole("heading", { name: "Get funding", level: 1 })).toBeVisible();
+  const steps = page.getByTestId("playbook-step");
+  await expect(steps).toHaveCount(4);
+  await expect(steps.first()).toContainText("File the Event Proposal first");
+  for (const a of await page.locator('main a[href^="http"]').all()) {
+    await expect(a).toHaveAttribute("target", "_blank");
+    await expect(a).toHaveAttribute("rel", /noopener/);
+  }
+  await page.getByRole("link", { name: "All categories" }).click();
+  await page.waitForURL(/\/admin\/playbook$/);
+});
 
-  await page.waitForURL(/\/admin\/playbook\/promotion$/);
-  await expect(page.getByText("E2E edited step")).toBeVisible();
-  await expect(page.getByText(/Last edited by/)).toBeVisible();
+test("edit mode: add a category, add and move steps, edit text, remove", async ({ page }) => {
+  await page.goto("/admin/playbook");
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.waitForURL(/\?edit=1$/);
+  await page.getByLabel("Name", { exact: true }).last().fill("E2E Lost and found");
+  await page.getByLabel("One line about it").last().fill("What to do with things left behind.");
+  await page.getByRole("button", { name: "Add category" }).click();
+  const row = page.getByTestId("category-edit-row").filter({ has: page.locator('input[value="E2E Lost and found"]') });
+  await expect(row).toHaveCount(1);
 
-  await page.goto("/admin/playbook/promotion/edit");
-  await page.getByRole("button", { name: "Restore" }).first().click();
-  await page.waitForURL(/\/admin\/playbook\/promotion$/);
-  await expect(page.getByText("E2E edited step")).toHaveCount(0);
-  await expect(page.getByText("1 day before:")).toBeVisible();
+  // Move it up one; it trades places with After the event.
+  await row.getByRole("button", { name: "Move up" }).click();
+  const inputs = page.getByTestId("category-edit-row").locator("input[id^=name-]");
+  await expect(inputs.nth(-2)).toHaveValue("E2E Lost and found");
+  await page.getByRole("link", { name: "Done", exact: true }).click();
+  await page.waitForURL(/\/admin\/playbook$/);
+  await page.getByRole("link", { name: /E2E Lost and found/ }).click();
+  await page.waitForURL(/\/admin\/playbook\/[a-z0-9-]+$/);
+  const slugPath = new URL(page.url()).pathname;
+
+  // Steps: add two, move the second up, then edit one.
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  for (const t of ["Check the lost and found box", "Post it in the group chat"]) {
+    await page.getByRole("button", { name: "Add a step" }).click();
+    await page.getByLabel("Title", { exact: true }).fill(t);
+    await page.getByLabel("Instructions", { exact: true }).fill("Plain words.\n- one\n- two");
+    await page.getByRole("button", { name: "Add step" }).click();
+    await expect(page.getByTestId("step-edit-row").filter({ hasText: t })).toHaveCount(1);
+  }
+  const rows = page.getByTestId("step-edit-row");
+  await rows.nth(1).getByRole("button", { name: "Move up" }).click();
+  await expect(rows.first()).toContainText("Post it in the group chat");
+  await rows.first().getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Title", { exact: true }).fill("Post it on WhatsApp");
+  await page.getByLabel("Days before the event").fill("-1");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(rows.first()).toContainText("Post it on WhatsApp");
+
+  await page.getByRole("link", { name: "Done", exact: true }).click();
+  await page.waitForURL(new RegExp(`${slugPath}$`));
+  const steps = page.getByTestId("playbook-step");
+  await expect(steps).toHaveCount(2);
+  await expect(steps.first()).toContainText("Post it on WhatsApp");
+  await expect(steps.first().getByRole("listitem")).toHaveCount(2);
+
+  // Remove the category: it leaves the list and waits under Removed categories.
+  await page.goto("/admin/playbook?edit=1");
+  await row.getByRole("button", { name: "Remove" }).click();
+  await expect(row).toHaveCount(0);
+  const removed = page.getByRole("heading", { name: "Removed categories" }).locator("..");
+  await expect(removed).toContainText("E2E Lost and found");
+  await page.goto("/admin/playbook");
+  await expect(page.getByRole("link", { name: /E2E Lost and found/ })).toHaveCount(0);
 });
 
 /**
@@ -117,11 +130,10 @@ function smallTargets(page: Page, min: number) {
 
 const BOARD_PAGES = [
   "/admin/plan",
-  "/admin/plan/ev-bonfire",
   "/admin/playbook",
-  "/admin/playbook/task/every",
-  "/admin/playbook/book-a-room",
-  "/admin/playbook/book-a-room/edit",
+  "/admin/playbook?edit=1",
+  "/admin/playbook/get-funding",
+  "/admin/playbook/get-funding?edit=1",
   "/admin/events/new?draft=1",
 ];
 

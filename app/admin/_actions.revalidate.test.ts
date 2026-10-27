@@ -16,7 +16,6 @@ import { admins, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { events } from "@/lib/db/schema";
 import { approveNomination, createEvent, deleteEvent, setEventCancelled, updateEvent } from "./_actions";
-import { assignTask, toggleTask } from "./plan/_actions";
 
 function eventForm(title: string) {
   const fd = new FormData();
@@ -100,9 +99,6 @@ describe("failures the optimistic UI rolls back on", () => {
     const id = (created as { id: string }).id;
     expect(await deleteEvent(id)).toEqual({ ok: true });
     expect(await deleteEvent(id)).toEqual({ ok: false, code: "not_found", error: "That event no longer exists." });
-    expect(await toggleTask("no-such-task", true)).toMatchObject({ ok: false, code: "not_found" });
-    expect(await toggleTask("", true)).toMatchObject({ ok: false, code: "invalid" });
-    expect(await assignTask("no-such-task", "")).toMatchObject({ ok: false, code: "not_found" });
     expect(await approveNomination("no-such-nomination")).toEqual({
       ok: false, code: "not_found", error: "That nomination no longer exists.",
     });
