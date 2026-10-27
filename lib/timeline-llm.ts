@@ -53,6 +53,7 @@ export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boole
     "- Include every step that applies. Leave out steps whose 'when it applies' note doesn't fit (no food means no purchase order steps; no money means no funding steps).",
     "- Food alone never needs funding steps. Funding steps are only for money the org has to ask for (funding, a grant, a sponsor); food is paid from the org's account.",
     "- Promotion steps (flyer, post, reminder) apply to every event members attend.",
+    "- Add a step with a 'when it applies' note only when what they said matches it: no tent or AV unless they mention gear or sound, no table unless they mention tabling, no food or vendor steps unless there is food or a paid vendor.",
     "- Every event with food, even free food, gets the food permit and new vendor steps; their notes tell them when to skip.",
     "- An event held off campus doesn't need the campus room steps.",
     "- The event date must be today or later. Use only step numbers from the list.",

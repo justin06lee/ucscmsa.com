@@ -74,6 +74,9 @@ export function buildItems(
   const chosen = new Set(stepIds);
   const proposal = steps.find(isProposalStep);
   if (proposal) chosen.add(proposal.id);
+  // The advisor meeting comes with every event, sized like the proposal.
+  const advisor = steps.find(isAdvisorStep);
+  if (advisor) chosen.add(advisor.id);
   // Any room or funding step brings its category's "File the Event Proposal
   // first", so the proposal moves up with the room request (the model picked
   // the room steps without it and left the proposal at a week).
@@ -83,10 +86,14 @@ export function buildItems(
     .filter((s) => chosen.has(s.id))
     .sort((a, b) => a.categorySort - b.categorySort || a.sort - b.sort);
 
+  // Off campus, the proposal is due with the advisor talk, not after it.
+  const offCampus = picked.find((s) => /off campus/i.test(s.whenNote));
   const byForm = new Map<string, { step: PlanStep; lead: number }>();
   const rows: { step: PlanStep; lead: number }[] = [];
   for (const step of picked) {
-    const lead = leadFor(step, size);
+    const lead = isProposalStep(step)
+      ? Math.max(leadFor(step, size), offCampus?.leadDays ?? 0)
+      : leadFor(step, size);
     if (isProposalStep(step)) {
       const prev = byForm.get(step.formUrl);
       if (prev) {
@@ -193,7 +200,8 @@ export function guessSize(text: string): EventSize {
   const n = Math.max(0, ...[...t.matchAll(/(\d{2,4})\s*\+?\s*(?:people|students|attendees|guests|ppl|person)/g)].map((m) => +m[1]));
   if (n > 250 || /\b(public|community|open to (all|everyone)|conference|gala)\b/.test(t)) return "major";
   if (n > 100) return "large";
-  if (n > 50) return "mid";
+  // Speaker events count as mid-scale (SOMeCA), however few come.
+  if (n > 50 || RULES.speaker.test(t)) return "mid";
   return "small";
 }
 

@@ -115,6 +115,7 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
         <Progress items={shown} />
         <TimelineList
           items={shown}
+          eventDate={eventDate}
           today={today}
           check={(item) => (
             <Checkbox

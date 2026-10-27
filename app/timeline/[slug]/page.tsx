@@ -38,7 +38,7 @@ export default async function PublicTimelinePage({
           Event on {formatDay(timeline.eventDate)}
         </p>
         <Progress items={timeline.items} />
-        <TimelineList items={timeline.items} today={toLocalYmd(new Date())} />
+        <TimelineList items={timeline.items} eventDate={timeline.eventDate} today={toLocalYmd(new Date())} />
       </main>
     </>
   );

@@ -13,6 +13,7 @@ import {
 } from "./timeline-plan";
 import { BUILD_NOW, DATE_QUESTION, MAX_QUESTIONS, planTurn, readReply } from "./timeline-llm";
 import { textBlocks, timingLabel } from "@/components/playbook/step-text";
+import { isBehind } from "@/components/playbook/timeline-items";
 
 const steps: PlanStep[] = PLAYBOOK_SEED.flatMap((c, ci) =>
   c.steps.map((s, si) => ({
@@ -60,7 +61,7 @@ describe("the playbook content", () => {
 describe("buildItems", () => {
   it("puts the Event Proposal first, once, filed with the room request three weeks out", () => {
     const ids = steps
-      .filter((s) => !["after-the-event", "get-funding"].includes(s.categorySlug))
+      .filter((s) => !["after-the-event", "get-funding"].includes(s.categorySlug) && !/off campus/i.test(s.whenNote))
       .map((s) => s.id);
     const items = buildItems(steps, ids, "2026-11-20", "small", today);
     expect(isProposalStep(items[0])).toBe(true);
@@ -106,10 +107,31 @@ describe("buildItems", () => {
     expect(items.filter(isProposalStep)).toHaveLength(1);
   });
 
-  it("adds the proposal even when not picked, and never dates a step before today", () => {
+  it("adds the proposal and the advisor meeting even when not picked, and never dates a step before today", () => {
     const items = buildItems(steps, [], "2026-10-29", "large", today);
-    expect(items).toHaveLength(1);
-    expect(items[0].due).toBe(today);
+    expect(items.map((i) => i.title)).toEqual(["File the Event Proposal", "Meet an advisor"]);
+    expect(items.every((i) => i.due === today)).toBe(true);
+  });
+
+  it("always includes the advisor meeting, sized like the proposal", () => {
+    const items = buildItems(steps, [], "2027-01-28", "mid", today);
+    expect(items.find((i) => i.title === "Meet an advisor")?.leadDays).toBe(14);
+  });
+
+  it("files the proposal with the off-campus talk, five weeks out", () => {
+    const off = steps.find((s) => /off campus/i.test(s.whenNote))!;
+    const items = buildItems(steps, [off.id], "2027-01-28", "small", today);
+    const proposal = items.find(isProposalStep)!;
+    expect(proposal.leadDays).toBe(35);
+    expect(proposal.due <= items.find((i) => i.stepId === off.id)!.due).toBe(true);
+  });
+
+  it("flags only the steps whose own deadline is behind today", () => {
+    const items = buildItems(steps, [], "2026-10-29", "small", today);
+    expect(items.map((i) => isBehind(i, "2026-10-29", today))).toEqual([true, true]);
+    const later = buildItems(steps, [], "2026-12-03", "small", today);
+    expect(later.some((i) => isBehind(i, "2026-12-03", today))).toBe(false);
+    expect(isBehind({ ...items[0], done: true }, "2026-10-29", today)).toBe(false);
   });
 
   it("re-dates when the event moves, keeping what is done", () => {
@@ -124,6 +146,7 @@ describe("keyword rules", () => {
   it("reads dates and sizes", () => {
     expect(parseDate("halaqa on Nov 20", today)).toBe("2026-11-20");
     expect(guessSize("a small halaqa for 15")).toBe("small");
+    expect(guessSize("halaqa for 15 with a guest speaker")).toBe("mid");
     expect(guessSize("public fundraiser dinner for 300 people with a speaker")).not.toBe("small");
   });
 
