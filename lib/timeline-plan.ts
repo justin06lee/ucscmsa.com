@@ -74,9 +74,15 @@ export function buildItems(
   const chosen = new Set(stepIds);
   const proposal = steps.find(isProposalStep);
   if (proposal) chosen.add(proposal.id);
-  // The advisor meeting comes with every event, sized like the proposal.
+  // The advisor meeting comes with every event, sized like the proposal. Off
+  // campus, the five-week talk with the advisor is that meeting (SOMeCA's plan
+  // an event page asks for one meeting, not two).
+  const offCampus = steps.find((s) => chosen.has(s.id) && /off campus/i.test(s.whenNote));
   const advisor = steps.find(isAdvisorStep);
-  if (advisor) chosen.add(advisor.id);
+  if (advisor) {
+    if (offCampus) chosen.delete(advisor.id);
+    else chosen.add(advisor.id);
+  }
   // Any room or funding step brings its category's "File the Event Proposal
   // first", so the proposal moves up with the room request (the model picked
   // the room steps without it and left the proposal at a week).
@@ -87,7 +93,6 @@ export function buildItems(
     .sort((a, b) => a.categorySort - b.categorySort || a.sort - b.sort);
 
   // Off campus, the proposal is due with the advisor talk, not after it.
-  const offCampus = picked.find((s) => /off campus/i.test(s.whenNote));
   const byForm = new Map<string, { step: PlanStep; lead: number }>();
   const rows: { step: PlanStep; lead: number }[] = [];
   for (const step of picked) {
@@ -214,7 +219,7 @@ const RULES = {
   noRoom: /\b(online|zoom|virtual|outdoors?|beach|park|off.campus)\b/,
   offCampus: /\b(off.campus|beach|park|downtown|trip|hike|retreat)\b/,
   // Sound gear, not a guest speaker.
-  gear: /\b(tent|mic|microphone|speakers|projector|av|sound)\b/,
+  gear: /\b(tent|mic|microphone|speakers|projector|av|sound|stage)\b/,
   speaker: /\b(speaker|guest|performer|performance|perform|dj|comedian|lecturer|imam|sheikh|shaykh)\b/,
   fundraiser: /\b(fundrais|bake sale|sell|selling|for sale|charity)/,
   vendor: /\b(cater|restaurant|vendor|dj|photographer|speaker fee|order)/,
@@ -222,10 +227,32 @@ const RULES = {
   college: /\b(college|cowell|stevenson|crown|merrill|porter|kresge|oakes|carson|nine|john r\.? lewis)\b/,
 };
 
+/** Lowercased, with "no food" and "without funding" taken out so they don't count. */
+function asked(text: string): string {
+  return text.toLowerCase().replace(/\b(?:no|without)\s+[a-z]+/g, " ");
+}
+
+/**
+ * The model's picks without the "when it applies" steps the description never
+ * asked for: it added a tent, a library table and a food order nobody mentioned.
+ */
+export function dropUnasked(steps: PlanStep[], stepIds: string[], text: string): string[] {
+  const t = asked(text);
+  const byId = new Map(steps.map((s) => [s.id, s]));
+  return stepIds.filter((id) => {
+    const s = byId.get(id);
+    if (!s) return false;
+    if (/tent|mic|projector/i.test(s.whenNote)) return RULES.gear.test(t);
+    if (/table/i.test(s.whenNote)) return RULES.table.test(t);
+    // The food order; the speaker's has its own note.
+    if (/^send the purchase request$/i.test(s.title.trim())) return RULES.food.test(t);
+    return true;
+  });
+}
+
 /** Step ids the keyword rules would pick for this description. */
 export function ruleStepIds(text: string, steps: PlanStep[]): string[] {
-  // "No food" and "without funding" must not count as food or funding.
-  const t = text.toLowerCase().replace(/\b(?:no|without)\s+[a-z]+/g, " ");
+  const t = asked(text);
   const has = (k: keyof typeof RULES) => RULES[k].test(t);
   const food = has("food");
   const money = food || has("money");

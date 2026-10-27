@@ -6,6 +6,7 @@
 import type { TimelineChatTurn } from "@/lib/db/schema";
 import {
   SIZES,
+  dropUnasked,
   guessSize,
   guessTitle,
   isIsoDate,
@@ -156,7 +157,8 @@ export async function planTurn(opts: {
       if (!res.ok) return fallback();
       const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const reply = readReply(json.choices?.[0]?.message?.content ?? "", steps, today);
-      if (reply && !(mustFinish && reply.type === "question")) return reply;
+      if (reply?.type === "timeline") return { ...reply, stepIds: dropUnasked(steps, reply.stepIds, said) };
+      if (reply && !mustFinish) return reply;
     } catch {
       return fallback();
     }

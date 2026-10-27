@@ -4,6 +4,7 @@ import {
   PROPOSAL_LEAD,
   buildItems,
   daysBetween,
+  dropUnasked,
   guessSize,
   isProposalStep,
   parseDate,
@@ -126,6 +127,14 @@ describe("buildItems", () => {
     expect(proposal.due <= items.find((i) => i.stepId === off.id)!.due).toBe(true);
   });
 
+  it("holds one advisor meeting off campus: the five-week talk, not the general one too", () => {
+    const off = steps.find((s) => /off campus/i.test(s.whenNote))!;
+    const general = steps.find((s) => s.title === "Meet an advisor")!;
+    const items = buildItems(steps, [off.id, general.id], "2027-01-28", "small", today);
+    expect(items.some((i) => i.stepId === general.id)).toBe(false);
+    expect(items.find((i) => i.stepId === off.id)?.leadDays).toBe(35);
+  });
+
   it("flags only the steps whose own deadline is behind today", () => {
     const items = buildItems(steps, [], "2026-10-29", "small", today);
     expect(items.map((i) => isBehind(i, "2026-10-29", today))).toEqual([true, true]);
@@ -193,6 +202,26 @@ describe("keyword rules", () => {
   });
 });
 
+describe("dropUnasked", () => {
+  const id = (title: string) => steps.find((s) => s.title === title)!.id;
+  const optional = ["Ask for a tent or AV equipment", "Table at the library", "Send the Purchase Request"].map(id);
+
+  it("drops the tent, the library table and the food order nobody asked for", () => {
+    expect(dropUnasked(steps, optional, "halaqa thursday night in a classroom, no food")).toEqual([]);
+    expect(dropUnasked(steps, optional, "bringing an outside speaker, ticketed")).toEqual([]);
+  });
+
+  it("keeps each one when the description asks for it", () => {
+    expect(dropUnasked(steps, optional, "eid dinner with a stage, tabling at the library the week before")).toEqual(optional);
+    expect(dropUnasked(steps, [optional[0]], "need a mic and a projector")).toEqual([optional[0]]);
+  });
+
+  it("leaves every other step alone, the speaker's Purchase Request too", () => {
+    const rest = steps.filter((s) => !optional.includes(s.id)).map((s) => s.id);
+    expect(dropUnasked(steps, rest, "a halaqa")).toEqual(rest);
+  });
+});
+
 describe("planTurn", () => {
   const chat = [{ role: "user" as const, text: "Halaqa with pizza for 30 on Nov 20 in a classroom" }];
 
@@ -204,6 +233,15 @@ describe("planTurn", () => {
   it("asks for the date by rules when none is given", async () => {
     const r = await planTurn({ chat: [{ role: "user", text: "a halaqa" }], steps, today });
     expect(r).toMatchObject({ type: "question", source: "rules" });
+  });
+
+  it("drops the model's unasked tent and library table", async () => {
+    const pick = ["Ask for a tent or AV equipment", "Table at the library"].map((t) => steps.findIndex((s) => s.title === t) + 1);
+    const fetchImpl = reply(
+      JSON.stringify({ type: "timeline", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small", steps: [1, ...pick] }),
+    );
+    const r = await planTurn({ chat, steps, today, apiKey: "k", fetchImpl });
+    expect(r).toMatchObject({ type: "timeline", source: "ai", stepIds: [steps[0].id] });
   });
 
   it("takes a valid model timeline", async () => {
