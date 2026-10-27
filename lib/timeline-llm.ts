@@ -6,9 +6,11 @@
 import type { TimelineChatTurn } from "@/lib/db/schema";
 import {
   SIZES,
+  addRequired,
   dropUnasked,
   guessSize,
   guessTitle,
+  headcount,
   isIsoDate,
   parseDate,
   ruleStepIds,
@@ -30,6 +32,15 @@ type Fetch = typeof fetch;
 
 export const DATE_QUESTION = "When is the event? A date like Nov 14 works.";
 export const BUILD_NOW = "Build the timeline now. Don't ask anything else; use your best guess for anything still unknown.";
+
+/** Whether they gave a headcount: "~40 people", or a number after "How many". */
+export function toldHeadcount(chat: TimelineChatTurn[]): boolean {
+  return chat.some(
+    (t, i) =>
+      t.role === "user" &&
+      (headcount(t.text) !== null || (/how many/i.test(chat[i - 1]?.text ?? "") && /\d/.test(t.text))),
+  );
+}
 
 export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boolean, saidDate?: string | null): string {
   // Steps go by their number in this list, not their id: a uuid per step made
@@ -136,8 +147,8 @@ export async function planTurn(opts: {
     // with a timeline now" and kept asking.
     ...(mustFinish ? [{ role: "user", content: BUILD_NOW }] : []),
   ];
-  // One retry when the answer can't be used (bad JSON, or a question after the
-  // last one), before the keyword rules take over.
+  // One retry when the call fails or the answer can't be used (bad JSON, or a
+  // question after the last one), before the keyword rules take over.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await (opts.fetchImpl ?? fetch)(DEEPINFRA_URL, {
@@ -154,13 +165,21 @@ export async function planTurn(opts: {
         signal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
         cache: "no-store",
       });
-      if (!res.ok) return fallback();
+      // A server error or a timeout gets the same one retry: Eid dinner fell to the rules once.
+      if (!res.ok) continue;
       const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const reply = readReply(json.choices?.[0]?.message?.content ?? "", steps, today);
-      if (reply?.type === "timeline") return { ...reply, stepIds: dropUnasked(steps, reply.stepIds, said) };
+      if (reply?.type === "timeline") {
+        return {
+          ...reply,
+          // The model sized a speaker event with no headcount as major, 8 weeks out.
+          size: toldHeadcount(chat) ? reply.size : guessSize(said),
+          stepIds: addRequired(steps, dropUnasked(steps, reply.stepIds, said), said),
+        };
+      }
       if (reply && !mustFinish) return reply;
     } catch {
-      return fallback();
+      continue;
     }
   }
   return fallback();

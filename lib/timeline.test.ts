@@ -2,17 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 import { PLAYBOOK_SEED } from "./playbook-content";
 import {
   PROPOSAL_LEAD,
+  addRequired,
   buildItems,
   daysBetween,
   dropUnasked,
   guessSize,
+  headcount,
   isProposalStep,
   parseDate,
   redateItems,
   ruleStepIds,
   type PlanStep,
 } from "./timeline-plan";
-import { BUILD_NOW, DATE_QUESTION, MAX_QUESTIONS, planTurn, readReply } from "./timeline-llm";
+import { BUILD_NOW, DATE_QUESTION, MAX_QUESTIONS, planTurn, readReply, toldHeadcount } from "./timeline-llm";
 import { textBlocks, timingLabel } from "@/components/playbook/step-text";
 import { isBehind } from "@/components/playbook/timeline-items";
 
@@ -218,12 +220,79 @@ describe("dropUnasked", () => {
 
   it("leaves every other step alone, the speaker's Purchase Request too", () => {
     const rest = steps.filter((s) => !optional.includes(s.id)).map((s) => s.id);
-    expect(dropUnasked(steps, rest, "a halaqa")).toEqual(rest);
+    expect(dropUnasked(steps, rest, "a halaqa, need funding")).toEqual(rest);
+  });
+
+  it("drops funding steps unless they ask for money", () => {
+    const funding = steps.filter((s) => s.categorySlug === "get-funding").map((s) => s.id);
+    expect(dropUnasked(steps, funding, "bringing an outside speaker, ticketed, in a big hall")).toEqual([]);
+    expect(dropUnasked(steps, funding, "big eid dinner, catered, need funding")).toEqual(funding);
+  });
+});
+
+describe("addRequired", () => {
+  const id = (title: string) => steps.find((s) => s.title === title)!.id;
+  const food = ["Get a food permit", "New vendor? Get the 204 payee setup", "Send the Purchase Request", "Keep the itemized receipt"].map(id);
+  const first = steps[0].id;
+  const always = steps
+    .filter((s) => (s.categorySlug === "promote" || s.categorySlug === "after-the-event") && !s.whenNote)
+    .map((s) => s.id);
+  const same = (got: string[], want: string[]) => expect([...got].sort()).toEqual([...new Set([first, ...always, ...want])].sort());
+
+  it("adds the food steps and reimbursements whenever there is food", () => {
+    same(addRequired(steps, [first], "halaqa with pizza, ~40 people"), [...food, id("File reimbursements")]);
+    same(addRequired(steps, [first], "bake sale fundraiser on campus"), [
+      ...food,
+      id("Fundraiser? Meet an advisor about it"),
+      id("File reimbursements"),
+    ]);
+  });
+
+  it("adds spending through the campus account when funding is picked", () => {
+    same(addRequired(steps, [first, id("Pick where the money comes from")], "a talk"), [
+      id("Pick where the money comes from"),
+      id("Spend it through the campus account"),
+      id("File reimbursements"),
+    ]);
+  });
+
+  it("adds only the flyer and wrap-up to a small event with no food or money", () => {
+    same(addRequired(steps, [first], "halaqa thursday night in a classroom, ~15 people, no food"), []);
+    same(addRequired(steps, [first], "beach cleanup off campus"), []);
+    expect(always.length).toBe(5);
+  });
+});
+
+describe("headcount", () => {
+  it("reads a headcount only when one is given", () => {
+    expect(headcount("halaqa, ~15 people")).toBe(15);
+    expect(headcount("eid dinner, 150 people, 40 students volunteering")).toBe(150);
+    expect(headcount("bringing an outside speaker, ticketed, in a big hall")).toBeNull();
+  });
+
+  it("counts a number given after a 'How many' question", () => {
+    expect(toldHeadcount([{ role: "user", text: "a halaqa" }])).toBe(false);
+    expect(
+      toldHeadcount([
+        { role: "user", text: "a halaqa" },
+        { role: "assistant", text: "How many people do you expect?" },
+        { role: "user", text: "about 40" },
+      ]),
+    ).toBe(true);
   });
 });
 
 describe("planTurn", () => {
   const chat = [{ role: "user" as const, text: "Halaqa with pizza for 30 on Nov 20 in a classroom" }];
+  const id = (title: string) => steps.find((s) => s.title === title)!.id;
+  const always = steps
+    .filter((s) => (s.categorySlug === "promote" || s.categorySlug === "after-the-event") && !s.whenNote)
+    .map((s) => s.id);
+  const withFood = [
+    steps[0].id,
+    ...always,
+    ...["Get a food permit", "New vendor? Get the 204 payee setup", "Send the Purchase Request", "Keep the itemized receipt", "File reimbursements"].map(id),
+  ];
 
   it("uses the rules without a key", async () => {
     const r = await planTurn({ chat, steps, today });
@@ -241,7 +310,8 @@ describe("planTurn", () => {
       JSON.stringify({ type: "timeline", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small", steps: [1, ...pick] }),
     );
     const r = await planTurn({ chat, steps, today, apiKey: "k", fetchImpl });
-    expect(r).toMatchObject({ type: "timeline", source: "ai", stepIds: [steps[0].id] });
+    expect(r).toMatchObject({ type: "timeline", source: "ai" });
+    expect(r.type === "timeline" && [...r.stepIds].sort()).toEqual([...withFood].sort());
   });
 
   it("takes a valid model timeline", async () => {
@@ -249,7 +319,27 @@ describe("planTurn", () => {
       JSON.stringify({ type: "timeline", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small", steps: [1, 999, "x"] }),
     );
     const r = await planTurn({ chat, steps, today, apiKey: "k", fetchImpl });
-    expect(r).toEqual({ type: "timeline", source: "ai", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small", stepIds: [steps[0].id] });
+    expect(r).toMatchObject({ type: "timeline", source: "ai", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small" });
+    expect(r.type === "timeline" && [...r.stepIds].sort()).toEqual([...withFood].sort());
+  });
+
+  it("retries once after a server error before the rules take over", async () => {
+    const ok = JSON.stringify({ type: "timeline", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small", steps: [1] });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("busy", { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: ok } }] })));
+    const r = await planTurn({ chat, steps, today, apiKey: "k", fetchImpl });
+    expect(r).toMatchObject({ type: "timeline", source: "ai" });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the model's size only when a headcount was given", async () => {
+    const speaker = [{ role: "user" as const, text: "bringing an outside speaker, ticketed, in a big hall, Dec 3" }];
+    const major = JSON.stringify({ type: "timeline", title: "Speaker", eventDate: "2026-12-03", size: "major", steps: [1] });
+    expect(await planTurn({ chat: speaker, steps, today, apiKey: "k", fetchImpl: reply(major) })).toMatchObject({ size: "mid" });
+    const dinner = [{ role: "user" as const, text: "eid dinner, 300 people, Dec 3" }];
+    expect(await planTurn({ chat: dinner, steps, today, apiKey: "k", fetchImpl: reply(major) })).toMatchObject({ size: "major" });
   });
 
   it("asks for the date first, before calling the model, when nobody gave one", async () => {

@@ -200,9 +200,15 @@ export function parseDate(text: string, today: string): string | null {
   return null;
 }
 
+/** The largest headcount in the text ("~40 people"), or null when none is given. */
+export function headcount(text: string): number | null {
+  const counts = [...text.toLowerCase().matchAll(/(\d{1,4})\s*\+?\s*(?:people|students|attendees|guests|ppl|person)/g)].map((m) => +m[1]);
+  return counts.length ? Math.max(...counts) : null;
+}
+
 export function guessSize(text: string): EventSize {
   const t = text.toLowerCase();
-  const n = Math.max(0, ...[...t.matchAll(/(\d{2,4})\s*\+?\s*(?:people|students|attendees|guests|ppl|person)/g)].map((m) => +m[1]));
+  const n = headcount(t) ?? 0;
   if (n > 250 || /\b(public|community|open to (all|everyone)|conference|gala)\b/.test(t)) return "major";
   if (n > 100) return "large";
   // Speaker events count as mid-scale (SOMeCA), however few come.
@@ -234,7 +240,8 @@ function asked(text: string): string {
 
 /**
  * The model's picks without the "when it applies" steps the description never
- * asked for: it added a tent, a library table and a food order nobody mentioned.
+ * asked for: it added a tent, a library table, a food order and funding nobody
+ * mentioned.
  */
 export function dropUnasked(steps: PlanStep[], stepIds: string[], text: string): string[] {
   const t = asked(text);
@@ -246,8 +253,38 @@ export function dropUnasked(steps: PlanStep[], stepIds: string[], text: string):
     if (/table/i.test(s.whenNote)) return RULES.table.test(t);
     // The food order; the speaker's has its own note.
     if (/^send the purchase request$/i.test(s.title.trim())) return RULES.food.test(t);
+    // Asking for money nobody said they need set a speaker event 5 weeks out.
+    if (s.categorySlug === "get-funding") return RULES.funding.test(t);
     return true;
   });
+}
+
+/**
+ * The model's picks plus the steps the rules require that it left out: the
+ * flyer, the reminder and the wrap-up for every event; with food, the permit, the order, its receipt and the new-vendor check; with a
+ * fundraiser, its advisor meeting; with a funding pick, spending it through the
+ * campus account; with any money spent, reimbursements.
+ */
+export function addRequired(steps: PlanStep[], stepIds: string[], text: string): string[] {
+  const t = asked(text);
+  const chosen = new Set(stepIds);
+  // Promotion and wrap-up apply to every event; the model once left out the thank-you.
+  for (const s of steps) {
+    if ((s.categorySlug === "promote" || s.categorySlug === "after-the-event") && !s.whenNote.trim()) chosen.add(s.id);
+  }
+  const titled = (re: RegExp) => steps.find((s) => re.test(s.title.trim()));
+  const add = (re: RegExp) => {
+    const s = titled(re);
+    if (s) chosen.add(s.id);
+  };
+  if (RULES.food.test(t)) {
+    for (const re of [/^get a food permit$/i, /^new vendor\?/i, /^send the purchase request$/i, /^keep the itemized receipt$/i]) add(re);
+  }
+  if (RULES.fundraiser.test(t)) add(/^fundraiser\?/i);
+  const picked = () => steps.filter((s) => chosen.has(s.id));
+  if (picked().some((s) => /^pick where the money comes from$/i.test(s.title.trim()))) add(/^spend it through the campus account$/i);
+  if (picked().some((s) => s.categorySlug === "purchase-orders" || s.categorySlug === "get-funding")) add(/^file reimbursements$/i);
+  return [...chosen];
 }
 
 /** Step ids the keyword rules would pick for this description. */
