@@ -137,6 +137,15 @@ describe("buildItems", () => {
     expect(items.find((i) => i.stepId === off.id)?.leadDays).toBe(35);
   });
 
+  it("holds one advisor meeting for a fundraiser: the general one, which covers fundraisers", () => {
+    const fund = steps.find((s) => /fundrais/i.test(s.whenNote) && /advisor/i.test(s.title))!;
+    const general = steps.find((s) => s.title === "Meet an advisor")!;
+    const items = buildItems(steps, [fund.id], "2026-12-03", "small", today);
+    expect(items.some((i) => i.stepId === fund.id)).toBe(false);
+    expect(items.some((i) => i.stepId === general.id)).toBe(true);
+    expect(general.body).toContain("Fundraisers need a meeting with a Peer Advisor and/or SOMeCA advisor.");
+  });
+
   it("flags only the steps whose own deadline is behind today", () => {
     const items = buildItems(steps, [], "2026-10-29", "small", today);
     expect(items.map((i) => isBehind(i, "2026-10-29", today))).toEqual([true, true]);

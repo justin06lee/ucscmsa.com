@@ -47,6 +47,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
         body: [
           "- Small events (up to 50 people): a Peer Advisor drop-in is enough.",
           "- Medium, large and major events: book a SOMeCA advisor meeting.",
+          "Fundraisers need a meeting with a Peer Advisor and/or SOMeCA advisor.",
           "Selling food at a fundraiser? It must be store-bought and pre-packaged, and it needs a food permit through your advisor.",
           "Planning a prize drawing? Raffles are illegal. Free-entry drawings are OK.",
         ].join("\n"),

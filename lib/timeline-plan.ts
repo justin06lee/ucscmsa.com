@@ -76,12 +76,16 @@ export function buildItems(
   if (proposal) chosen.add(proposal.id);
   // The advisor meeting comes with every event, sized like the proposal. Off
   // campus, the five-week talk with the advisor is that meeting (SOMeCA's plan
-  // an event page asks for one meeting, not two).
+  // an event page asks for one meeting, not two). A fundraiser's meeting is
+  // that same general one, whose text covers fundraisers.
   const offCampus = steps.find((s) => chosen.has(s.id) && /off campus/i.test(s.whenNote));
   const advisor = steps.find(isAdvisorStep);
   if (advisor) {
     if (offCampus) chosen.delete(advisor.id);
     else chosen.add(advisor.id);
+  }
+  if (advisor && chosen.has(advisor.id)) {
+    for (const s of steps) if (/fundrais/i.test(s.whenNote) && /advisor/i.test(s.title)) chosen.delete(s.id);
   }
   // Any room or funding step brings its category's "File the Event Proposal
   // first", so the proposal moves up with the room request (the model picked
