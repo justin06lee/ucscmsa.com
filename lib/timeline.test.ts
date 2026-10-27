@@ -141,6 +141,12 @@ describe("planTurn", () => {
     expect(r).toEqual({ type: "timeline", source: "ai", title: "Pizza halaqa", eventDate: "2026-11-20", size: "small", stepIds: [steps[0].id] });
   });
 
+  it("asks for the date when the model skips it and nobody gave one", async () => {
+    const fetchImpl = reply(JSON.stringify({ type: "timeline", title: "Halaqa", eventDate: today, size: "small", steps: [1] }));
+    const r = await planTurn({ chat: [{ role: "user", text: "a halaqa with pizza" }], steps, today, apiKey: "k", fetchImpl });
+    expect(r).toMatchObject({ type: "question", question: expect.stringMatching(/When is the event/) });
+  });
+
   it("passes a model question through", async () => {
     const r = await planTurn({ chat, steps, today, apiKey: "k", fetchImpl: reply('{"type":"question","question":"Is it open to the public?"}') });
     expect(r).toEqual({ type: "question", question: "Is it open to the public?", source: "ai" });

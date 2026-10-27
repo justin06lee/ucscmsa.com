@@ -140,6 +140,10 @@ export async function planTurn(opts: {
     const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const reply = readReply(json.choices?.[0]?.message?.content ?? "", steps, today);
     if (!reply || (mustFinish && reply.type === "question")) return fallback();
+    // The model sometimes skips the date question and dates the event today,
+    // which makes every step late. With no date said yet, ask for it first.
+    const said = chat.filter((t) => t.role === "user").map((t) => t.text).join("\n");
+    if (reply.type === "timeline" && asked < 1 && !parseDate(said, today)) return fallback();
     return reply;
   } catch {
     return fallback();
