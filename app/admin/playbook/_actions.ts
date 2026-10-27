@@ -78,9 +78,9 @@ export async function updateCategoryAction(input: {
   return { ok: true };
 }
 
-export async function moveCategoryAction(input: { id: string; dir: -1 | 1 }): Promise<Ok | ActionFailure> {
+export async function moveCategoryAction(input: { id: string; by: number }): Promise<Ok | ActionFailure> {
   await requireAdmin();
-  await moveCategory(db, input.id, input.dir === -1 ? -1 : 1);
+  await moveCategory(db, input.id, Number(input.by) || 0);
   refresh();
   return { ok: true };
 }
@@ -116,9 +116,9 @@ export async function saveStepAction(
   return { ok: true };
 }
 
-export async function moveStepAction(input: { id: string; dir: -1 | 1 }): Promise<Ok | ActionFailure> {
+export async function moveStepAction(input: { id: string; by: number }): Promise<Ok | ActionFailure> {
   await requireAdmin();
-  await moveStep(db, input.id, input.dir === -1 ? -1 : 1);
+  await moveStep(db, input.id, Number(input.by) || 0);
   const row = await getStep(db, input.id);
   refresh(row ? await categorySlugOf(db, row.categoryId) : null);
   return { ok: true };

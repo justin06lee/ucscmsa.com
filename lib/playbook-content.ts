@@ -42,7 +42,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Meet an advisor",
-        leadDays: 5,
+        leadDays: 7,
         body: [
           "- Small events (up to 50 people): a Peer Advisor drop-in is enough.",
           "- Medium, large and major events: book a SOMeCA advisor meeting.",
@@ -64,7 +64,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       {
         title: "Going off campus? Talk to your advisor",
         whenNote: "Only if the event is off campus",
-        leadDays: 14,
+        leadDays: 35,
         body: [
           "UCSC has no official off-campus events. Talk it through with your advisor before you plan anything.",
           'If members go somewhere off campus anyway, every post about it must say: "This is not a UCSC-sponsored activity." Students can\'t sign contracts.',
@@ -79,13 +79,13 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
     steps: [
       {
         title: "File the Event Proposal first",
-        leadDays: 7,
+        leadDays: 21,
         ...proposalForm,
-        body: "Rooms are booked for approved events. If the Event Proposal isn't in yet, file it first.",
+        body: "Rooms are booked for approved events, so file the Event Proposal and send the room request the same week, about 3 weeks out.",
       },
       {
         title: "Pick a space",
-        leadDays: 10,
+        leadDays: 21,
         formLabel: "Spaces directory",
         formUrl: "https://spaces.ucsc.edu/spaces-directory/",
         body: [
@@ -95,7 +95,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Send the booking request",
-        leadDays: 10,
+        leadDays: 21,
         body: [
           "Each kind of space has its own form:",
           "- College lounges (Mary Holmes, Namaste, Hitchcock, Red Room), 7 business days ahead: https://docs.google.com/forms/d/e/1FAIpQLSetTP8kGTdY1_rH7cdxHB7cMZQCQBjWGcMYaHTUZur9BhzrOw/viewform",
@@ -106,7 +106,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Wait for the confirmation email",
-        leadDays: 3,
+        leadDays: 16,
         body: [
           "Sending the form doesn't book the room. It's yours only when the confirmation email arrives.",
           "No reply after 7 business days? Email the office that runs the space.",
@@ -122,14 +122,14 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
     steps: [
       {
         title: "File the Event Proposal first",
-        leadDays: 21,
+        leadDays: 35,
         ...proposalForm,
         body: "Funding requests ask about your event, so file the Event Proposal before you ask for money.",
       },
       {
         title: "Pick where the money comes from",
         whenNote: "Skip if you don't need money",
-        leadDays: 21,
+        leadDays: 35,
         formLabel: "Campus funding guide",
         formUrl: "https://getinvolved.ucsc.edu/student-organizations/funding/",
         body: [
@@ -142,7 +142,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       {
         title: "Ask a college for funding",
         whenNote: "Only if you ask a college",
-        leadDays: 21,
+        leadDays: 35,
         body: [
           "Each college has its own form. Fill it in, email the college to get on their meeting agenda, then present your event for about 5 minutes.",
           "",
@@ -162,7 +162,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Spend it through the campus account",
-        leadDays: 7,
+        leadDays: 10,
         body: "Funding is never handed out as cash. It goes to the org's campus account, and you spend it with a purchase order (see Purchase orders & receipts).",
       },
     ],
@@ -175,21 +175,21 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       {
         title: "Say you'll serve food in the Event Proposal",
         whenNote: "Skip if there's no food",
-        leadDays: 7,
+        leadDays: 21,
         ...proposalForm,
         body: "Food has to be in the approved Event Proposal before you order it.",
       },
       {
-        title: "Set up a new vendor",
+        title: "New vendor? Get the 204 payee setup",
         whenNote: "Only if UCSC hasn't paid this vendor before",
-        leadDays: 14,
+        leadDays: 21,
         formLabel: "204 Payee Setup",
         formUrl: "https://financial.ucsc.edu/Pages/WF_Payee_Setup_204.aspx",
         body: "A business UCSC hasn't paid before needs a 204 Payee Setup first. It takes about 10 business days.",
       },
       {
         title: "Send the Purchase Request",
-        leadDays: 7,
+        leadDays: 10,
         formLabel: "Purchase Request form",
         formUrl: PURCHASE_REQUEST_URL,
         body: [
@@ -212,8 +212,9 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
     steps: [
       {
         title: "Make the flyer",
-        leadDays: 14,
+        leadDays: 15,
         body: [
+          "Make it once the room is confirmed, so the flyer shows the right place.",
           "Every flyer needs:",
           "- the org name",
           "- a removal date",
@@ -223,7 +224,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Post it",
-        leadDays: 10,
+        leadDays: 14,
         body: [
           "Share it on Instagram and in the WhatsApp group, and add the event to this site's calendar.",
           "Printed flyers go on designated boards only, following each college's posting rules. No chalking. Banners need approval.",
@@ -232,7 +233,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       {
         title: "Table at the library",
         whenNote: "Only if you want a table",
-        leadDays: 10,
+        leadDays: 7,
         formLabel: "Library tabling form",
         formUrl:
           "https://docs.google.com/forms/d/e/1FAIpQLSeRImnhgI5NPfOR90zXyxijX6x_pgHcaj_PSP0PBpD7hzG1gg/viewform",

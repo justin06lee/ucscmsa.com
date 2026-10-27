@@ -3,6 +3,7 @@ import { PLAYBOOK_SEED } from "./playbook-content";
 import {
   PROPOSAL_LEAD,
   buildItems,
+  daysBetween,
   guessSize,
   isProposalStep,
   parseDate,
@@ -57,22 +58,38 @@ describe("the playbook content", () => {
 });
 
 describe("buildItems", () => {
-  it("puts the Event Proposal first, once, and dates steps back from the event", () => {
+  it("puts the Event Proposal first, once, filed with the room request three weeks out", () => {
     const ids = steps
       .filter((s) => !["after-the-event", "get-funding"].includes(s.categorySlug))
       .map((s) => s.id);
     const items = buildItems(steps, ids, "2026-11-20", "small", today);
     expect(isProposalStep(items[0])).toBe(true);
     expect(items.filter(isProposalStep)).toHaveLength(1);
-    expect(items[0].due).toBe("2026-11-13");
+    expect(items[0].due).toBe("2026-10-30");
     for (const it of items) expect(it.due <= "2026-11-20").toBe(true);
   });
 
-  it("files the proposal three weeks out when the event needs funding", () => {
+  it("files the proposal five weeks out when the event needs funding", () => {
     const ids = steps.filter((s) => s.categorySlug === "get-funding").map((s) => s.id);
-    const items = buildItems(steps, ids, "2026-11-20", "small", today);
+    const items = buildItems(steps, ids, "2026-12-18", "small", today);
     expect(items.filter(isProposalStep)).toHaveLength(1);
-    expect(items[0].due).toBe("2026-10-30");
+    expect(items[0].due).toBe("2026-11-13");
+  });
+
+  it("plans a food halaqa: room confirmed before any promotion, under a month in all", () => {
+    const text = "Halaqa on Nov 19 with pizza, about 30 people";
+    const items = buildItems(steps, ruleStepIds(text, steps), "2026-11-19", guessSize(text), today);
+    const due = (title: string) => items.find((i) => i.title === title)?.due ?? "missing";
+    expect(isProposalStep(items[0])).toBe(true);
+    expect(items[0].due).toBe("2026-10-29");
+    expect(due("Send the booking request")).toBe("2026-10-29");
+    const confirmed = due("Wait for the confirmation email");
+    for (const t of ["Make the flyer", "Post it", "Send a reminder"]) expect(due(t) > confirmed).toBe(true);
+    expect(due("New vendor? Get the 204 payee setup")).toBe("2026-10-29");
+    expect(due("Send the Purchase Request")).toBe("2026-11-09");
+    expect(items.some((i) => i.category === "Get funding")).toBe(false);
+    const dated = items.filter((i) => i.leadDays > 0).map((i) => i.due).sort();
+    expect(daysBetween(dated[0], "2026-11-19")).toBeLessThan(30);
   });
 
   it("adds the proposal even when not picked, and never dates a step before today", () => {

@@ -34,6 +34,8 @@ test("the Playbook: categories, numbered steps, and form links in a new tab", as
   await expect(page.getByRole("heading", { name: "Playbook", level: 1 })).toBeVisible();
   const names = ["Event proposal", "Reserve a room", "Get funding", "Purchase orders & receipts", "Promote the event", "After the event"];
   for (const n of names) await expect(page.getByRole("link", { name: new RegExp(n) })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Get funding/ })).toContainText("4 steps");
+  await expect(page.getByText("No steps yet")).toHaveCount(0);
 
   await page.getByRole("link", { name: /Get funding/ }).click();
   await page.waitForURL(/\/admin\/playbook\/get-funding$/);
@@ -47,6 +49,33 @@ test("the Playbook: categories, numbered steps, and form links in a new tab", as
   }
   await page.getByRole("link", { name: "All categories" }).click();
   await page.waitForURL(/\/admin\/playbook$/);
+});
+
+test("edit mode: drag a step by its handle, and it stays moved", async ({ page }) => {
+  await page.goto("/admin/playbook/after-the-event?edit=1");
+  const rows = page.getByTestId("step-edit-row");
+  await expect(rows).toHaveCount(3);
+  const first = "Keep an attendance log";
+  await expect(rows.first()).toContainText(first);
+  const drag = async (from: number, to: number, frac: number) => {
+    const h = (await rows.nth(from).getByTestId("drag-handle").boundingBox())!;
+    const t = (await rows.nth(to).boundingBox())!;
+    await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(h.x + h.width / 2, t.y + t.height * frac, { steps: 10 });
+    await page.mouse.up();
+  };
+  await drag(0, 1, 0.8);
+  await expect(rows.nth(1)).toContainText(first);
+  await expect(rows.nth(1)).toContainText("2.");
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await expect(rows.nth(1)).toContainText(first);
+  await drag(1, 0, 0);
+  await expect(rows.first()).toContainText(first);
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await expect(rows.first()).toContainText(first);
 });
 
 test("edit mode: add a category, add and move steps, edit text, remove", async ({ page }) => {

@@ -188,6 +188,8 @@ export function guessSize(text: string): EventSize {
 const RULES = {
   food: /\b(food|pizza|dinner|lunch|breakfast|snack|iftar|suhoor|cater|halal|eat|boba|dessert|potluck|refreshment)/,
   money: /\b(fund|budget|money|cost|pay|grant|sponsor|buy|purchase)|\$/,
+  // Asking for money the org doesn't have yet; food alone is paid from the org account.
+  funding: /\b(fund|budget|grant|sponsor|money)/,
   noRoom: /\b(online|zoom|virtual|outdoor|outside|beach|park|off.campus)\b/,
   offCampus: /\b(off.campus|beach|park|downtown|trip|hike|retreat)\b/,
   gear: /\b(tent|mic|microphone|speaker|projector|av|sound)\b/,
@@ -212,10 +214,11 @@ export function ruleStepIds(text: string, steps: PlanStep[]): string[] {
       case "reserve-a-room":
         return !has("noRoom");
       case "get-funding":
-        if (/college/.test(note)) return money && has("college");
-        return money;
+        if (/college/.test(note)) return has("funding") && has("college");
+        return has("funding");
       case "purchase-orders":
-        if (/vendor/.test(note) || /vendor/.test(s.title.toLowerCase())) return money && has("vendor");
+        // Every food order may be from a new vendor; the step's note says when to skip it.
+        if (/vendor/.test(note) || /vendor/.test(s.title.toLowerCase())) return food || (money && has("vendor"));
         return money;
       case "promote":
         if (/table/.test(note)) return has("table");

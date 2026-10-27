@@ -37,7 +37,8 @@ export async function listCategories(db: DB, opts: { archived?: boolean } = {}):
   const rows = await db
     .select({
       category: playbookCategories,
-      stepCount: sql<number>`(select count(*) from ${playbookSteps} s where s.category_id = ${playbookCategories.id} and s.archived_at is null)`,
+      // Spelled out: drizzle leaves a column unqualified in a subquery, so it would match s.id.
+      stepCount: sql<number>`(select count(*) from playbook_steps s where s.category_id = playbook_categories.id and s.archived_at is null)`,
     })
     .from(playbookCategories)
     .where(
@@ -113,25 +114,25 @@ export async function setCategoryArchived(db: DB, id: string, archived: boolean,
 }
 
 // Swap with the neighbour above (-1) or below (+1) among live categories.
-export async function moveCategory(db: DB, id: string, dir: -1 | 1): Promise<boolean> {
+export async function moveCategory(db: DB, id: string, by: number): Promise<boolean> {
   const rows = await listCategories(db);
-  return swapSort(db, rows, id, dir, async (row, sort) => {
+  return moveBy(rows, id, by, async (row, sort) => {
     await db.update(playbookCategories).set({ sort }).where(eq(playbookCategories.id, row.id));
   });
 }
 
-async function swapSort<T extends { id: string }>(
-  _db: DB,
+/** Moves one row by `by` places (negative is up), clamped to the list. */
+async function moveBy<T extends { id: string }>(
   rows: T[],
   id: string,
-  dir: -1 | 1,
+  by: number,
   write: (row: T, sort: number) => Promise<void>
 ): Promise<boolean> {
   const i = rows.findIndex((r) => r.id === id);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= rows.length) return false;
+  const j = Math.max(0, Math.min(rows.length - 1, i + Math.trunc(by)));
+  if (i < 0 || j === i || !Number.isFinite(j)) return false;
   const next = [...rows];
-  [next[i], next[j]] = [next[j], next[i]];
+  next.splice(j, 0, ...next.splice(i, 1));
   // Rewrite every sort as its index so ties and gaps never stall a move.
   for (let k = 0; k < next.length; k++) await write(next[k], k + 1);
   return true;
@@ -184,7 +185,7 @@ export async function setStepArchived(db: DB, id: string, archived: boolean, use
 }
 
 // Moves a step within its own category only.
-export async function moveStep(db: DB, id: string, dir: -1 | 1): Promise<boolean> {
+export async function moveStep(db: DB, id: string, by: number): Promise<boolean> {
   const [step] = await db.select().from(playbookSteps).where(eq(playbookSteps.id, id));
   if (!step) return false;
   const rows = await db
@@ -192,7 +193,7 @@ export async function moveStep(db: DB, id: string, dir: -1 | 1): Promise<boolean
     .from(playbookSteps)
     .where(and(eq(playbookSteps.categoryId, step.categoryId), isNull(playbookSteps.archivedAt)))
     .orderBy(asc(playbookSteps.sort), asc(playbookSteps.title));
-  return swapSort(db, rows, id, dir, async (row, sort) => {
+  return moveBy(rows, id, by, async (row, sort) => {
     await db.update(playbookSteps).set({ sort }).where(eq(playbookSteps.id, row.id));
   });
 }

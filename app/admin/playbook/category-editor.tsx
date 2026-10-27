@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SortableList } from "@/components/playbook/sortable-list";
 import type { CategoryRow } from "@/lib/playbook-db";
 import {
   addCategoryAction,
@@ -47,16 +48,29 @@ export function ErrorLine({ error }: { error: string | null }) {
   );
 }
 
-function CategoryRowEditor({ c, first, last }: { c: CategoryRow; first: boolean; last: boolean }) {
+function CategoryRowEditor({
+  c,
+  first,
+  last,
+  handle,
+}: {
+  c: CategoryRow;
+  first: boolean;
+  last: boolean;
+  handle: React.ReactNode;
+}) {
   const [name, setName] = useState(c.name);
   const [summary, setSummary] = useState(c.summary);
   const { pending, error, run } = useAction();
   const changed = name.trim() !== c.name || summary.trim() !== c.summary;
   return (
     <li className="rounded-xl border border-ink/10 px-4 py-3" data-testid="category-edit-row">
-      <label className="block text-sm text-dim" htmlFor={`name-${c.id}`}>
-        Name
-      </label>
+      <div className="flex items-start justify-between gap-2">
+        <label className="block text-sm text-dim" htmlFor={`name-${c.id}`}>
+          Name
+        </label>
+        {handle}
+      </div>
       <Input id={`name-${c.id}`} className="mt-1 text-base" value={name} onChange={(e) => setName(e.target.value)} />
       <label className="mt-3 block text-sm text-dim" htmlFor={`summary-${c.id}`}>
         One line about it
@@ -85,7 +99,7 @@ function CategoryRowEditor({ c, first, last }: { c: CategoryRow; first: boolean;
           size="sm"
           className="min-h-11"
           disabled={pending || first}
-          onClick={() => run(() => moveCategoryAction({ id: c.id, dir: -1 }))}
+          onClick={() => run(() => moveCategoryAction({ id: c.id, by: -1 }))}
         >
           Move up
         </Button>
@@ -95,7 +109,7 @@ function CategoryRowEditor({ c, first, last }: { c: CategoryRow; first: boolean;
           size="sm"
           className="min-h-11"
           disabled={pending || last}
-          onClick={() => run(() => moveCategoryAction({ id: c.id, dir: 1 }))}
+          onClick={() => run(() => moveCategoryAction({ id: c.id, by: 1 }))}
         >
           Move down
         </Button>
@@ -164,18 +178,27 @@ function AddCategory() {
 
 export function CategoryEditor({ categories, removed }: { categories: CategoryRow[]; removed: CategoryRow[] }) {
   const { pending, error, run } = useAction();
+  const move = useAction();
   return (
     <div>
-      <ul className="space-y-3">
-        {categories.map((c, i) => (
+      <SortableList
+        key={move.error ?? "ok"}
+        className="space-y-3"
+        items={categories}
+        disabled={move.pending}
+        onMove={(id, by) => move.run(() => moveCategoryAction({ id, by }))}
+      >
+        {(c, i, handle) => (
           <CategoryRowEditor
             key={`${c.id}-${c.name}-${c.summary}`}
             c={c}
             first={i === 0}
             last={i === categories.length - 1}
+            handle={handle}
           />
-        ))}
-      </ul>
+        )}
+      </SortableList>
+      <ErrorLine error={move.error} />
       <AddCategory />
       {removed.length ? (
         <section className="mt-8 border-t border-ink/10 pt-4">

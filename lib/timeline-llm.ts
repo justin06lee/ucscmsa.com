@@ -47,6 +47,8 @@ export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boole
     "- Ask a question only when the answer changes the plan: the date if none was given, or whether there is food, money, or how many people. Ask about one thing at a time.",
     "- size: small = up to 50 people, mid = up to 100, large = up to 250, major = more than 250 or open to the public.",
     "- Include every step that applies. Leave out steps whose 'when it applies' note doesn't fit (no food means no purchase order steps; no money means no funding steps).",
+    "- Funding steps are only for money the org has to ask for (funding, a grant, a sponsor). Food alone is paid from the org's account and doesn't need them.",
+    "- Every event with food gets the new vendor step; its note tells them when to skip it.",
     "- An event held off campus doesn't need the campus room steps.",
     "- The event date must be today or later. Use only step numbers from the list.",
     mustFinish ? "- You have asked enough. Reply with a timeline now, using your best guess for anything unknown." : "",

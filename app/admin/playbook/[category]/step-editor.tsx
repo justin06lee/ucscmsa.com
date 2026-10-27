@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SortableList } from "@/components/playbook/sortable-list";
 import type { Step } from "@/lib/playbook-db";
 import { addStepAction, archiveStepAction, moveStepAction, saveStepAction } from "../_actions";
 import { ErrorLine, useAction } from "../category-editor";
@@ -85,7 +86,19 @@ function StepFields({ id, value, onChange }: { id: string; value: Fields; onChan
   );
 }
 
-function StepRow({ step, n, first, last }: { step: Step; n: number; first: boolean; last: boolean }) {
+function StepRow({
+  step,
+  n,
+  first,
+  last,
+  handle,
+}: {
+  step: Step;
+  n: number;
+  first: boolean;
+  last: boolean;
+  handle: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(fieldsOf(step));
   const { pending, error, run } = useAction();
@@ -93,9 +106,12 @@ function StepRow({ step, n, first, last }: { step: Step; n: number; first: boole
   const ghost = { type: "button" as const, variant: "ghost" as const, size: "sm" as const, className: "min-h-11" };
   return (
     <li className="rounded-xl border border-ink/10 px-4 py-3" data-testid="step-edit-row">
-      <p className="font-medium">
-        <span className="text-dim tabular-nums">{n}.</span> {step.title}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium">
+          <span className="text-dim tabular-nums">{n}.</span> {step.title}
+        </p>
+        {handle}
+      </div>
       {open ? (
         <div className="mt-3">
           <StepFields id={step.id} value={value} onChange={setValue} />
@@ -134,10 +150,10 @@ function StepRow({ step, n, first, last }: { step: Step; n: number; first: boole
           <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={() => setOpen(true)}>
             Edit
           </Button>
-          <Button {...ghost} disabled={pending || first} onClick={() => run(() => moveStepAction({ id: step.id, dir: -1 }))}>
+          <Button {...ghost} disabled={pending || first} onClick={() => run(() => moveStepAction({ id: step.id, by: -1 }))}>
             Move up
           </Button>
-          <Button {...ghost} disabled={pending || last} onClick={() => run(() => moveStepAction({ id: step.id, dir: 1 }))}>
+          <Button {...ghost} disabled={pending || last} onClick={() => run(() => moveStepAction({ id: step.id, by: 1 }))}>
             Move down
           </Button>
         </div>
@@ -189,19 +205,29 @@ function AddStep({ categoryId }: { categoryId: string }) {
 
 export function StepEditor({ categoryId, steps, removed }: { categoryId: string; steps: Step[]; removed: Step[] }) {
   const { pending, error, run } = useAction();
+  const move = useAction();
   return (
     <div>
-      <ol className="space-y-3">
-        {steps.map((s, i) => (
+      <SortableList
+        key={move.error ?? "ok"}
+        as="ol"
+        className="space-y-3"
+        items={steps}
+        disabled={move.pending}
+        onMove={(id, by) => move.run(() => moveStepAction({ id, by }))}
+      >
+        {(s, i, handle) => (
           <StepRow
             key={`${s.id}-${s.revision}`}
             step={s}
             n={i + 1}
             first={i === 0}
             last={i === steps.length - 1}
+            handle={handle}
           />
-        ))}
-      </ol>
+        )}
+      </SortableList>
+      <ErrorLine error={move.error} />
       <AddStep categoryId={categoryId} />
       {removed.length ? (
         <section className="mt-8 border-t border-ink/10 pt-4">
