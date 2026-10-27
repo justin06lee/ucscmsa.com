@@ -42,6 +42,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Meet an advisor",
+        // The planner stretches this with the event's size, like the proposal.
         leadDays: 7,
         body: [
           "- Small events (up to 50 people): a Peer Advisor drop-in is enough.",
@@ -68,6 +69,37 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
         body: [
           "UCSC has no official off-campus events. Talk it through with your advisor before you plan anything.",
           'If members go somewhere off campus anyway, every post about it must say: "This is not a UCSC-sponsored activity." Students can\'t sign contracts.',
+        ].join("\n"),
+      },
+      {
+        title: "Get a food permit",
+        whenNote: "Only if you serve, give away or sell food",
+        leadDays: 14,
+        formLabel: "EH&S food safety",
+        formUrl: "https://ehs.ucsc.edu/industrial-hygiene/food-safety/",
+        body: [
+          "Any food at the event needs a food permit, even a free giveaway. Ask your SOMeCA advisor and EH&S at least 2 weeks ahead.",
+          "Someone serving the food needs the yearly food safety training.",
+          "Food you sell must be store-bought and pre-packaged. Nothing from home kitchens.",
+        ].join("\n"),
+      },
+      {
+        title: "Paying a speaker or performer? Start the paperwork",
+        whenNote: "Only if you pay a speaker or performer",
+        leadDays: 21,
+        body: [
+          "Speakers and performers are paid by purchase order before the event, never in cash. An event with one counts as at least medium size.",
+          "First time UCSC pays them? They need a 204 Payee Setup first. It takes about 10 business days.",
+          "Then send the services Purchase Request at least 10 business days ahead (see Purchase orders & receipts).",
+        ].join("\n"),
+      },
+      {
+        title: "Fundraiser? Meet an advisor about it",
+        whenNote: "Only for a fundraiser",
+        leadDays: 7,
+        body: [
+          "Fundraisers need a meeting with a Peer Advisor and/or SOMeCA advisor.",
+          "Food you sell must be store-bought and pre-packaged, and it needs a food permit. Raffles are illegal; free-entry drawings are OK.",
         ].join("\n"),
       },
     ],
@@ -106,7 +138,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Wait for the confirmation email",
-        leadDays: 16,
+        leadDays: 14,
         body: [
           "Sending the form doesn't book the room. It's yours only when the confirmation email arrives.",
           "No reply after 7 business days? Email the office that runs the space.",
@@ -162,7 +194,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Spend it through the campus account",
-        leadDays: 10,
+        leadDays: 7,
         body: "Funding is never handed out as cash. It goes to the org's campus account, and you spend it with a purchase order (see Purchase orders & receipts).",
       },
     ],
@@ -173,13 +205,6 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
     summary: "Buying food or anything else with org money.",
     steps: [
       {
-        title: "Say you'll serve food in the Event Proposal",
-        whenNote: "Skip if there's no food",
-        leadDays: 21,
-        ...proposalForm,
-        body: "Food has to be in the approved Event Proposal before you order it.",
-      },
-      {
         title: "New vendor? Get the 204 payee setup",
         whenNote: "Only if UCSC hasn't paid this vendor before",
         leadDays: 21,
@@ -188,12 +213,20 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
         body: "A business UCSC hasn't paid before needs a 204 Payee Setup first. It takes about 10 business days.",
       },
       {
+        title: "Send the speaker or performer's Purchase Request",
+        whenNote: "Only if you pay a speaker or performer",
+        leadDays: 14,
+        formLabel: "Purchase Request form",
+        formUrl: PURCHASE_REQUEST_URL,
+        body: "Services need at least 10 business days. The purchase order has to be in place before they speak or perform.",
+      },
+      {
         title: "Send the Purchase Request",
-        leadDays: 10,
+        leadDays: 7,
         formLabel: "Purchase Request form",
         formUrl: PURCHASE_REQUEST_URL,
         body: [
-          "Send it at least 5 business days before you need the order (10 for services, like a speaker or DJ).",
+          "Send it at least 5 business days before you need the order. Say in the Event Proposal that you'll serve food before you order any.",
           "Full catering must be UCSC Catering or an approved caterer. Restaurant takeout is fine. Ask UCSC Catering about halal before ordering.",
           "Pay speakers by purchase order beforehand. No self-serve buffets.",
         ].join("\n"),
@@ -212,7 +245,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
     steps: [
       {
         title: "Make the flyer",
-        leadDays: 15,
+        leadDays: 14,
         body: [
           "Make it once the room is confirmed, so the flyer shows the right place.",
           "Every flyer needs:",
@@ -224,7 +257,7 @@ export const PLAYBOOK_SEED: SeedCategory[] = [
       },
       {
         title: "Post it",
-        leadDays: 14,
+        leadDays: 13,
         body: [
           "Share it on Instagram and in the WhatsApp group, and add the event to this site's calendar.",
           "Printed flyers go on designated boards only, following each college's posting rules. No chalking. Banners need approval.",

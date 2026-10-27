@@ -22,7 +22,8 @@ export type PlanStep = {
 export const SIZES = ["small", "mid", "large", "major"] as const;
 export type EventSize = (typeof SIZES)[number];
 
-// Calendar days before the event the Event Proposal is due, by size.
+// Calendar days before the event the Event Proposal and the advisor meeting
+// are due, by size (SOMeCA: 1, 2, 6 and 8 weeks).
 export const PROPOSAL_LEAD: Record<EventSize, number> = { small: 7, mid: 14, large: 42, major: 56 };
 
 const DAY = 86_400_000;
@@ -46,16 +47,22 @@ export function isProposalStep(s: Pick<PlanStep, "formUrl">): boolean {
   return s.formUrl === EVENT_PROPOSAL_URL;
 }
 
-/** Lead days for a step, with the Event Proposal stretched for bigger events. */
+/** The general "Meet an advisor" step, not the fundraiser or off-campus ones. */
+export function isAdvisorStep(s: Pick<PlanStep, "title" | "whenNote">): boolean {
+  return /^meet an advisor\b/i.test(s.title.trim()) && !s.whenNote;
+}
+
+/** Lead days for a step, with the Event Proposal and advisor meeting stretched for bigger events. */
 export function leadFor(step: PlanStep, size: EventSize): number {
   const base = step.leadDays ?? 0;
-  return isProposalStep(step) ? Math.max(base, PROPOSAL_LEAD[size]) : base;
+  return isProposalStep(step) || isAdvisorStep(step) ? Math.max(base, PROPOSAL_LEAD[size]) : base;
 }
 
 /**
  * Dated items for the chosen steps. The Event Proposal is always in and always
- * first; steps sharing one form (the proposal appears in several categories)
- * collapse into the earliest. Due dates never fall before today.
+ * first; the proposal steps in other categories collapse into it. Other steps
+ * sharing a form (a food Purchase Request and a speaker's) stay separate.
+ * Due dates never fall before today.
  */
 export function buildItems(
   steps: PlanStep[],
@@ -67,6 +74,11 @@ export function buildItems(
   const chosen = new Set(stepIds);
   const proposal = steps.find(isProposalStep);
   if (proposal) chosen.add(proposal.id);
+  // Any room or funding step brings its category's "File the Event Proposal
+  // first", so the proposal moves up with the room request (the model picked
+  // the room steps without it and left the proposal at a week).
+  const cats = new Set(steps.filter((s) => chosen.has(s.id)).map((s) => s.categorySlug));
+  for (const s of steps) if (isProposalStep(s) && cats.has(s.categorySlug)) chosen.add(s.id);
   const picked = steps
     .filter((s) => chosen.has(s.id))
     .sort((a, b) => a.categorySort - b.categorySort || a.sort - b.sort);
@@ -75,7 +87,7 @@ export function buildItems(
   const rows: { step: PlanStep; lead: number }[] = [];
   for (const step of picked) {
     const lead = leadFor(step, size);
-    if (step.formUrl) {
+    if (isProposalStep(step)) {
       const prev = byForm.get(step.formUrl);
       if (prev) {
         if (lead > prev.lead) prev.lead = lead;
@@ -83,7 +95,7 @@ export function buildItems(
       }
     }
     const row = { step: proposal && isProposalStep(step) ? proposal : step, lead };
-    if (step.formUrl) byForm.set(step.formUrl, row);
+    if (isProposalStep(step)) byForm.set(step.formUrl, row);
     rows.push(row);
   }
 
@@ -186,13 +198,17 @@ export function guessSize(text: string): EventSize {
 }
 
 const RULES = {
-  food: /\b(food|pizza|dinner|lunch|breakfast|snack|iftar|suhoor|cater|halal|eat|boba|dessert|potluck|refreshment)/,
+  food: /\b(food|pizza|dinner|lunch|breakfast|snack|iftar|suhoor|cater|halal|eat|boba|dessert|potluck|refreshment|bake|cookie|treats)/,
   money: /\b(fund|budget|money|cost|pay|grant|sponsor|buy|purchase)|\$/,
   // Asking for money the org doesn't have yet; food alone is paid from the org account.
-  funding: /\b(fund|budget|grant|sponsor|money)/,
-  noRoom: /\b(online|zoom|virtual|outdoor|outside|beach|park|off.campus)\b/,
+  funding: /\b(fund(?!rais)|budget|grant|sponsor|money)/,
+  // "Outside" is left out: an outside speaker still needs a room.
+  noRoom: /\b(online|zoom|virtual|outdoors?|beach|park|off.campus)\b/,
   offCampus: /\b(off.campus|beach|park|downtown|trip|hike|retreat)\b/,
-  gear: /\b(tent|mic|microphone|speaker|projector|av|sound)\b/,
+  // Sound gear, not a guest speaker.
+  gear: /\b(tent|mic|microphone|speakers|projector|av|sound)\b/,
+  speaker: /\b(speaker|guest|performer|performance|perform|dj|comedian|lecturer|imam|sheikh|shaykh)\b/,
+  fundraiser: /\b(fundrais|bake sale|sell|selling|for sale|charity)/,
   vendor: /\b(cater|restaurant|vendor|dj|photographer|speaker fee|order)/,
   table: /\b(tabl)/,
   college: /\b(college|cowell|stevenson|crown|merrill|porter|kresge|oakes|carson|nine|john r\.? lewis)\b/,
@@ -200,7 +216,8 @@ const RULES = {
 
 /** Step ids the keyword rules would pick for this description. */
 export function ruleStepIds(text: string, steps: PlanStep[]): string[] {
-  const t = text.toLowerCase();
+  // "No food" and "without funding" must not count as food or funding.
+  const t = text.toLowerCase().replace(/\b(?:no|without)\s+[a-z]+/g, " ");
   const has = (k: keyof typeof RULES) => RULES[k].test(t);
   const food = has("food");
   const money = food || has("money");
@@ -210,6 +227,9 @@ export function ruleStepIds(text: string, steps: PlanStep[]): string[] {
       case "event-proposal":
         if (/tent|mic|projector/.test(note)) return has("gear");
         if (/off campus/.test(note)) return has("offCampus");
+        if (/fundrais/.test(note)) return has("fundraiser");
+        if (/speaker|performer/.test(note)) return has("speaker");
+        if (/food/.test(note)) return food;
         return true;
       case "reserve-a-room":
         return !has("noRoom");
@@ -217,6 +237,7 @@ export function ruleStepIds(text: string, steps: PlanStep[]): string[] {
         if (/college/.test(note)) return has("funding") && has("college");
         return has("funding");
       case "purchase-orders":
+        if (/speaker|performer/.test(note)) return has("speaker");
         // Every food order may be from a new vendor; the step's note says when to skip it.
         if (/vendor/.test(note) || /vendor/.test(s.title.toLowerCase())) return food || (money && has("vendor"));
         return money;

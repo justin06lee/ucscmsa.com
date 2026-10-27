@@ -27,7 +27,10 @@ export type TurnResult =
 
 type Fetch = typeof fetch;
 
-export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boolean): string {
+export const DATE_QUESTION = "When is the event? A date like Nov 14 works.";
+export const BUILD_NOW = "Build the timeline now. Don't ask anything else; use your best guess for anything still unknown.";
+
+export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boolean, saidDate?: string | null): string {
   // Steps go by their number in this list, not their id: a uuid per step made
   // the reply long enough to run past the timeout.
   const lines = steps.map(
@@ -37,6 +40,7 @@ export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boole
   return [
     "You help student club board members at UC Santa Cruz plan an event. They are not technical.",
     `Today is ${today}.`,
+    saidDate ? `The event date they gave reads as ${saidDate}. Use it unless they said otherwise.` : "",
     "From what they tell you, choose which Playbook steps they need. Steps (number | category | title | when it applies):",
     ...lines,
     "",
@@ -44,11 +48,12 @@ export function systemPrompt(steps: PlanStep[], today: string, mustFinish: boole
     '{"type":"question","question":"<one short, friendly question>"}',
     '{"type":"timeline","title":"<short event name>","eventDate":"YYYY-MM-DD","size":"small|mid|large|major","steps":[<number>, ...]}',
     "Rules:",
-    "- Ask a question only when the answer changes the plan: the date if none was given, or whether there is food, money, or how many people. Ask about one thing at a time.",
+    "- Ask a question only when the answer changes the plan: whether there is food, money, or how many people. Ask about one thing at a time.",
     "- size: small = up to 50 people, mid = up to 100, large = up to 250, major = more than 250 or open to the public.",
     "- Include every step that applies. Leave out steps whose 'when it applies' note doesn't fit (no food means no purchase order steps; no money means no funding steps).",
-    "- Funding steps are only for money the org has to ask for (funding, a grant, a sponsor). Food alone is paid from the org's account and doesn't need them.",
-    "- Every event with food gets the new vendor step; its note tells them when to skip it.",
+    "- Food alone never needs funding steps. Funding steps are only for money the org has to ask for (funding, a grant, a sponsor); food is paid from the org's account.",
+    "- Promotion steps (flyer, post, reminder) apply to every event members attend.",
+    "- Every event with food, even free food, gets the food permit and new vendor steps; their notes tell them when to skip.",
     "- An event held off campus doesn't need the campus room steps.",
     "- The event date must be today or later. Use only step numbers from the list.",
     mustFinish ? "- You have asked enough. Reply with a timeline now, using your best guess for anything unknown." : "",
@@ -91,9 +96,7 @@ export function ruleTurn(chat: TimelineChatTurn[], steps: PlanStep[], today: str
   const all = said.join("\n");
   const asked = chat.filter((t) => t.role === "assistant").length;
   const date = parseDate(all, today);
-  if (!date && asked < 1) {
-    return { type: "question", source: "rules", question: "When is the event? A date like Nov 14 works." };
-  }
+  if (!date && asked < 1) return { type: "question", source: "rules", question: DATE_QUESTION };
   return {
     type: "timeline",
     source: "rules",
@@ -119,33 +122,43 @@ export async function planTurn(opts: {
   // The rules ask at most once (for the date), so they always finish.
   const fallback = () => ruleTurn(chat, steps, today);
   if (!opts.apiKey) return fallback();
-  try {
-    const res = await (opts.fetchImpl ?? fetch)(DEEPINFRA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${opts.apiKey}` },
-      body: JSON.stringify({
-        model: opts.model || DEFAULT_MODEL,
-        temperature: 0,
-        max_tokens: 500,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt(steps, today, mustFinish) },
-          ...chat.map((t) => ({ role: t.role, content: t.text })),
-        ],
-      }),
-      signal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
-      cache: "no-store",
-    });
-    if (!res.ok) return fallback();
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const reply = readReply(json.choices?.[0]?.message?.content ?? "", steps, today);
-    if (!reply || (mustFinish && reply.type === "question")) return fallback();
-    // The model sometimes skips the date question and dates the event today,
-    // which makes every step late. With no date said yet, ask for it first.
-    const said = chat.filter((t) => t.role === "user").map((t) => t.text).join("\n");
-    if (reply.type === "timeline" && asked < 1 && !parseDate(said, today)) return fallback();
-    return reply;
-  } catch {
-    return fallback();
+  // The date comes first, asked here rather than left to the model: it asked
+  // about food and headcount instead and then guessed the date.
+  const said = chat.filter((t) => t.role === "user").map((t) => t.text).join("\n");
+  const saidDate = parseDate(said, today);
+  if (!saidDate && asked < 1) return { type: "question", source: "ai", question: DATE_QUESTION };
+  const messages = [
+    { role: "system", content: systemPrompt(steps, today, mustFinish, saidDate) },
+    ...chat.map((t) => ({ role: t.role, content: t.text })),
+    // A last user line, because the model ignored the system prompt's "reply
+    // with a timeline now" and kept asking.
+    ...(mustFinish ? [{ role: "user", content: BUILD_NOW }] : []),
+  ];
+  // One retry when the answer can't be used (bad JSON, or a question after the
+  // last one), before the keyword rules take over.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await (opts.fetchImpl ?? fetch)(DEEPINFRA_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${opts.apiKey}` },
+        body: JSON.stringify({
+          model: opts.model || DEFAULT_MODEL,
+          // A retry at temperature 0 would only repeat the same answer.
+          temperature: attempt === 0 ? 0 : 0.4,
+          max_tokens: 500,
+          response_format: { type: "json_object" },
+          messages,
+        }),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
+        cache: "no-store",
+      });
+      if (!res.ok) return fallback();
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const reply = readReply(json.choices?.[0]?.message?.content ?? "", steps, today);
+      if (reply && !(mustFinish && reply.type === "question")) return reply;
+    } catch {
+      return fallback();
+    }
   }
+  return fallback();
 }
