@@ -12,6 +12,11 @@ import {
   startOfLocalYearUtc,
   endOfLocalYearUtc,
   monthGridDays,
+  schoolYearOf,
+  schoolYearLabel,
+  schoolYearMonths,
+  startOfSchoolYearUtc,
+  endOfSchoolYearUtc,
 } from "./time";
 
 describe("time helpers", () => {
@@ -114,5 +119,31 @@ describe("time helpers", () => {
     expect(grid[0].inMonth).toBe(true);
     expect(grid[27].ymd).toBe("2026-02-28");
     expect(grid[27].inMonth).toBe(true);
+  });
+});
+
+describe("school year", () => {
+  it("runs September to June; July and August belong to the year about to start", () => {
+    expect(schoolYearOf("2026-10-27")).toBe(2026);
+    expect(schoolYearOf("2027-06-30")).toBe(2026);
+    expect(schoolYearOf("2027-07-01")).toBe(2027);
+    expect(schoolYearOf("2026-08-15")).toBe(2026);
+    expect(schoolYearOf("2027-01-05")).toBe(2026);
+    expect(schoolYearLabel(2026)).toBe("2026–27");
+    expect(schoolYearLabel(2099)).toBe("2099–00");
+  });
+
+  it("lists its ten months in order", () => {
+    const months = schoolYearMonths(2026);
+    expect(months).toHaveLength(10);
+    expect(months[0]).toBe("2026-09-01");
+    expect(months[3]).toBe("2026-12-01");
+    expect(months[4]).toBe("2027-01-01");
+    expect(months[9]).toBe("2027-06-01");
+  });
+
+  it("spans Sep 1 to the end of Jun 30, Santa Cruz time", () => {
+    expect(startOfSchoolYearUtc("2027-03-10").toISOString()).toBe("2026-09-01T07:00:00.000Z");
+    expect(endOfSchoolYearUtc("2027-03-10").toISOString()).toBe("2027-07-01T06:59:59.999Z");
   });
 });

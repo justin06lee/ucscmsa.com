@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { Clock, MapPin } from "lucide-react";
 import { getUpcomingOccurrences } from "@/lib/db/queries";
 import { startTimeText, TIME_NOT_ANNOUNCED } from "@/lib/event-time";
 import { coverThumb } from "@/lib/event-media";
 import { splitLinks } from "@/lib/event-text";
-import { formatLocal } from "@/lib/time";
+import { toLocalYmd } from "@/lib/time";
+import { DayText } from "@/components/day-text";
 import { EventCover } from "@/components/event-cover";
 import { LinkPending } from "@/components/link-pending";
 import { occurrenceHref } from "@/components/event-list-card";
@@ -11,8 +13,9 @@ import { RsvpLink } from "@/components/event-actions";
 
 /**
  * The landing's next events as cover-first cards (after Luma's): the whole
- * flyer, a date line and the title, all one link to the event. An event that
- * takes RSVPs on its own form also gets an RSVP button under it.
+ * flyer, the title, the day and time ("Today" and "Tomorrow" when they are),
+ * then the place, all one link to the event. An event that takes RSVPs on its
+ * own form also gets an RSVP button under it.
  */
 export async function UpcomingEvents({
   limit = 3,
@@ -39,6 +42,7 @@ export async function UpcomingEvents({
     );
   }
 
+  const today = toLocalYmd(new Date());
   const listClass = ["grid gap-x-6 gap-y-10 sm:grid-cols-3", className].filter(Boolean).join(" ");
 
   return (
@@ -57,15 +61,24 @@ export async function UpcomingEvents({
                 date={o.occurrenceStart}
                 className="w-full rounded-2xl transition-[border-color,box-shadow] group-hover:border-ink/30 group-hover:shadow-md"
               />
-              <span className="mt-3 text-sm tabular-nums text-ink/70">
-                {formatLocal(o.occurrenceStart, "EEE, MMM d")} ·{" "}
-                {startTimeText(o.occurrenceStart, o.timing) ?? TIME_NOT_ANNOUNCED}
-              </span>
-              <h3 className="mt-1 text-lg font-medium leading-snug text-ink [overflow-wrap:anywhere] group-hover:text-burgundy">
+              <h3 className="mt-3 text-lg font-medium leading-snug text-ink [overflow-wrap:anywhere] group-hover:text-burgundy">
                 {o.title}
               </h3>
+              <span className="mt-1.5 flex items-start gap-1.5 text-sm tabular-nums text-ink/70">
+                <Clock size={14} aria-hidden="true" className="mt-[3px] shrink-0" />
+                <span>
+                  <DayText iso={o.occurrenceStart.toISOString()} today={today} /> ·{" "}
+                  {startTimeText(o.occurrenceStart, o.timing) ?? TIME_NOT_ANNOUNCED}
+                </span>
+              </span>
+              {o.location ? (
+                <span className="mt-1 flex items-start gap-1.5 text-sm text-ink/70">
+                  <MapPin size={14} aria-hidden="true" className="mt-[3px] shrink-0" />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{o.location}</span>
+                </span>
+              ) : null}
               <LinkPending />
-              </Link>
+            </Link>
             {rsvp ? <RsvpLink link={rsvp} className="mt-3 self-start" /> : null}
           </li>
         );

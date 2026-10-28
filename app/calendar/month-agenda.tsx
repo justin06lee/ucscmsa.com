@@ -2,6 +2,7 @@ import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { timeOnDay } from "@/lib/event-time";
 import { EventListCard } from "@/components/event-list-card";
+import { nextYmd } from "@/lib/day-label";
 import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
 
 /**
@@ -50,6 +51,8 @@ export function MonthAgenda({
               <span className="text-ink/70">{formatLocal(parseHMInLocal(day, "12:00"), "EEEE")}</span>
               {day === todayYmd ? (
                 <span className="rounded-full bg-burgundy px-2 py-0.5 text-xs text-paper">Today</span>
+              ) : day === nextYmd(todayYmd) ? (
+                <span className="rounded-full border border-burgundy/40 px-2 py-0.5 text-xs text-burgundy">Tomorrow</span>
               ) : null}
             </IntentLink>
           </h3>

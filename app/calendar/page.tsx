@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import {
   startOfLocalDayUtc,
   endOfLocalDayUtc,
-  startOfLocalYearUtc,
-  endOfLocalYearUtc,
+  startOfSchoolYearUtc,
+  endOfSchoolYearUtc,
   monthGridDays,
   SITE_TZ,
 } from "@/lib/time";
@@ -86,8 +86,8 @@ async function CalendarBody({ view, ymd }: { view: "day" | "month" | "year"; ymd
     const occurrences = await getOccurrencesInRange(start, end);
     return <MonthView ymd={ymd} occurrences={occurrences} />;
   }
-  const start = startOfLocalYearUtc(ymd);
-  const end = endOfLocalYearUtc(ymd);
+  const start = startOfSchoolYearUtc(ymd);
+  const end = endOfSchoolYearUtc(ymd);
   const occurrences = await getOccurrencesInRange(start, end);
   return <YearView ymd={ymd} occurrences={occurrences} />;
 }

@@ -54,6 +54,39 @@ export function endOfLocalYearUtc(ymd: string): Date {
   return new Date(next.getTime() - 1);
 }
 
+// The school year runs September through June (summer is off). July and
+// August already belong to the year about to start: its events are planned
+// and posted then. The year view shows these ten months.
+
+/** The calendar year a school year starts in: 2026 for 2026-27. */
+export function schoolYearOf(ymd: string): number {
+  const [y, m] = ymd.split("-").map(Number);
+  return m >= 7 ? y : y - 1;
+}
+
+/** "2026–27" */
+export function schoolYearLabel(startYear: number): string {
+  return `${startYear}–${String(startYear + 1).slice(2)}`;
+}
+
+/** The ten months of a school year, September to June, as yyyy-MM-01. */
+export function schoolYearMonths(startYear: number): string[] {
+  return Array.from({ length: 10 }, (_, i) => {
+    const m = ((8 + i) % 12) + 1;
+    const y = m >= 9 ? startYear : startYear + 1;
+    return `${y}-${String(m).padStart(2, "0")}-01`;
+  });
+}
+
+export function startOfSchoolYearUtc(ymd: string): Date {
+  return fromZonedTime(`${schoolYearOf(ymd)}-09-01T00:00:00.000`, SITE_TZ);
+}
+
+export function endOfSchoolYearUtc(ymd: string): Date {
+  const next = fromZonedTime(`${schoolYearOf(ymd) + 1}-07-01T00:00:00.000`, SITE_TZ);
+  return new Date(next.getTime() - 1);
+}
+
 export function localHourLabel(hour: number): string {
   const h = ((hour % 24) + 24) % 24;
   if (h === 0) return "12 AM";

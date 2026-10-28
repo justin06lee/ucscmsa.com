@@ -1,5 +1,7 @@
+import Image from "next/image";
 import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
+import { coverThumb } from "@/lib/event-media";
 import { monthGridDays, toLocalYmd, formatLocal, parseHMInLocal } from "@/lib/time";
 import { FadeIn } from "@/components/fade-in";
 import { MonthAgenda } from "./month-agenda";
@@ -7,6 +9,68 @@ import { MonthAgenda } from "./month-agenda";
 type Props = { ymd: string; occurrences: Occurrence[] };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * How many of a day's n flyers fit in `cap` slots: all of them, or cap - 1
+ * and a "+k" tile for the rest.
+ */
+export function fitFlyers(n: number, cap: number): { shown: number; more: number } {
+  return n <= cap ? { shown: n, more: 0 } : { shown: cap - 1, more: n - (cap - 1) };
+}
+
+// The tile is the size container, so the letter and "+k" inside scale with it.
+const tile = "@container relative block aspect-[4/5] overflow-hidden rounded-[4px] border border-ink/10";
+
+/** A day's event as a tiny flyer (an initial on a tone when it has none). */
+function MiniFlyer({ o, dim }: { o: Occurrence; dim: boolean }) {
+  const img = coverThumb(o.cover, o.title);
+  return (
+    <span
+      title={o.title}
+      data-mini-flyer=""
+      className={`${tile} bg-paper shadow-[0_1px_2px_rgb(21_19_18/0.08)] transition-transform group-hover:-translate-y-px ${dim ? "opacity-45" : ""}`}
+    >
+      {img ? (
+        <Image
+          src={img.src}
+          width={img.width}
+          height={img.height}
+          alt=""
+          unoptimized
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center bg-linear-to-b from-burgundy-soft/70 to-burgundy-soft/30 font-display text-[55cqw] leading-none text-burgundy">
+          {o.title.trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function MoreTile({ more }: { more: number }) {
+  return (
+    <span className={`${tile} bg-ink/[0.05]`}>
+      <span className="flex h-full w-full items-center justify-center text-[34cqw] font-medium tabular-nums text-ink/70">
+        +{more}
+      </span>
+    </span>
+  );
+}
+
+/** A day's flyers in `cap` slots, the last one "+k" when they don't all fit. */
+function FlyerRow({ events, cap, dim, className }: { events: Occurrence[]; cap: number; dim: boolean; className: string }) {
+  const { shown, more } = fitFlyers(events.length, cap);
+  return (
+    <span aria-hidden="true" className={className}>
+      {events.slice(0, shown).map((o) => (
+        <MiniFlyer key={`${o.eventId}-${o.occurrenceStart.toISOString()}`} o={o} dim={dim} />
+      ))}
+      {more > 0 ? <MoreTile more={more} /> : null}
+    </span>
+  );
+}
 
 export function MonthView({ ymd, occurrences }: Props) {
   const grid = monthGridDays(ymd);
@@ -39,8 +103,9 @@ export function MonthView({ ymd, occurrences }: Props) {
           const col = i % 7;
           const row = Math.floor(i / 7);
           const n = dayEvents.length;
+          // The flyers are pictures, so the link names the events in words.
           const label = `${formatLocal(parseHMInLocal(cellYmd, "12:00"), "EEEE, MMMM d")}, ${
-            n === 0 ? "no events" : `${n} event${n === 1 ? "" : "s"}`
+            n === 0 ? "no events" : `${n} event${n === 1 ? "" : "s"}: ${dayEvents.map((o) => o.title).join(", ")}`
           }`;
           return (
             <IntentLink
@@ -67,40 +132,20 @@ export function MonthView({ ymd, occurrences }: Props) {
                   </span>
                 )}
               </div>
-              {/* Phones: cells are ~50px wide, too narrow for titles. Dots here,
-                  the month's events are listed under the grid. */}
+              {/* Each day's events as tiny flyers (Justin's ask): one on phones,
+                  where cells are ~50px wide and the month's events are listed
+                  under the grid, two from sm, three from lg. */}
               {n > 0 && (
-                <span aria-hidden="true" className="flex items-center gap-0.5 sm:hidden">
-                  {dayEvents.slice(0, 3).map((o) => (
-                    <span
-                      key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
-                      className={`h-1.5 w-1.5 rounded-full ${inMonth ? "bg-burgundy" : "bg-burgundy/40"}`}
-                    />
-                  ))}
-                  {n > 3 && <span className="text-[10px] leading-none text-dim">+</span>}
-                </span>
-              )}
-              {dayEvents.slice(0, 3).map((o) => (
-                <div
-                  key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
-                  className={`hidden rounded-md border px-1.5 py-0.5 text-xs leading-snug break-words transition-opacity sm:line-clamp-2 lg:line-clamp-1 ${
-                    inMonth
-                      ? "border-burgundy/15 bg-burgundy/10 text-burgundy"
-                      : "border-burgundy/10 bg-burgundy/5 text-burgundy/80"
-                  }`}
-                >
-                  {o.timing !== "date_only" ? (
-                    <span className="hidden tabular-nums lg:inline">
-                      {formatLocal(o.occurrenceStart, "h:mm a")}{" "}
+                <>
+                  <span aria-hidden="true" className="flex w-full items-center justify-center gap-0.5 sm:hidden">
+                    <span className="w-[22px]">
+                      <MiniFlyer o={dayEvents[0]} dim={!inMonth} />
                     </span>
-                  ) : null}
-                  {o.title}
-                </div>
-              ))}
-              {n > 3 && (
-                <div className="hidden text-xs text-dim sm:block">
-                  +{n - 3} more
-                </div>
+                    {n > 1 ? <span className="text-[10px] font-medium leading-none text-dim">+{n - 1}</span> : null}
+                  </span>
+                  <FlyerRow events={dayEvents} cap={2} dim={!inMonth} className="hidden grid-cols-2 gap-1.5 sm:grid lg:hidden" />
+                  <FlyerRow events={dayEvents} cap={3} dim={!inMonth} className="hidden grid-cols-3 gap-1.5 lg:grid" />
+                </>
               )}
             </IntentLink>
           );

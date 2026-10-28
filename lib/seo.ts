@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { formatInTimeZone } from "date-fns-tz";
 import type { EventTiming } from "./event-rules";
 import type { RecurrenceFreq } from "./rrule-lite";
-import { SITE_TZ } from "./time";
+import { SITE_TZ, schoolYearLabel, schoolYearOf } from "./time";
 import {
   SITE_NAME,
   SITE_SAME_AS,
@@ -369,10 +369,10 @@ export function calendarMetadata(view: CalendarView, date: Date, hasParams: bool
     });
   }
   if (view === "year") {
-    const y = formatInTimeZone(date, SITE_TZ, "yyyy");
+    const y = schoolYearLabel(schoolYearOf(formatInTimeZone(date, SITE_TZ, "yyyy-MM-dd")));
     return pageMetadata({
-      title: `${y} events calendar`,
-      description: `Every ${SITE_SHORT_NAME} event in ${y}, month by month: Jummah, halaqas, socials and more at UC Santa Cruz.`,
+      title: `${y} school year events calendar`,
+      description: `Every ${SITE_SHORT_NAME} event in the ${y} school year, September to June: Jummah, halaqas, socials and more at UC Santa Cruz.`,
       path: "/calendar",
     });
   }

@@ -90,8 +90,10 @@ body {
   }
 }
 
+/* An hour shrinks from 56px to 36px so the whole day (Fajr to Isha, --hours
+   rows, set by day-view.tsx) fits under the header on a laptop screen. */
 .day-grid {
-  --hour-h: 56px;
+  --hour-h: clamp(36px, calc((100dvh - 12.5rem) / var(--hours, 14)), 56px);
   position: relative;
   display: grid;
   grid-template-columns: 72px 1fr;
@@ -138,6 +140,8 @@ body {
   pointer-events: none;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  /* Above the event blocks: a prayer time stays readable under an event. */
+  z-index: 3;
 }
 
 .day-grid__now {
@@ -164,25 +168,103 @@ body {
   position: absolute;
   left: 8px;
   right: 8px;
-  padding: 4px 10px;
+  padding: 4px 10px 4px 4px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-paper) 55%, var(--color-burgundy-soft));
   color: var(--color-ink);
   border: 1px solid color-mix(in srgb, var(--color-burgundy) 30%, transparent);
+  border-left: 3px solid var(--color-burgundy);
   overflow: hidden;
   font-size: 0.875rem;
   text-decoration: none;
-  transition: border-color 120ms ease, transform 120ms ease;
+  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   z-index: 1;
   display: flex;
+  align-items: stretch;
+  gap: 10px;
+  /* Its own height and width decide what fits in it (the rules below). */
+  container-type: size;
+}
+
+.day-grid__event:not([data-flyer]) {
+  padding-left: 9px;
+}
+
+.day-grid__event[data-flyer] {
+  background: var(--color-paper);
+  box-shadow: 0 1px 2px rgb(21 19 18 / 0.06);
+}
+
+/* A flyer's own colours, blurred, behind the text. */
+.day-grid__event-glow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(22px) saturate(1.3);
+  transform: scale(1.5);
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.day-grid__event-flyer {
+  position: relative;
+  flex-shrink: 0;
+  height: 100%;
+  max-height: 120px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+  background: var(--color-paper);
+}
+
+.day-grid__event-flyer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.day-grid__event-text {
+  position: relative;
+  display: flex;
+  min-width: 0;
   flex-direction: column;
   justify-content: center;
   gap: 2px;
 }
 
+/* Short blocks: the title alone. Narrow lanes: no flyer. Tall: the place too. */
+@container (max-height: 47px) {
+  .day-grid__event-time {
+    display: none;
+  }
+}
+
+@container (max-height: 63px) {
+  .day-grid__event-place {
+    display: none;
+  }
+}
+
+@container (max-width: 159px) {
+  .day-grid__event-flyer {
+    display: none;
+  }
+}
+
+@container (min-height: 96px) {
+  .day-grid__event-text {
+    justify-content: flex-start;
+    padding-top: 4px;
+  }
+}
+
 .day-grid__event:hover {
   border-color: var(--color-burgundy);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgb(21 19 18 / 0.1);
 }
 
 .day-grid__empty {
@@ -237,6 +319,22 @@ body {
   font-size: 0.875rem;
   text-decoration: none;
   transition: border-color 120ms ease;
+}
+
+.day-grid__row-flyer {
+  flex-shrink: 0;
+  width: 26px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+  background: var(--color-paper);
+}
+
+.day-grid__row-flyer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .day-grid__row-event:hover {

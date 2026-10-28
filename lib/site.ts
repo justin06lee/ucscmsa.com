@@ -9,10 +9,18 @@ export const SITE_TAGLINE =
 export const SITE_DESCRIPTION =
   "Events and prayer times from the Muslim Student Association at UC Santa Cruz.";
 
+// The MSA's ways in, shown under the landing's logo (SocialLinks). The
+// WhatsApp group is joined through this sign-up form (the MSA's resource
+// guide), not an open invite link.
+export const SITE_INSTAGRAM_URL = "https://www.instagram.com/ucsc.msa/";
+export const SITE_WHATSAPP_JOIN_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSfgjvHZ_X6VxfVsDkZKec8cDNJpADyAdD9JvtTYaOwWt-oLWA/viewform";
+export const SITE_EMAIL = "salam@ucscmsa.com";
+
 // The MSA's own profiles (Instagram, Linktree, the UCSC student-org directory
 // page...), used as Organization sameAs in search results. Only add links the
-// MSA actually runs; none are confirmed in the repo yet.
-export const SITE_SAME_AS: string[] = [];
+// MSA actually runs.
+export const SITE_SAME_AS: string[] = [SITE_INSTAGRAM_URL];
 
 // The campus prayer space, shown on the landing page when set (searches like
 // "prayer room UCSC"). Left empty on purpose: only confirmed facts go here —

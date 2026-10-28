@@ -124,8 +124,8 @@ describe("site JSON-LD", () => {
     expect(org).toMatchObject({ "@type": "Organization", name: "MSA at UCSC", url: "https://ucscmsa.com" });
     expect(org.alternateName).toContain("UCSC MSA");
     expect(org.logo).toBe("https://ucscmsa.com/letters/icon-1.png");
-    // No social profiles are confirmed yet, so no sameAs at all.
-    expect(org).not.toHaveProperty("sameAs");
+    // The MSA's own Instagram is its one confirmed profile.
+    expect(org.sameAs).toEqual(["https://www.instagram.com/ucsc.msa/"]);
     expect(websiteJsonLd().alternateName).toContain("UCSC MSA");
   });
 });
@@ -225,7 +225,7 @@ describe("calendarMetadata", () => {
     expect(calendarMetadata("month", OCT, false).title).toBe("Events calendar & prayer times");
     expect(calendarMetadata("day", OCT, true).title).toBe("Fri, Oct 23, 2026: events & prayer times");
     expect(calendarMetadata("month", OCT, true).title).toBe("October 2026 events");
-    expect(calendarMetadata("year", OCT, true).title).toBe("2026 events calendar");
+    expect(calendarMetadata("year", OCT, true).title).toBe("2026–27 school year events calendar");
   });
 });
 

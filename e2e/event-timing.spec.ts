@@ -105,10 +105,11 @@ test.describe("wide screens", () => {
     await expect(block).toContainText("6:00 PM, end not announced");
   });
 
-  test("month chips give no time for a date-only event", async ({ page }) => {
+  test("month cells show the day's flyers and name its events, with no time for a date-only one", async ({ page }) => {
     await page.goto(`/calendar?view=month&date=${await eventDay(page, "ev-date-only")}`);
-    const chip = page.locator("a > div.rounded-md").filter({ hasText: "Henna Night" });
-    await expect(chip).toHaveText("Henna Night");
+    const cell = page.getByRole("link", { name: /events?: .*Henna Night/ });
+    await expect(cell.locator('[data-mini-flyer][title="Henna Night"] img:visible')).toHaveCount(1);
+    expect(await cell.getAttribute("aria-label")).not.toMatch(/\d:\d\d/);
   });
 });
 

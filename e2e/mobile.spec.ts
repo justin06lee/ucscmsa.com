@@ -137,7 +137,7 @@ test.describe("day view on phones is a stacked agenda", () => {
         els.map((el) =>
           el.matches(".day-agenda__prayer")
             ? `[${el.getAttribute("data-prayer")}]`
-            : (el.querySelector(".font-medium")?.textContent ?? ""),
+            : (el.querySelector("[data-card-title]")?.textContent ?? ""),
         ),
       );
       expect(rows).toEqual([

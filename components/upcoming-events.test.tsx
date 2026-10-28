@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { Occurrence } from "@/lib/rrule-lite";
 import type { EventImage } from "@/lib/event-image";
@@ -33,6 +33,10 @@ function occ(id: string, title: string, extra: Partial<Occurrence> = {}): Occurr
     ...extra,
   };
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("Upcoming cards", () => {
   it("shows the whole flyer, a date line and the title, as one link; a form gets an RSVP button beside it", async () => {
@@ -82,6 +86,27 @@ describe("Upcoming cards", () => {
     expect(henna.querySelector("[data-fallback-cover]")).toHaveTextContent("Henna Tabling");
     expect(henna).toHaveTextContent("Time not announced");
     expect(screen.getAllByRole("link", { name: /Henna Tabling/ })).toHaveLength(1);
+  });
+
+  it("puts the title first, then the day and time, then the place; today and tomorrow say so", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-27T19:00:00Z")); // noon, Tue Oct 27, in Santa Cruz
+    upcoming.items = [
+      occ("skills", "Brothers Life Skills", {
+        location: "C9 Community Room",
+        occurrenceStart: parseHMInLocal("2026-10-27", "19:20"),
+        occurrenceEnd: parseHMInLocal("2026-10-27", "21:00"),
+      }),
+      occ("halaqa", "Halaqa", { occurrenceStart: parseHMInLocal("2026-10-28", "18:00") }),
+      occ("night", "Bright Night", { occurrenceStart: parseHMInLocal("2026-10-31", "16:00") }),
+    ];
+    const { container } = render(await UpcomingEvents({ limit: 3 }));
+    const [skills, halaqa, night] = [...container.querySelectorAll(".upcoming-card a")] as HTMLElement[];
+    const text = skills.textContent ?? "";
+    expect(text.indexOf("Brothers Life Skills")).toBeLessThan(text.indexOf("Today · 7:20 PM"));
+    expect(text.indexOf("Today · 7:20 PM")).toBeLessThan(text.indexOf("C9 Community Room"));
+    expect(halaqa).toHaveTextContent("Tomorrow · 6:00 PM");
+    expect(night).toHaveTextContent("Sat, Oct 31 · 4:00 PM");
   });
 
   it("says so when there are no events", async () => {

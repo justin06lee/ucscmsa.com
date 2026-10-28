@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import Image from "next/image";
+import { MapPin } from "lucide-react";
 import { IntentLink } from "@/components/intent-link";
 import type { Occurrence } from "@/lib/rrule-lite";
+import { coverThumb, type FlyerImage } from "@/lib/event-media";
 import type { PrayerTimes } from "@/lib/aladhan";
 import {
   formatLocal,
@@ -16,8 +19,16 @@ import { FadeIn } from "@/components/fade-in";
 import { timeOnDay, untimedOnDay } from "@/lib/event-time";
 import { DayAgenda } from "./day-agenda";
 
+// The tallest an hour gets. On screen the grid's hours shrink (to 36px) so a
+// whole day, Fajr to Isha, fits a laptop screen: --hour-h in globals.css.
+// Positions are in hours, scaled by that variable (at).
 const HOUR_H = 56;
 const LABEL_MIN_GAP = 22;
+
+/** A length of `hours` on the grid, in CSS. */
+function at(hours: number): string {
+  return `calc(${Number(hours.toFixed(4))} * var(--hour-h))`;
+}
 
 type Props = { ymd: string; occurrences: Occurrence[]; prayer: PrayerTimes };
 
@@ -96,6 +107,15 @@ function placeSpans(spans: Span[]): Placed[] {
   return items;
 }
 
+function RowFlyer({ image }: { image: FlyerImage | null }) {
+  if (!image) return null;
+  return (
+    <span className="day-grid__row-flyer" aria-hidden="true">
+      <Image src={image.src} width={image.width} height={image.height} alt="" unoptimized loading="lazy" />
+    </span>
+  );
+}
+
 // A row above the hour grid: events listed with their time on this day.
 function DayRow({ kind, label, items, ymd }: { kind: "untimed" | "long"; label: string; items: Occurrence[]; ymd: string }) {
   if (items.length === 0) return null;
@@ -109,7 +129,10 @@ function DayRow({ kind, label, items, ymd }: { kind: "untimed" | "long"; label: 
               href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
               className="day-grid__row-event"
             >
-              <span className="truncate font-medium">{o.title}</span>
+              <span className="flex min-w-0 items-center gap-2.5">
+                <RowFlyer image={coverThumb(o.cover, o.title)} />
+                <span className="truncate font-medium">{o.title}</span>
+              </span>
               <span className="shrink-0 text-xs text-ink/60">{timeOnDay(o, ymd)}</span>
             </IntentLink>
           </li>
@@ -137,7 +160,6 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
     Math.max(ceilLocalHour(ishaUtc), gridStart + 1, ...placed.map((p) => Math.ceil(p.end / 60))),
   );
   const hours = Array.from({ length: gridEnd - gridStart }, (_, i) => gridStart + i);
-  const bodyHeight = hours.length * HOUR_H;
 
   const prayerMarkers = [
     { label: "Fajr", hm: prayer.fajr },
@@ -148,14 +170,18 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
     { label: "Isha", hm: prayer.isha },
   ].map((p) => {
     const { h, m } = localHourAndMinute(parseHMInLocal(ymd, p.hm));
-    return { ...p, lineTop: (h - gridStart) * HOUR_H + (m / 60) * HOUR_H };
+    return { ...p, lineTop: h - gridStart + m / 60 };
   });
 
+  // Labels never closer than LABEL_MIN_GAP px, at whatever height an hour is:
+  // each one at its line or just under the one before, whichever is lower.
   const sortedByTop = [...prayerMarkers].sort((a, b) => a.lineTop - b.lineTop);
-  const labelTopByKey = new Map<string, number>();
-  let lastLabelTop = -Infinity;
+  const labelTopByKey = new Map<string, string>();
+  let lastLabelTop: string | null = null;
   for (const p of sortedByTop) {
-    const top = Math.max(p.lineTop, lastLabelTop + LABEL_MIN_GAP);
+    const top: string = lastLabelTop
+      ? `max(${at(p.lineTop)}, calc(${lastLabelTop} + ${LABEL_MIN_GAP}px))`
+      : at(p.lineTop);
     labelTopByKey.set(p.label, top);
     lastLabelTop = top;
   }
@@ -179,8 +205,8 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [ymd]);
-  const nowTopRaw = nowMinutes == null ? null : (nowMinutes / 60 - gridStart) * HOUR_H;
-  const nowTop = nowTopRaw != null && nowTopRaw >= 0 && nowTopRaw <= bodyHeight ? nowTopRaw : null;
+  const nowTopRaw = nowMinutes == null ? null : nowMinutes / 60 - gridStart;
+  const nowTop = nowTopRaw != null && nowTopRaw >= 0 && nowTopRaw <= hours.length ? at(nowTopRaw) : null;
 
   return (
     <FadeIn>
@@ -194,7 +220,7 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
         <DayRow kind="long" label="Long events" items={long} ymd={ymd} />
         <div
           className="day-grid"
-          style={{ gridTemplateRows: `repeat(${hours.length}, ${HOUR_H}px)` }}
+          style={{ "--hours": hours.length, gridTemplateRows: `repeat(${hours.length}, var(--hour-h))` } as CSSProperties}
         >
           {hours.map((h) => (
             <div key={`label-${h}`} className="day-grid__hour">
@@ -203,13 +229,13 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
           ))}
           <div
             className="day-grid__body"
-            style={{ gridRow: `1 / span ${hours.length}`, height: bodyHeight }}
+            style={{ gridRow: `1 / span ${hours.length}`, height: at(hours.length) }}
           >
             {prayerMarkers.map((p) => (
               <div
                 key={`line-${p.label}`}
                 className="day-grid__prayer-line"
-                style={{ top: p.lineTop }}
+                style={{ top: at(p.lineTop) }}
                 aria-hidden="true"
               />
             ))}
@@ -237,10 +263,8 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
               long.length === 0 ? <div className="day-grid__empty">No timed events</div> : null
             ) : (
               placed.map(({ o, start, end, lane, lanes }) => {
-                const top = (start / 60 - gridStart) * HOUR_H;
-                const rawHeight = ((end - start) / 60) * HOUR_H;
-                const height = Math.max(MIN_EVENT_H, Math.min(rawHeight, bodyHeight - top));
-                const showTime = height >= 48;
+                const top = start / 60 - gridStart;
+                const length = Math.min((end - start) / 60, hours.length - top);
                 const laneStyle =
                   lanes > 1
                     ? {
@@ -249,23 +273,42 @@ export function DayView({ ymd, occurrences, prayer }: Props) {
                         right: "auto",
                       }
                     : null;
+                const flyer = coverThumb(o.cover, o.title);
                 return (
                   <IntentLink
                     key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
                     href={`/calendar/events/${o.eventId}?occurrence=${encodeURIComponent(o.occurrenceStart.toISOString())}`}
                     className="day-grid__event"
-                    style={{ top, height, ...laneStyle }}
+                    style={{ top: at(top), height: `max(${MIN_EVENT_H}px, ${at(length)})`, ...laneStyle }}
                     data-lane={`${lane + 1}/${lanes}`}
+                    data-at={Number(top.toFixed(4))}
+                    data-hours={Number(length.toFixed(4))}
                     data-open-end={o.timing === "start_only" ? "" : undefined}
+                    data-flyer={flyer ? "" : undefined}
                   >
-                    <div className="truncate font-medium leading-tight">{o.title}</div>
-                    {showTime && (
-                      <div className="truncate text-xs leading-tight text-ink/60">
+                    {flyer ? (
+                      <>
+                        {/* The flyer, blurred, tints the block; the flyer itself sits on its left. */}
+                        <Image src={flyer.src} width={flyer.width} height={flyer.height} alt="" unoptimized loading="lazy" aria-hidden="true" className="day-grid__event-glow" />
+                        <span className="day-grid__event-flyer" aria-hidden="true">
+                          <Image src={flyer.src} width={flyer.width} height={flyer.height} alt="" unoptimized loading="lazy" />
+                        </span>
+                      </>
+                    ) : null}
+                    <span className="day-grid__event-text">
+                      <span className="truncate font-medium leading-tight">{o.title}</span>
+                      <span className="day-grid__event-time truncate text-xs leading-tight text-ink/65">
                         {o.timing === "start_only"
                           ? `${formatLocal(o.occurrenceStart, "h:mm a")}, end not announced`
                           : `${formatLocal(o.occurrenceStart, "h:mm a")} – ${formatLocal(o.occurrenceEnd, "h:mm a")}`}
-                      </div>
-                    )}
+                      </span>
+                      {o.location ? (
+                        <span className="day-grid__event-place truncate text-xs leading-tight text-ink/65">
+                          <MapPin size={11} aria-hidden="true" className="mr-1 inline-block align-[-1px]" />
+                          {o.location}
+                        </span>
+                      ) : null}
+                    </span>
                   </IntentLink>
                 );
               })

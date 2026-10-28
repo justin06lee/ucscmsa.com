@@ -39,7 +39,16 @@ function pickActiveHref(pathname: string | null, items: NavItem[]): string | nul
   return best;
 }
 
-export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
+/**
+ * The top bar: no background and no border, only the logo and the links, so
+ * it sits on the page (Justin's ask). It scrolls away with the page rather than
+ * sticking, since a see-through bar would run over the text under it. The
+ * landing passes brand={false}: its own big logo is right below.
+ */
+export function SiteHeader({
+  variant = "public",
+  brand = true,
+}: { variant?: Variant; brand?: boolean } = {}) {
   const pathname = usePathname();
   const items = variant === "admin" ? ADMIN_NAV : PUBLIC_NAV;
   const activeHref = pickActiveHref(pathname, items);
@@ -66,17 +75,21 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink/10 bg-paper/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <Link
-          href="/"
-          className="flex min-h-11 items-center gap-2.5 transition-opacity hover:opacity-80"
-        >
-          <WiggleIcon size={28} alt="" />
-          <span className="font-display text-base leading-none">
-            MSA at UCSC
-          </span>
-        </Link>
+    <header className="relative z-40">
+      <div
+        className={`mx-auto flex h-14 max-w-6xl items-center px-6 ${brand ? "justify-between" : "justify-end"}`}
+      >
+        {brand ? (
+          <Link
+            href="/"
+            className="flex min-h-11 items-center gap-2.5 transition-opacity hover:opacity-80"
+          >
+            <WiggleIcon size={28} alt="" />
+            <span className="font-display text-base leading-none">
+              MSA at UCSC
+            </span>
+          </Link>
+        ) : null}
 
         <nav
           aria-label="Primary"
@@ -119,7 +132,7 @@ export function SiteHeader({ variant = "public" }: { variant?: Variant } = {}) {
         <nav
           id="site-header-mobile-menu"
           aria-label="Primary"
-          className="border-t border-ink/10 bg-paper/95 backdrop-blur md:hidden"
+          className="absolute inset-x-0 top-full border-y border-ink/10 bg-paper shadow-sm md:hidden"
         >
           <ul className="mx-auto flex max-w-6xl flex-col px-6 py-2 text-base">
             {items.map((item) => {

@@ -23,13 +23,15 @@ async function expectCover(card: Locator) {
 test.describe("Upcoming cards", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  test("each is its cover, a date line and the title, the whole card one link", async ({ page }) => {
+  test("each is its cover, the title, a date line and the place, the whole card one link", async ({ page }) => {
     await page.goto("/");
     const cards = upcoming(page);
     expect(await cards.count()).toBeGreaterThan(0);
     for (const card of await cards.all()) {
       await expectCover(card);
-      await expect(card.locator("a:not([data-link-kind]) > span").nth(1)).toHaveText(/^\w{3}, \w{3} \d{1,2} · /);
+      // The title comes before the day ("Today" and "Tomorrow" when they are).
+      const link = card.locator("a:not([data-link-kind])");
+      await expect(link.locator(":scope > h3 + span")).toHaveText(/^(Today|Tomorrow|\w{3}, \w{3} \d{1,2}) · /);
       // One link to the event; any other link is the event's RSVP button.
       const eventLinks = card.locator("a:not([data-link-kind])");
       await expect(eventLinks).toHaveCount(1);

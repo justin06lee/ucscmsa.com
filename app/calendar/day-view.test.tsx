@@ -76,8 +76,8 @@ describe("DayView", () => {
     expect(labels[0]).toBe("6 AM");
     expect(labels.at(-1)).toBe("9 PM"); // grid runs to 10 PM, the hike's end
     const link = getByText("Night Hike").closest("a")!;
-    // 20:30 is 14.5 hours after the 6 AM start, at 56px an hour.
-    expect(link.style.top).toBe(`${14.5 * 56}px`);
+    // 20:30 is 14.5 hours after the 6 AM start (scaled by --hour-h on screen).
+    expect(link.dataset.at).toBe("14.5");
   });
 
   it("stretches the grid up for an event before Fajr", () => {
@@ -141,7 +141,7 @@ describe("DayView with untimed events", () => {
       .closest("a") as HTMLElement;
     expect(block.hasAttribute("data-open-end")).toBe(true);
     expect(block.textContent).toContain("6:00 PM, end not announced");
-    expect(parseFloat(block.style.height)).toBe(56); // one hour, not to midnight
+    expect(block.dataset.hours).toBe("1"); // one hour, not to midnight
   });
 });
 

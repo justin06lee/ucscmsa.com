@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useOptimistic, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, addMonths, addYears, formatISO } from "date-fns";
-import { formatLocal, parseHMInLocal, toLocalYmd } from "@/lib/time";
+import { formatLocal, parseHMInLocal, schoolYearLabel, schoolYearOf, toLocalYmd } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 
 type View = "day" | "month" | "year";
@@ -19,16 +19,16 @@ function matchesNow(viewYmd: string, view: View): boolean {
   const now = toLocalYmd(new Date());
   if (view === "day") return viewYmd === now;
   if (view === "month") return viewYmd.slice(0, 7) === now.slice(0, 7);
-  return viewYmd.slice(0, 4) === now.slice(0, 4);
+  return schoolYearOf(viewYmd) === schoolYearOf(now);
 }
 
 function titleLabel(view: View, viewYmd: string, isCurrent: boolean): string {
   if (isCurrent) {
     if (view === "day") return "Today";
     if (view === "month") return "This month";
-    return "This year";
+    return "This school year";
   }
-  if (view === "year") return viewYmd.slice(0, 4);
+  if (view === "year") return `${schoolYearLabel(schoolYearOf(viewYmd))} school year`;
   const noon = parseHMInLocal(viewYmd, "12:00");
   return view === "day"
     ? formatLocal(noon, "EEEE, MMMM d, yyyy")
@@ -47,8 +47,10 @@ function subtitleLabel(view: View, viewYmd: string, isCurrent: boolean): string 
   const noon = parseHMInLocal(viewYmd, "12:00");
   if (view === "day") return formatLocal(noon, "EEEE, MMMM d");
   if (view === "month") return formatLocal(noon, "MMMM yyyy");
-  return viewYmd.slice(0, 4);
+  return schoolYearLabel(schoolYearOf(viewYmd));
 }
+
+const VIEWS = ["day", "month", "year"] as const;
 
 export function CalendarNav({ view, date }: { view: View; date: Date }) {
   const router = useRouter();
@@ -73,14 +75,19 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
   // The view being left stays up, dimmed (data-pending; see page.tsx), until
   // the next one arrives: the click shows at once without a blank skeleton.
   const [pending, startTransition] = useTransition();
+  // The switch's pill slides to the view picked at once, not when it arrives.
+  const [shownView, setShownView] = useOptimistic(view);
   const go = useCallback(
     (next: Date, nextView: View) => {
       const p = new URLSearchParams(params);
       p.set("view", nextView);
       p.set("date", formatISO(next, { representation: "date" }));
-      startTransition(() => router.push(`/calendar?${p.toString()}`));
+      startTransition(() => {
+        setShownView(nextView);
+        router.push(`/calendar?${p.toString()}`);
+      });
     },
-    [params, router]
+    [params, router, setShownView]
   );
 
   useEffect(() => {
@@ -144,19 +151,28 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
           <ChevronRight size={22} aria-hidden="true" />
         </Button>
       </div>
+      {/* A segmented switch: one pill, under the view shown, slides between
+          the three (transform only; still for reduced motion). */}
       <div
         role="tablist"
-        className="flex w-full items-center overflow-hidden rounded-full border border-ink/15 text-sm sm:w-auto"
+        aria-label="Calendar view"
+        className="relative grid w-full grid-cols-3 rounded-full bg-ink/[0.06] p-1 text-sm sm:w-auto"
       >
-        {(["day", "month", "year"] as const).map((v) => (
+        <span
+          aria-hidden="true"
+          data-view-pill=""
+          className="pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-paper shadow-[0_1px_3px_rgb(21_19_18/0.12),0_0_0_1px_rgb(21_19_18/0.06)] transition-transform duration-300 ease-[cubic-bezier(0.3,0.7,0.2,1)] motion-reduce:transition-none"
+          style={{ transform: `translateX(${VIEWS.indexOf(shownView) * 100}%)` }}
+        />
+        {VIEWS.map((v) => (
           <button
             key={v}
             type="button"
             role="tab"
-            aria-selected={v === view}
+            aria-selected={v === shownView}
             onClick={() => go(date, v)}
-            className={`min-h-11 flex-1 px-4 capitalize transition-colors sm:flex-none ${
-              v === view ? "bg-ink text-paper" : "text-ink/70 hover:bg-ink/5 hover:text-ink"
+            className={`relative min-h-11 rounded-full px-5 capitalize transition-colors duration-200 ${
+              v === shownView ? "font-medium text-ink" : "text-ink/60 hover:text-ink"
             }`}
           >
             {v}
