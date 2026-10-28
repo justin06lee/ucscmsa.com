@@ -58,20 +58,21 @@ test.describe("calendar", () => {
     await expect.poll(async () => (await pill.boundingBox())!.x).toBeGreaterThan(month.x + 20);
   });
 
-  test("the year view is the school year, September to June, with this month marked", async ({ page }) => {
+  test("the year view is the school year, September to August, with this month marked", async ({ page }) => {
     await page.goto("/calendar?view=year");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("This school year");
     const months = page.locator("a[href^='/calendar?view=month&date=']:visible");
-    await expect(months).toHaveCount(10);
-    const names = (await months.allTextContents()).map((t) => t.replace(/\s*\d{4}|Now/g, "").trim());
-    expect(names).toEqual(["September", "October", "November", "December", "January", "February", "March", "April", "May", "June"]);
+    await expect(months).toHaveCount(12);
+    const names = (await months.allTextContents()).map((t) => t.replace(/\s*\d{4}|Now|Summer/g, "").trim());
+    expect(names).toEqual([
+      "September", "October", "November", "December", "January", "February",
+      "March", "April", "May", "June", "July", "August",
+    ]);
+    await expect(months.nth(10)).toContainText("Summer");
     const current = page.locator("[data-current-month]");
-    // Summer belongs to the year about to start, and July and August are not in it.
-    if (!["July", "August"].includes(thisMonth())) {
-      await expect(current).toHaveCount(1);
-      await expect(current).toContainText(thisMonth());
-      await expect(current).toContainText("Now");
-    }
+    await expect(current).toHaveCount(1);
+    await expect(current).toContainText(thisMonth());
+    await expect(current).toContainText("Now");
   });
 
   test("a whole day, Fajr to Isha and its events, fits a 1440 by 900 screen", async ({ page }) => {

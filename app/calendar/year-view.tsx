@@ -30,6 +30,11 @@ function buildMonth(year: number, monthIndex: number): MonthLayout {
   return { monthName, year, firstYmd, offset, days };
 }
 
+/** July and August: no classes, shown last in the school year. */
+function isSummer(firstYmd: string): boolean {
+  return /-0[78]-01$/.test(firstYmd);
+}
+
 function intensityClass(count: number): string {
   if (count === 0) return "bg-ink/[0.06]";
   if (count === 1) return "bg-burgundy/25";
@@ -39,9 +44,9 @@ function intensityClass(count: number): string {
 }
 
 /**
- * The school year at a glance, September to June (see schoolYearOf): each
- * month a small grid shaded by how many events each day has, the month we
- * are in marked.
+ * The school year at a glance, September to August (see schoolYearOf), the
+ * summer months last and labelled: each month a small grid shaded by how many
+ * events each day has, the month we are in marked.
  */
 export function YearView({ ymd, occurrences }: Props) {
   const todayYmd = toLocalYmd(new Date());
@@ -100,8 +105,8 @@ export function YearView({ ymd, occurrences }: Props) {
           );
         })}
       </ul>
-      {/* Five across from lg: fall (Sep to Jan) over spring (Feb to Jun). */}
-      <div className="hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
+      {/* Four across from lg: Sep to Dec, Jan to Apr, May to Aug. */}
+      <div className="hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         {months.map(({ monthName, year, firstYmd, offset, days }) => {
           const totalCells = offset + days.length;
           const trailing = (7 - (totalCells % 7)) % 7;
@@ -126,21 +131,22 @@ export function YearView({ ymd, occurrences }: Props) {
                   {firstYmd.endsWith("-01-01") || firstYmd.endsWith("-09-01") ? (
                     <span className="ml-1.5 font-normal tabular-nums text-dim">{year}</span>
                   ) : null}
+                  {isSummer(firstYmd) ? <span className="ml-1.5 font-normal text-dim">Summer</span> : null}
                 </span>
                 {current ? (
                   <span className="rounded-full bg-burgundy px-2 py-0.5 text-[11px] font-medium text-paper">Now</span>
                 ) : null}
               </IntentLink>
-              <div className="grid grid-cols-7 gap-1 text-[10px] text-dim uppercase tracking-wider lg:gap-[3px]">
+              <div className="grid grid-cols-7 gap-1 text-[10px] text-dim uppercase tracking-wider">
                 {WEEKDAY_INITIALS.map((d, i) => (
                   <div key={i} className="flex h-5 items-center justify-center">
                     {d}
                   </div>
                 ))}
               </div>
-              <div className="mt-1 grid grid-cols-7 gap-1 lg:gap-[3px]">
+              <div className="mt-1 grid grid-cols-7 gap-1">
                 {Array.from({ length: offset }, (_, i) => (
-                  <span key={`off-${i}`} className="size-7 lg:size-[19px] xl:size-[23px]" aria-hidden="true" />
+                  <span key={`off-${i}`} className="size-7 lg:size-6 xl:size-7" aria-hidden="true" />
                 ))}
                 {days.map((dayYmd) => {
                   const count = countByDay.get(dayYmd) ?? 0;
@@ -155,14 +161,14 @@ export function YearView({ ymd, occurrences }: Props) {
                         count === 0 ? "no events" : `${count} event${s}`
                       }`}
                       data-dense-target=""
-                      className={`size-7 rounded-md transition-transform hover:scale-110 lg:size-[19px] lg:rounded-[5px] xl:size-[23px] ${intensityClass(count)} ${
+                      className={`size-7 rounded-md transition-transform hover:scale-110 lg:size-6 xl:size-7 ${intensityClass(count)} ${
                         isToday ? "ring-2 ring-burgundy ring-offset-2 ring-offset-paper" : ""
                       }`}
                     />
                   );
                 })}
                 {Array.from({ length: trailing }, (_, i) => (
-                  <span key={`trail-${i}`} className="size-7 lg:size-[19px] xl:size-[23px]" aria-hidden="true" />
+                  <span key={`trail-${i}`} className="size-7 lg:size-6 xl:size-7" aria-hidden="true" />
                 ))}
               </div>
             </div>

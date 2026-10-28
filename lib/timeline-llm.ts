@@ -172,8 +172,11 @@ export async function planTurn(opts: {
       if (reply?.type === "timeline") {
         return {
           ...reply,
-          // The model sized a speaker event with no headcount as major, 8 weeks out.
-          size: toldHeadcount(chat) ? reply.size : guessSize(said),
+          // The size is SOMeCA's, by the headcount, whenever one was written
+          // ("25 students"): the model sized 25 as mid and 120 as mid. Only a
+          // bare number answering "How many" is left to the model; with no
+          // headcount at all it sized a speaker event major, 8 weeks out.
+          size: headcount(said) !== null || !toldHeadcount(chat) ? guessSize(said) : reply.size,
           stepIds: addRequired(steps, dropUnasked(steps, reply.stepIds, said), said),
         };
       }

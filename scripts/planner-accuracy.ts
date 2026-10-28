@@ -62,6 +62,17 @@ const KEY: Record<string, Key> = {
        date: "2026-12-03", size: "large", need: [...BASE, 6, 17, 26], mayAlso: [3, 7, 16, 19] },
   o: { gist: "tabling at the library to recruit new members and hand out flyers",
        date: "2026-12-03", size: "small", need: [1, 20, 22], mayAlso: [2, 9, 10, 11, 21, 23, 24, 25] },
+  // Five held out: written after the October 28 fixes, not used to make them.
+  p: { gist: "movie night in the Oakes learning center with popcorn and drinks, maybe 30 people",
+       date: "2026-12-03", size: "small", need: [...BASE, ...FOOD], mayAlso: [3, 16] },
+  q: { gist: "virtual Quran reading session on Zoom every Tuesday", date: "2026-11-03", size: "small", need: [1, 2, ...WRAP] },
+  // Bring-your-own lunch: no food is served, so no food steps.
+  r: { gist: "hiking trip to Henry Cowell park this Sunday, bring your own lunch", date: "2026-11-01", size: "small",
+       need: [1, 4, ...WRAP], mayAlso: [2] },
+  s: { gist: "charity car wash fundraiser in the East Remote parking lot", date: "2026-12-03", size: "small",
+       need: BASE, mayAlso: [16, 18, 19, 26] },
+  t: { gist: "career panel with three alumni speakers (unpaid), about 70 students, Humanities Lecture Hall, pizza after",
+       date: "2026-12-03", size: "mid", need: [...BASE, ...FOOD], mayAlso: [3, 16] },
 };
 
 const answer = (q: string) => (/when|date|day/i.test(q) ? "December 3" : "Not sure yet");

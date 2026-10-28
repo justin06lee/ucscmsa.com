@@ -372,7 +372,7 @@ export function calendarMetadata(view: CalendarView, date: Date, hasParams: bool
     const y = schoolYearLabel(schoolYearOf(formatInTimeZone(date, SITE_TZ, "yyyy-MM-dd")));
     return pageMetadata({
       title: `${y} school year events calendar`,
-      description: `Every ${SITE_SHORT_NAME} event in the ${y} school year, September to June: Jummah, halaqas, socials and more at UC Santa Cruz.`,
+      description: `Every ${SITE_SHORT_NAME} event in the ${y} school year, September to August: Jummah, halaqas, socials and more at UC Santa Cruz.`,
       path: "/calendar",
     });
   }

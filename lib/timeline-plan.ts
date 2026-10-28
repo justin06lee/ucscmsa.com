@@ -170,13 +170,16 @@ export function parseDate(text: string, today: string): string | null {
   const iso = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (iso) return make(+iso[1], +iso[2], +iso[3]);
   const named = t.match(
-    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/
+    // Whole month names only: "maybe 30 people" once read as May 30.
+    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/
   );
   if (named) {
     const d = make(year, MONTHS.indexOf(named[1].slice(0, 3)) + 1, +named[2]);
     if (d) return future(d);
   }
-  const dayFirst = t.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+  const dayFirst = t.match(
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:uary|ruary|ch|il|e|y|ust|t|tember|ober|ember)?\b/,
+  );
   if (dayFirst) {
     const d = make(year, MONTHS.indexOf(dayFirst[2]) + 1, +dayFirst[1]);
     if (d) return future(d);
@@ -221,7 +224,8 @@ export function guessSize(text: string): EventSize {
 }
 
 const RULES = {
-  food: /\b(food|pizza|dinner|lunch|breakfast|snack|iftar|suhoor|cater|halal|eat|boba|dessert|potluck|refreshment|bake|cookie|treats)/,
+  // "cook" also covers cookies; no "dates", which reads as days.
+  food: /\b(food|pizza|dinner|lunch|breakfast|brunch|meal|snack|iftar|suhoor|cater|halal|eat|boba|dessert|potluck|refreshment|bake|cook|treats|samosa|chai|tea\b|coffee|drink|sweets|donut|kebab|kabob|biryani|shawarma|falafel|bbq|barbecue|grill|ice cream)/,
   money: /\b(fund|budget|money|cost|pay|grant|sponsor|buy|purchase)|\$/,
   // Asking for money the org doesn't have yet; food alone is paid from the org account.
   funding: /\b(fund(?!rais)|budget|grant|sponsor|money)/,
@@ -231,15 +235,18 @@ const RULES = {
   // Sound gear, not a guest speaker.
   gear: /\b(tent|mic|microphone|speakers|projector|av|sound|stage)\b/,
   speaker: /\b(speaker|guest|performer|performance|perform|dj|comedian|lecturer|imam|sheikh|shaykh)\b/,
-  fundraiser: /\b(fundrais|bake sale|sell|selling|for sale|charity)/,
+  fundraiser: /\b(fundrais|sales?\b|sell|selling|charity)/,
   vendor: /\b(cater|restaurant|vendor|dj|photographer|speaker fee|order)/,
   table: /\b(tabl)/,
   college: /\b(college|cowell|stevenson|crown|merrill|porter|kresge|oakes|carson|nine|john r\.? lewis)\b/,
 };
 
-/** Lowercased, with "no food" and "without funding" taken out so they don't count. */
+/**
+ * Lowercased, with "no food", "without funding" and "bring your own lunch"
+ * taken out so they don't count.
+ */
 function asked(text: string): string {
-  return text.toLowerCase().replace(/\b(?:no|without)\s+[a-z]+/g, " ");
+  return text.toLowerCase().replace(/\b(?:no|without|bring your own|byo)\s+[a-z]+/g, " ");
 }
 
 /**
@@ -255,6 +262,11 @@ export function dropUnasked(steps: PlanStep[], stepIds: string[], text: string):
     if (!s) return false;
     if (/tent|mic|projector/i.test(s.whenNote)) return RULES.gear.test(t);
     if (/table/i.test(s.whenNote)) return RULES.table.test(t);
+    // The model gave an Eid dinner and a samosa sale a paid speaker, and a
+    // car wash in a parking lot a food permit and the off-campus talk.
+    if (/speaker|performer/i.test(s.whenNote)) return RULES.speaker.test(t);
+    if (/food/i.test(s.whenNote)) return RULES.food.test(t);
+    if (/off campus/i.test(s.whenNote)) return RULES.offCampus.test(t);
     // The food order; the speaker's has its own note.
     if (/^send the purchase request$/i.test(s.title.trim())) return RULES.food.test(t);
     // Asking for money nobody said they need set a speaker event 5 weeks out.
@@ -267,7 +279,9 @@ export function dropUnasked(steps: PlanStep[], stepIds: string[], text: string):
  * The model's picks plus the steps the rules require that it left out: the
  * flyer, the reminder and the wrap-up for every event; with food, the permit, the order, its receipt and the new-vendor check; with a
  * fundraiser, its advisor meeting; with a funding pick, spending it through the
- * campus account; with any money spent, reimbursements.
+ * campus account; with any money spent, reimbursements; and, on campus, the
+ * advisor meeting and the room booking unless it's online (the model took
+ * Quarry Plaza for a place that needs no booking).
  */
 export function addRequired(steps: PlanStep[], stepIds: string[], text: string): string[] {
   const t = asked(text);
@@ -285,6 +299,11 @@ export function addRequired(steps: PlanStep[], stepIds: string[], text: string):
     for (const re of [/^get a food permit$/i, /^new vendor\?/i, /^send the purchase request$/i, /^keep the itemized receipt$/i]) add(re);
   }
   if (RULES.fundraiser.test(t)) add(/^fundraiser\?/i);
+  // On campus: the advisor meeting (off campus has its own talk) and the room.
+  if (!RULES.offCampus.test(t)) add(/^meet an advisor$/i);
+  if (!RULES.noRoom.test(t) && !RULES.offCampus.test(t)) {
+    for (const s of steps) if (s.categorySlug === "reserve-a-room" && !s.whenNote.trim()) chosen.add(s.id);
+  }
   const picked = () => steps.filter((s) => chosen.has(s.id));
   if (picked().some((s) => /^pick where the money comes from$/i.test(s.title.trim()))) add(/^spend it through the campus account$/i);
   if (picked().some((s) => s.categorySlug === "purchase-orders" || s.categorySlug === "get-funding")) add(/^file reimbursements$/i);

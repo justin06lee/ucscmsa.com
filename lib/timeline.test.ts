@@ -165,6 +165,10 @@ describe("buildItems", () => {
 describe("keyword rules", () => {
   it("reads dates and sizes", () => {
     expect(parseDate("halaqa on Nov 20", today)).toBe("2026-11-20");
+    expect(parseDate("halaqa on November 20th", today)).toBe("2026-11-20");
+    expect(parseDate("halaqa on 20 March", today)).toMatch(/-03-20$/);
+    // "maybe 30" is a headcount, not May 30.
+    expect(parseDate("movie night, maybe 30 people", today)).toBeNull();
     expect(guessSize("a small halaqa for 15")).toBe("small");
     expect(guessSize("halaqa for 15 with a guest speaker")).toBe("mid");
     expect(guessSize("public fundraiser dinner for 300 people with a speaker")).not.toBe("small");
@@ -227,9 +231,28 @@ describe("dropUnasked", () => {
     expect(dropUnasked(steps, [optional[0]], "need a mic and a projector")).toEqual([optional[0]]);
   });
 
-  it("leaves every other step alone, the speaker's Purchase Request too", () => {
-    const rest = steps.filter((s) => !optional.includes(s.id)).map((s) => s.id);
+  it("leaves every other step alone", () => {
+    const rest = steps
+      .filter((s) => !optional.includes(s.id) && !/speaker|performer|food|off campus/i.test(s.whenNote))
+      .map((s) => s.id);
     expect(dropUnasked(steps, rest, "a halaqa, need funding")).toEqual(rest);
+  });
+
+  it("drops the speaker paperwork unless a speaker or performer is named", () => {
+    const paid = steps.filter((s) => /speaker|performer/i.test(s.whenNote)).map((s) => s.id);
+    expect(paid.length).toBe(2);
+    expect(dropUnasked(steps, paid, "Eid dinner open to the community, catered")).toEqual([]);
+    expect(dropUnasked(steps, paid, "samosa sale fundraiser at Quarry Plaza")).toEqual([]);
+    expect(dropUnasked(steps, paid, "an imam is giving a talk, $300 honorarium")).toEqual(paid);
+    expect(dropUnasked(steps, paid, "concert with a paid performer")).toEqual(paid);
+  });
+
+  it("drops the food permit without food and the off-campus talk on campus", () => {
+    const permit = id("Get a food permit");
+    const away = id("Going off campus? Talk to your advisor");
+    expect(dropUnasked(steps, [permit, away], "charity car wash fundraiser in the East Remote parking lot")).toEqual([]);
+    expect(dropUnasked(steps, [permit, away], "hiking trip, bring your own lunch")).toEqual([away]);
+    expect(dropUnasked(steps, [permit], "movie night with popcorn and drinks")).toEqual([permit]);
   });
 
   it("drops funding steps unless they ask for money", () => {
@@ -246,11 +269,20 @@ describe("addRequired", () => {
   const always = steps
     .filter((s) => (s.categorySlug === "promote" || s.categorySlug === "after-the-event") && !s.whenNote)
     .map((s) => s.id);
+  const room = steps.filter((s) => s.categorySlug === "reserve-a-room" && !s.whenNote.trim()).map((s) => s.id);
+  const campus = [id("Meet an advisor"), ...room];
   const same = (got: string[], want: string[]) => expect([...got].sort()).toEqual([...new Set([first, ...always, ...want])].sort());
 
   it("adds the food steps and reimbursements whenever there is food", () => {
-    same(addRequired(steps, [first], "halaqa with pizza, ~40 people"), [...food, id("File reimbursements")]);
+    same(addRequired(steps, [first], "halaqa with pizza, ~40 people"), [...campus, ...food, id("File reimbursements")]);
+    same(addRequired(steps, [first], "samosa sale, we'll cook at home"), [
+      ...campus,
+      ...food,
+      id("Fundraiser? Meet an advisor about it"),
+      id("File reimbursements"),
+    ]);
     same(addRequired(steps, [first], "bake sale fundraiser on campus"), [
+      ...campus,
       ...food,
       id("Fundraiser? Meet an advisor about it"),
       id("File reimbursements"),
@@ -259,6 +291,7 @@ describe("addRequired", () => {
 
   it("adds spending through the campus account when funding is picked", () => {
     same(addRequired(steps, [first, id("Pick where the money comes from")], "a talk"), [
+      ...campus,
       id("Pick where the money comes from"),
       id("Spend it through the campus account"),
       id("File reimbursements"),
@@ -266,9 +299,15 @@ describe("addRequired", () => {
   });
 
   it("adds only the flyer and wrap-up to a small event with no food or money", () => {
-    same(addRequired(steps, [first], "halaqa thursday night in a classroom, ~15 people, no food"), []);
+    same(addRequired(steps, [first], "halaqa thursday night in a classroom, ~15 people, no food"), campus);
     same(addRequired(steps, [first], "beach cleanup off campus"), []);
     expect(always.length).toBe(5);
+  });
+
+  it("books the room unless it's online or off campus, a named campus place too", () => {
+    same(addRequired(steps, [first], "a talk at Quarry Plaza"), campus);
+    same(addRequired(steps, [first], "Quran circle on Zoom"), [id("Meet an advisor")]);
+    same(addRequired(steps, [first], "day trip to the aquarium"), []);
   });
 });
 
@@ -297,9 +336,13 @@ describe("planTurn", () => {
   const always = steps
     .filter((s) => (s.categorySlug === "promote" || s.categorySlug === "after-the-event") && !s.whenNote)
     .map((s) => s.id);
+  // The pizza halaqa is on campus, so its advisor meeting and room booking come too.
+  const room = steps.filter((s) => s.categorySlug === "reserve-a-room" && !s.whenNote.trim()).map((s) => s.id);
   const withFood = [
     steps[0].id,
+    id("Meet an advisor"),
     ...always,
+    ...room,
     ...["Get a food permit", "New vendor? Get the 204 payee setup", "Send the Purchase Request", "Keep the itemized receipt", "File reimbursements"].map(id),
   ];
 
@@ -343,12 +386,22 @@ describe("planTurn", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps the model's size only when a headcount was given", async () => {
+  it("sizes by the headcount written, keeping the model's size only for a bare number answering How many", async () => {
     const speaker = [{ role: "user" as const, text: "bringing an outside speaker, ticketed, in a big hall, Dec 3" }];
     const major = JSON.stringify({ type: "timeline", title: "Speaker", eventDate: "2026-12-03", size: "major", steps: [1] });
     expect(await planTurn({ chat: speaker, steps, today, apiKey: "k", fetchImpl: reply(major) })).toMatchObject({ size: "mid" });
-    const dinner = [{ role: "user" as const, text: "eid dinner, 300 people, Dec 3" }];
-    expect(await planTurn({ chat: dinner, steps, today, apiKey: "k", fetchImpl: reply(major) })).toMatchObject({ size: "major" });
+    // The model said mid for 25 students and for 120 people.
+    const mid = JSON.stringify({ type: "timeline", title: "Trip", eventDate: "2026-12-03", size: "mid", steps: [1] });
+    const trip = [{ role: "user" as const, text: "aquarium day trip, 25 students, Dec 3" }];
+    expect(await planTurn({ chat: trip, steps, today, apiKey: "k", fetchImpl: reply(mid) })).toMatchObject({ size: "small" });
+    const concert = [{ role: "user" as const, text: "nasheed concert, about 120 people, Dec 3" }];
+    expect(await planTurn({ chat: concert, steps, today, apiKey: "k", fetchImpl: reply(mid) })).toMatchObject({ size: "large" });
+    const bare = [
+      { role: "user" as const, text: "eid dinner Dec 3" },
+      { role: "assistant" as const, text: "How many people do you expect?" },
+      { role: "user" as const, text: "300" },
+    ];
+    expect(await planTurn({ chat: bare, steps, today, apiKey: "k", fetchImpl: reply(major) })).toMatchObject({ size: "major" });
   });
 
   it("asks for the date first, before calling the model, when nobody gave one", async () => {

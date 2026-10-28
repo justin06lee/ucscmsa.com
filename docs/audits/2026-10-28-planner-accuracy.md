@@ -80,7 +80,38 @@ already removes or adds most of these; what gets through:
 | i samosa sale | speaker paperwork (#6, sometimes #17); no room steps (#9 to #11); no receipt (#19) | room steps, receipt | "samosa" and "cook" aren't food words to the code, so the food steps aren't forced in; the model took Quarry Plaza for a place that needs no booking |
 | h aquarium trip (one run) | speaker paperwork (#6) | none | as for l |
 
-## Fixes worth making (not made; for a go-ahead)
+## After the fixes (same day, Justin's go)
+
+Made in lib/timeline-plan.ts and lib/timeline-llm.ts, with unit tests:
+
+1. The size comes from the written headcount by SOMeCA's thresholds; the
+   model's size is kept only for a bare number answering "How many".
+2. Speaker and performer paperwork (#6, #17), the food permit (#5) and the
+   off-campus talk (#4) are dropped unless the description calls for them.
+3. More food words (samosa, cook, chai, drinks, kebab, bbq and more); "any
+   sale" is a fundraiser; "bring your own lunch" is not food.
+4. On campus, the advisor meeting (#2) and the room booking (#9 to #11) are
+   always in, unless it's online.
+5. A date bug: "maybe 30 people" was read as May 30. Only whole month names
+   count now.
+
+Five more descriptions were written after fixes 1 to 4, as a held-out check
+(p to t: a movie night with popcorn, a Zoom Quran session, a hike with
+bring-your-own lunch, a car wash in a parking lot, an unpaid alumni panel with
+pizza). Before fix 5 and the second half of 2 and 3, 2 of the 5 passed (q, t);
+the misses (p's date, r's food, s's permit and off-campus talk) are what those
+fixes answer.
+
+| | Runs | All right | Date | Size | Step precision | Step recall |
+|---|---|---|---|---|---|---|
+| The model's own answer | 40 | 2 (5%) | 100% | 57% | 86% | 90% |
+| What the site ships | 40 | **40 (100%)** | 100% | 100% | 100% | 100% |
+| Keyword rules alone | 20 | 16 (80%) | 100% | 100% | 98% | 100% |
+
+All 20 descriptions are now ones the fixes were made from, so 100% is an
+upper bound: a third, fresh set is the next fair test.
+
+## The fixes as first proposed
 
 1. Size from the headcount by SOMeCA's thresholds, not from the model, whenever
    a headcount is given (fixes h and n).
