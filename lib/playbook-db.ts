@@ -3,6 +3,7 @@ import type { DB } from "@/lib/db/client";
 import {
   playbookCategories,
   playbookSteps,
+  timelineAssignees,
   timelines,
   type TimelineChatTurn,
   type TimelineItem,
@@ -314,11 +315,39 @@ async function writeOwn(db: DB, id: string, ownerUserId: string, set: Partial<ty
   return res.length > 0;
 }
 
-export async function setItemDone(db: DB, id: string, ownerUserId: string, itemId: string, done: boolean) {
-  const t = await getOwnTimeline(db, id, ownerUserId);
+/** Tick a step. The timeline's owner can tick any step; a board member, the steps given to them. */
+export async function setItemDone(db: DB, id: string, userId: string, itemId: string, done: boolean) {
+  const [t] = await db
+    .select({ ownerUserId: timelines.ownerUserId, items: timelines.items })
+    .from(timelines)
+    .where(eq(timelines.id, id));
   if (!t) return false;
-  const items = t.items.map((it) => (it.id === itemId ? { ...it, done } : it));
-  return writeOwn(db, id, ownerUserId, { items });
+  if (t.ownerUserId !== userId) {
+    const [mine] = await db
+      .select({ userId: timelineAssignees.userId })
+      .from(timelineAssignees)
+      .where(
+        and(
+          eq(timelineAssignees.timelineId, id),
+          eq(timelineAssignees.itemId, itemId),
+          eq(timelineAssignees.userId, userId),
+        ),
+      );
+    if (!mine) return false;
+  }
+  const at = t.items.findIndex((it) => it.id === itemId);
+  if (at < 0) return false;
+  // Only this one step is written, so two people ticking different steps
+  // at the same time never undo each other.
+  const res = await db
+    .update(timelines)
+    .set({
+      items: sql`json_set(${timelines.items}, ${`$[${at}].done`}, json(${done ? "true" : "false"}))`,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(timelines.id, id), sql`json_extract(${timelines.items}, ${`$[${at}].id`}) = ${itemId}`))
+    .returning({ id: timelines.id });
+  return res.length > 0;
 }
 
 export async function setTimelineDate(db: DB, id: string, ownerUserId: string, eventDate: string, today: string) {
@@ -329,6 +358,10 @@ export async function setTimelineDate(db: DB, id: string, ownerUserId: string, e
 
 export async function setTimelinePublic(db: DB, id: string, ownerUserId: string, isPublic: boolean) {
   return writeOwn(db, id, ownerUserId, { isPublic });
+}
+
+export async function setTimelineOnCalendar(db: DB, id: string, ownerUserId: string, onCalendar: boolean) {
+  return writeOwn(db, id, ownerUserId, { onCalendar });
 }
 
 export async function renameTimeline(db: DB, id: string, ownerUserId: string, title: string) {

@@ -56,6 +56,13 @@ export function addDaysYmd(ymd: string, days: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+/** "Fri, Nov 20" for a YYYY-MM-DD date, read as a calendar day (no time zone shift). */
+export function formatDay(ymd: string): string {
+  const d = new Date(`${ymd}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 /** The day a task with this lead time is due for an event on `eventYmd`. */
 export function dueDate(eventYmd: string, daysBefore: number): string {
   return addDaysYmd(eventYmd, -daysBefore);

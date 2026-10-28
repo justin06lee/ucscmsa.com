@@ -40,6 +40,11 @@ export default defineConfig({
           NEXT_PUBLIC_SITE_URL: baseURL,
           // The timeline planner uses its keyword rules, never the model.
           PLANNER_LLM: "off",
+          // Never real email or a real calendar, whatever .env.local holds.
+          RESEND_API_KEY: "",
+          GOOGLE_SA_JSON: "",
+          GOOGLE_CALENDAR_ID: "",
+          CRON_SECRET: "e2e-cron-secret",
         },
       },
   use: {

@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth";
 import { getOwnTimeline } from "@/lib/playbook-db";
+import { stepOwners } from "@/lib/step-owners";
+import { calendarConfigFromEnv } from "@/lib/gcal";
 import { SITE_URL } from "@/lib/site";
 import { toLocalYmd } from "@/lib/time";
+import { boardMembers } from "../_plan";
 import { TimelineView } from "./timeline-view";
 
 export default async function TimelinePage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +15,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const timeline = session.user.id ? await getOwnTimeline(db, id, session.user.id) : null;
   if (!timeline) notFound();
+  const [owners, members] = await Promise.all([stepOwners(db, timeline.id), boardMembers(db)]);
   return (
     <div className="max-w-2xl">
       <Link
@@ -28,6 +32,9 @@ export default async function TimelinePage({ params }: { params: Promise<{ id: s
         isPublic={timeline.isPublic}
         shareUrl={`${SITE_URL}/timeline/${timeline.shareSlug}`}
         today={toLocalYmd(new Date())}
+        owners={owners}
+        members={members}
+        calendar={calendarConfigFromEnv() ? { onCalendar: timeline.onCalendar, behind: timeline.calendarDirty } : null}
       />
     </div>
   );

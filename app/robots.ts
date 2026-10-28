@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         // No trailing slash, so /admin and /api themselves are covered too.
         // /login stays crawlable so its noindex is seen.
-        disallow: ["/admin", "/api", "/timeline/"],
+        disallow: ["/admin", "/api", "/timeline/", "/unsubscribe"],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),

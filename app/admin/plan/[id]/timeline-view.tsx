@@ -7,9 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import type { TimelineItem } from "@/lib/db/schema";
 import { Progress, TimelineList, formatDay } from "@/components/playbook/timeline-items";
+import type { BoardMember } from "../_plan";
 import {
+  assignStepAction,
   deleteTimelineAction,
   renameTimelineAction,
+  setCalendarAction,
   setDateAction,
   setPublicAction,
   toggleItemAction,
@@ -23,9 +26,14 @@ type Props = {
   isPublic: boolean;
   shareUrl: string;
   today: string;
+  /** Item id to the user id of the board member doing it. */
+  owners: Record<string, string>;
+  members: BoardMember[];
+  /** Null while the MSA calendar isn't connected. */
+  calendar: { onCalendar: boolean; behind: boolean } | null;
 };
 
-export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, today }: Props) {
+export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, today, owners, members, calendar }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +42,14 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
   const [date, setDate] = useState(eventDate);
   const [name, setName] = useState(title);
   const [copied, setCopied] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [assigned, setAssigned] = useState<Record<string, string | null>>({});
   const shown = items.map((i) => (i.id in done ? { ...i, done: done[i.id] } : i));
+  const ownerOf = (itemId: string) => (itemId in assigned ? assigned[itemId] : owners[itemId] ?? null);
 
-  function run(fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) {
+  function run(fn: () => Promise<{ ok: boolean; error?: string; notice?: string }>, after?: () => void) {
     setError(null);
+    setNotice(null);
     start(async () => {
       try {
         const res = await fn();
@@ -45,6 +57,7 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
           setError(res.error ?? "That didn't save. Try again.");
           return;
         }
+        if (res.notice) setNotice(res.notice);
         after?.();
         router.refresh();
       } catch {
@@ -62,6 +75,21 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
       } catch {
         setDone((d) => ({ ...d, [item.id]: !next }));
         setError("That didn't save. Try again.");
+      }
+    });
+  }
+
+  function assign(item: TimelineItem, userId: string | null) {
+    const before = ownerOf(item.id);
+    setAssigned((a) => ({ ...a, [item.id]: userId }));
+    setError(null);
+    start(async () => {
+      try {
+        const res = await assignStepAction({ id, itemId: item.id, userId });
+        if (!res.ok) throw new Error(res.error);
+      } catch (err) {
+        setAssigned((a) => ({ ...a, [item.id]: before }));
+        setError(err instanceof Error && err.message ? err.message : "That didn't save. Try again.");
       }
     });
   }
@@ -111,6 +139,11 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
           {error}
         </p>
       ) : null}
+      {notice ? (
+        <p role="status" className="mt-2 text-sm text-dim">
+          {notice}
+        </p>
+      ) : null}
       <div className="mt-4">
         <Progress items={shown} />
         <TimelineList
@@ -123,6 +156,14 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
               className="min-w-11 justify-center"
               checked={item.done}
               onChange={(e) => toggle(item, e.target.checked)}
+            />
+          )}
+          owner={(item) => (
+            <StepOwner
+              stepTitle={item.title}
+              value={ownerOf(item.id)}
+              members={members}
+              onChange={(userId) => assign(item, userId)}
             />
           )}
         />
@@ -163,6 +204,26 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
         )}
       </section>
 
+      {calendar ? (
+        <section className="mt-8 border-t border-ink/10 pt-4">
+          <h2 className="text-lg font-medium">MSA calendar</h2>
+          <Checkbox
+            className="mt-1 text-base"
+            label="Put it on the MSA Google Calendar"
+            checked={calendar.onCalendar}
+            disabled={pending}
+            onChange={(e) => run(() => setCalendarAction({ id, onCalendar: e.target.checked }))}
+          />
+          <p className="text-sm text-dim">
+            {calendar.onCalendar
+              ? calendar.behind
+                ? "On it, but the last change hasn't reached it yet. It will try again tomorrow morning."
+                : "On it as an all-day event. A new name or date updates it."
+              : "Members who added the MSA calendar see its name and date."}
+          </p>
+        </section>
+      ) : null}
+
       <details className="mt-8 border-t border-ink/10 pt-3">
         <summary className="flex min-h-11 cursor-pointer items-center text-sm text-dim">Rename or delete</summary>
         <form
@@ -195,5 +256,39 @@ export function TimelineView({ id, title, eventDate, items, isPublic, shareUrl, 
         </Button>
       </details>
     </div>
+  );
+}
+
+/** Who does a step: a board member, or no one yet. One native picker, so phones use their own. */
+function StepOwner({
+  stepTitle,
+  value,
+  members,
+  onChange,
+}: {
+  stepTitle: string;
+  value: string | null;
+  members: BoardMember[];
+  onChange: (userId: string | null) => void;
+}) {
+  const known = !value || members.some((m) => m.userId === value);
+  return (
+    <select
+      aria-label={`Who does: ${stepTitle}`}
+      data-testid="step-owner"
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      className={`min-h-11 max-w-full appearance-none rounded-full border px-4 text-base ${
+        value ? "border-ink/25 text-ink" : "border-dashed border-ink/20 text-dim"
+      } bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40`}
+    >
+      <option value="">{value ? "No one" : "Assign"}</option>
+      {members.map((m) => (
+        <option key={m.userId} value={m.userId}>
+          {m.name}
+        </option>
+      ))}
+      {known ? null : <option value={value!}>Former board member</option>}
+    </select>
   );
 }

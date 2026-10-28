@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { BrowserContext, Page } from "@playwright/test";
 
-type Seed = { adminToken: string; memberToken: string };
+type Seed = { adminToken: string; memberToken: string; admin2Token: string };
 
 /** The seed written by scripts/seed-local.ts (see playwright.config.ts). */
 export function seed(): Seed | null {
@@ -10,12 +10,16 @@ export function seed(): Seed | null {
   return JSON.parse(readFileSync(file, "utf8")) as Seed;
 }
 
-/** Sign the context in as the seeded admin or member via the Auth.js session cookie. */
-export async function signIn(context: BrowserContext, baseURL: string, as: "admin" | "member") {
+/** Sign the context in via the Auth.js session cookie: the seeded admin (Aisha), member (Yusuf), or second admin (Omar). */
+export async function signIn(context: BrowserContext, baseURL: string, as: "admin" | "member" | "admin2") {
   const s = seed();
   if (!s) throw new Error("no seed file: set E2E_SEED_FILE to scripts/seed-local.ts output");
   await context.addCookies([
-    { name: "authjs.session-token", value: as === "admin" ? s.adminToken : s.memberToken, url: baseURL },
+    {
+      name: "authjs.session-token",
+      value: as === "admin" ? s.adminToken : as === "admin2" ? s.admin2Token : s.memberToken,
+      url: baseURL,
+    },
   ]);
 }
 

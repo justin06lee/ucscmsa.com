@@ -566,6 +566,11 @@ export const timelines = sqliteTable(
     source: text("source").notNull().default("rules"),
     isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
     shareSlug: text("share_slug").notNull().unique(),
+    // On the MSA's shared Google Calendar: the owner turns it on; the event id
+    // lets later saves update that one event; dirty means the last sync failed.
+    onCalendar: integer("on_calendar", { mode: "boolean" }).notNull().default(false),
+    googleEventId: text("google_event_id"),
+    calendarDirty: integer("calendar_dirty", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -576,5 +581,56 @@ export const timelines = sqliteTable(
   (t) => ({
     byOwner: index("timelines_owner_idx").on(t.ownerUserId, t.createdAt),
     dateFormat: check("timelines_event_date_format", sql`${t.eventDate} GLOB '????-??-??'`),
+  })
+);
+
+// Who does a timeline step: one board member per step. The step itself is in
+// timelines.items, found by its item id.
+export const timelineAssignees = sqliteTable(
+  "timeline_assignees",
+  {
+    timelineId: text("timeline_id")
+      .notNull()
+      .references(() => timelines.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assignedByUserId: text("assigned_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    assignedAt: integer("assigned_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.timelineId, t.itemId] }),
+    byUser: index("timeline_assignees_user_idx").on(t.userId),
+  })
+);
+
+// Step emails are on unless the person mutes them.
+export const notifyPrefs = sqliteTable("notify_prefs", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// One daily reminder per person per Santa Cruz day, so a repeated cron run never sends twice.
+export const reminderSends = sqliteTable(
+  "reminder_sends",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    day: text("day").notNull(),
+    sentAt: integer("sent_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.day] }),
   })
 );

@@ -1,13 +1,9 @@
 import type { ReactNode } from "react";
 import type { TimelineItem } from "@/lib/db/schema";
+import { formatDay } from "@/lib/planning";
 import { FormLink, StepText, timingLabel } from "./step-text";
 
-/** "Fri, Nov 20" for a YYYY-MM-DD date, read as a calendar day (no time zone shift). */
-export function formatDay(ymd: string): string {
-  const d = new Date(`${ymd}T12:00:00Z`);
-  if (Number.isNaN(d.getTime())) return ymd;
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
-}
+export { formatDay };
 
 /**
  * True when a step's own deadline (its lead time before the event) is already
@@ -26,17 +22,22 @@ export function sortItems(items: TimelineItem[]): TimelineItem[] {
     .map((x) => x.item);
 }
 
-/** The dated steps of a timeline. `check` puts a checkbox in front of each; without it, done steps say so. */
+/**
+ * The dated steps of a timeline. `check` puts a checkbox in front of each;
+ * without it, done steps say so. `owner` adds who does the step under its date.
+ */
 export function TimelineList({
   items,
   eventDate,
   today,
   check,
+  owner,
 }: {
   items: TimelineItem[];
   eventDate: string;
   today: string;
   check?: (item: TimelineItem) => ReactNode;
+  owner?: (item: TimelineItem) => ReactNode;
 }) {
   const anyBehind = items.some((i) => isBehind(i, eventDate, today));
   return (
@@ -72,6 +73,7 @@ export function TimelineList({
                   )}
                   {!check && item.done ? " · done" : null}
                 </p>
+                {owner ? <div className="mt-1">{owner(item)}</div> : null}
                 {item.whenNote ? <p className="mt-1 text-sm italic text-dim">{item.whenNote}</p> : null}
                 {item.formUrl && !item.done ? (
                   <div className="mt-2">

@@ -110,7 +110,7 @@ describe("sitemap", () => {
 describe("robots", () => {
   it("keeps crawlers out of admin and the API and points to the sitemap", () => {
     const r = robots();
-    expect(r.rules).toEqual([{ userAgent: "*", allow: "/", disallow: ["/admin", "/api", "/timeline/"] }]);
+    expect(r.rules).toEqual([{ userAgent: "*", allow: "/", disallow: ["/admin", "/api", "/timeline/", "/unsubscribe"] }]);
     expect(r.sitemap).toBe("https://ucscmsa.com/sitemap.xml");
   });
 });

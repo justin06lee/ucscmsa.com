@@ -469,16 +469,20 @@ async function main() {
   await seedPlaybook(db, PLAYBOOK_SEED);
 
   const memberToken = randomBytes(32).toString("hex");
+  // A second board member, for steps one admin gives another.
+  const admin2Token = randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 30 * DAY);
   await db.insert(sessions).values([
     { sessionToken: adminToken, userId: "u-aisha", expires },
     { sessionToken: memberToken, userId: "u-yusuf", expires },
+    { sessionToken: admin2Token, userId: "u-omar", expires },
   ]);
 
   console.log(
     JSON.stringify({
       adminToken,
       memberToken,
+      admin2Token,
       singleEventId: "ev-gbm",
       recurringEventId: "ev-halaqa",
       plannedEventId: "ev-bonfire",
