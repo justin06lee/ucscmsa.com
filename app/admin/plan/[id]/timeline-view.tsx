@@ -1,5 +1,6 @@
 "use client";
 
+import { UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -273,22 +274,23 @@ function StepOwner({
 }) {
   const known = !value || members.some((m) => m.userId === value);
   return (
-    <select
-      aria-label={`Who does: ${stepTitle}`}
-      data-testid="step-owner"
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value || null)}
-      className={`min-h-11 max-w-full appearance-none rounded-full border px-4 text-base ${
-        value ? "border-ink/25 text-ink" : "border-dashed border-ink/20 text-dim"
-      } bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40`}
-    >
-      <option value="">{value ? "No one" : "Assign"}</option>
-      {members.map((m) => (
-        <option key={m.userId} value={m.userId}>
-          {m.name}
-        </option>
-      ))}
-      {known ? null : <option value={value!}>Former board member</option>}
-    </select>
+    <label className={`inline-flex min-h-11 max-w-full items-center gap-1.5 ${value ? "text-ink" : "text-burgundy"}`}>
+      <UserRound aria-hidden className="size-4 shrink-0 opacity-70" />
+      <select
+        aria-label={`Who does: ${stepTitle}`}
+        data-testid="step-owner"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || null)}
+        className="min-h-11 min-w-0 max-w-full cursor-pointer appearance-none truncate bg-transparent text-base underline decoration-current/30 underline-offset-4 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ink/40"
+      >
+        <option value="">{value ? "No one" : "Assign someone"}</option>
+        {members.map((m) => (
+          <option key={m.userId} value={m.userId}>
+            {m.name}
+          </option>
+        ))}
+        {known ? null : <option value={value!}>Former board member</option>}
+      </select>
+    </label>
   );
 }
