@@ -18,7 +18,7 @@ export default function CalendarError({
       <p className="italic text-dim">
         The calendar couldn&apos;t load right now. Please try again in a moment.
       </p>
-      <Button variant="outline" onClick={() => retry()} className="mt-4">
+      <Button variant="ghost" onClick={() => retry()} className="mt-4 -ml-4 min-h-11">
         Retry
       </Button>
     </main>

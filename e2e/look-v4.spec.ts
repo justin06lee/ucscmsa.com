@@ -36,11 +36,19 @@ test.describe("landing", () => {
     await expect(wa).toHaveAttribute("target", "_blank");
 
     const copy = social.getByRole("button", { name: /salam@ucscmsa\.com/ });
+    // Icon-only ghost buttons: round 44px targets, no border, no text showing.
+    for (const b of [ig, wa, copy]) {
+      const box = (await b.boundingBox())!;
+      expect([box.width, box.height]).toEqual([44, 44]);
+      expect(await b.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
+    }
+    // The address only shows in the tip, which is clear until hover or focus.
+    await expect(copy.getByText("salam@ucscmsa.com", { exact: true })).toHaveCSS("opacity", "0");
     const before = (await copy.boundingBox())!.width;
     await copy.click();
     await expect(page.getByRole("status").filter({ hasText: "Copied salam@ucscmsa.com" })).toBeAttached();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("salam@ucscmsa.com");
-    // "Copied" takes the address's place without changing the button's size.
+    // The check and "Copied" don't change the button's size.
     expect((await copy.boundingBox())!.width).toBe(before);
   });
 });

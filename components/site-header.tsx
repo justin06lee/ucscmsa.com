@@ -93,7 +93,7 @@ export function SiteHeader({
 
         <nav
           aria-label="Primary"
-          className={`items-center gap-3 text-sm text-ink/70 ${collapsible ? "hidden md:flex" : "flex"}`}
+          className={`-mr-3 items-center gap-1 text-sm text-ink/70 ${collapsible ? "hidden md:flex" : "flex"}`}
         >
           {items.map((item) => {
             const isActive = item.href === activeHref;
@@ -102,10 +102,10 @@ export function SiteHeader({
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`inline-flex min-h-11 items-center px-1 ${
+                className={`inline-flex min-h-11 items-center rounded-full px-3 transition-colors hover:bg-ink/5 ${
                   isActive
                     ? "text-ink underline decoration-burgundy decoration-2 underline-offset-[6px]"
-                    : "transition-colors hover:text-ink"
+                    : "hover:text-ink"
                 }`}
               >
                 {item.label}

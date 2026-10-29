@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Mail } from "lucide-react";
 import { SITE_EMAIL, SITE_INSTAGRAM_URL, SITE_WHATSAPP_JOIN_URL } from "@/lib/site";
 
-const pill =
-  "inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/15 px-4 text-sm text-ink/80 transition-colors hover:border-ink/40 hover:text-ink";
+// Round ghost buttons: just the icon, a soft wash on hover. The name sits in
+// a small tip under the icon on hover or keyboard focus.
+const ghost =
+  "group relative inline-flex size-11 items-center justify-center rounded-full text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40";
+const tip =
+  "pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-paper opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100";
 
 function InstagramGlyph() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="5" />
       <circle cx="12" cy="12" r="4" />
       <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
@@ -19,7 +23,7 @@ function InstagramGlyph() {
 
 function WhatsAppGlyph() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
       <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.7-1.2 2.2 2.2 0 0 0 .2-1.2c-.1-.1-.3-.2-.5-.3Z" />
     </svg>
   );
@@ -47,7 +51,7 @@ async function copyText(text: string): Promise<boolean> {
 /**
  * The MSA's ways in, right under the landing's logo: Instagram, the WhatsApp
  * sign-up form (the group is joined through a form, not an open link), and a
- * button that copies the email address.
+ * button that copies the email address. Icons only, as ghost buttons.
  */
 export function SocialLinks({ className = "" }: { className?: string }) {
   const [copied, setCopied] = useState<"yes" | "failed" | null>(null);
@@ -58,40 +62,38 @@ export function SocialLinks({ className = "" }: { className?: string }) {
   }, [copied]);
 
   return (
-    <ul aria-label="Find us" className={`flex flex-wrap items-center justify-center gap-2.5 ${className}`}>
+    <ul aria-label="Find us" className={`flex items-center justify-center gap-1.5 ${className}`}>
       <li>
-        <a href={SITE_INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={pill}>
+        <a href={SITE_INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={ghost}>
           <InstagramGlyph />
-          Instagram
-          <span className="sr-only"> (opens in a new tab)</span>
+          <span className="sr-only">Instagram (opens in a new tab)</span>
+          <span aria-hidden="true" className={tip}>Instagram</span>
         </a>
       </li>
       <li>
-        <a href={SITE_WHATSAPP_JOIN_URL} target="_blank" rel="noopener noreferrer" className={pill}>
+        <a href={SITE_WHATSAPP_JOIN_URL} target="_blank" rel="noopener noreferrer" className={ghost}>
           <WhatsAppGlyph />
-          WhatsApp
-          <span className="sr-only"> sign-up form (opens in a new tab)</span>
+          <span className="sr-only">WhatsApp sign-up form (opens in a new tab)</span>
+          <span aria-hidden="true" className={tip}>WhatsApp</span>
         </a>
       </li>
       <li>
         <button
           type="button"
           onClick={async () => setCopied((await copyText(SITE_EMAIL)) ? "yes" : "failed")}
-          className={pill}
+          className={ghost}
         >
           {copied === "yes" ? (
-            <Check size={16} aria-hidden="true" className="text-burgundy" />
+            <Check size={20} aria-hidden="true" className="text-burgundy" />
           ) : (
-            <Copy size={16} aria-hidden="true" />
+            <Mail size={20} aria-hidden="true" />
           )}
-          {/* Both labels share one cell, so the pill keeps its width. */}
-          <span className="grid">
-            <span className={`col-start-1 row-start-1 ${copied === "yes" ? "invisible" : ""}`}>{SITE_EMAIL}</span>
-            <span aria-hidden="true" className={`col-start-1 row-start-1 text-center ${copied === "yes" ? "" : "invisible"}`}>
-              Copied
-            </span>
+          <span className="sr-only">Copy {SITE_EMAIL}</span>
+          {/* The address isn't on the button, so the tip shows it, and says
+              Copied (staying up a moment) once it's on the clipboard. */}
+          <span aria-hidden="true" className={`${tip} ${copied === "yes" ? "opacity-100" : ""}`}>
+            {copied === "yes" ? "Copied" : SITE_EMAIL}
           </span>
-          <span className="sr-only">{copied ? "" : " (copy the email address)"}</span>
         </button>
         <span role="status" className="sr-only">
           {copied === "yes" ? `Copied ${SITE_EMAIL}` : copied === "failed" ? "Could not copy. The address is " + SITE_EMAIL : ""}

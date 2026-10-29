@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buttonClasses } from "@/components/ui/button";
 import { PrayerSpace } from "@/components/prayer-space";
 import { WiggleIcon } from "@/components/logo/wiggle-icon";
 import { WiggleLetters } from "@/components/logo/wiggle-letters";
@@ -50,7 +51,7 @@ export default function Home() {
             <h2 className="text-2xl">Upcoming</h2>
             <Link
               href="/calendar"
-              className="-my-3 inline-flex min-h-11 items-center text-sm text-dim hover:text-ink transition-colors"
+              className="-my-3 -mr-3 inline-flex min-h-11 items-center rounded-full px-3 text-sm text-dim transition-colors hover:bg-ink/5 hover:text-ink"
             >
               See all events
             </Link>
@@ -59,7 +60,7 @@ export default function Home() {
         </section>
         <Link
           href="/calendar"
-          className="inline-flex items-center rounded-full border border-ink px-7 py-3 font-medium transition-colors hover:bg-ink hover:text-paper"
+          className={`${buttonClasses("ghost", "lg")} min-h-11`}
         >
           See the full calendar
         </Link>
@@ -70,7 +71,7 @@ export default function Home() {
             </h2>
             <Link
               href="/calendar?view=year"
-              className="-my-3 inline-flex min-h-11 items-center text-sm text-dim hover:text-ink transition-colors"
+              className="-my-3 -mr-3 inline-flex min-h-11 items-center rounded-full px-3 text-sm text-dim transition-colors hover:bg-ink/5 hover:text-ink"
             >
               Browse the calendar
             </Link>

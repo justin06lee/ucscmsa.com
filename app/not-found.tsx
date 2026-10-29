@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import Link from "next/link";
+import { buttonClasses } from "@/components/ui/button";
 
 const ASCII_COUNT = 10;
 // Pick once per server boot rather than per request so the page is cacheable
@@ -34,7 +35,7 @@ export default async function NotFound() {
         </div>
         <Link
           href="/"
-          className="inline-flex items-center rounded-full border border-ink px-7 py-3 font-medium transition-colors hover:bg-ink hover:text-paper"
+          className={`${buttonClasses("ghost", "lg")} min-h-11`}
         >
           Back home
         </Link>

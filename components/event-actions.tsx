@@ -1,13 +1,23 @@
-import { CalendarPlus } from "lucide-react";
-import { LINK_KIND_LABELS, type EventLink } from "@/lib/event-rules";
+import { CalendarPlus, ClipboardList, HandHeart, Link2, MapPin, type LucideIcon } from "lucide-react";
+import { LINK_KIND_LABELS, type EventLink, type LinkKind } from "@/lib/event-rules";
 import { buttonClasses } from "@/components/ui/button";
 import { ShareButton } from "./share-button";
 
 // Links come from the import and the admin form, so they're treated like
 // links in descriptions: new tab, no referrer, no endorsement.
 const REL = "noopener noreferrer nofollow ugc";
-const PILL = "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors";
-const QUIET = "inline-flex min-h-11 items-center gap-1.5 px-1 text-sm text-ink/75 transition-colors hover:text-ink";
+// Everything but the RSVP is a ghost button: no border, a soft wash on hover.
+const GHOST =
+  "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink/80 transition-colors hover:bg-ink/5 hover:text-ink";
+// Without a border, an icon is what says a link is a button.
+const KIND_ICONS: Record<LinkKind, LucideIcon> = {
+  rsvp: ClipboardList,
+  form: ClipboardList,
+  signup: ClipboardList,
+  donate: HandHeart,
+  map: MapPin,
+  other: Link2,
+};
 
 /** A form left with its default label is the event's RSVP, so it says so. */
 function primaryLabel(l: EventLink): string {
@@ -34,7 +44,7 @@ export function RsvpLink({ link, className = "" }: { link: EventLink; className?
 }
 
 /**
- * The event page's other actions: quiet pills for its other links (donate,
+ * The event page's other actions, all ghost buttons: its other links (donate,
  * sign up...), then add to calendar and share. Every outside link opens in a
  * new tab.
  */
@@ -53,44 +63,42 @@ export function EventActions({
   pageUrl: string;
 }) {
   return (
-    <div className="flex flex-col gap-3">
-      {secondary.length ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {secondary.map((l) => (
-            <a
-              key={`${l.kind}-${l.url}`}
-              href={l.url}
-              target="_blank"
-              rel={REL}
-              data-link-kind={l.kind}
-              className={`${PILL} border-ink/20 text-ink/85 hover:border-ink/50`}
-            >
-              {l.label}
+    <div className="-ml-3 flex flex-wrap items-start gap-x-1">
+      {secondary.map((l) => {
+        const Icon = KIND_ICONS[l.kind];
+        return (
+          <a
+            key={`${l.kind}-${l.url}`}
+            href={l.url}
+            target="_blank"
+            rel={REL}
+            data-link-kind={l.kind}
+            className={GHOST}
+          >
+            <Icon size={15} aria-hidden="true" />
+            {l.label}
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        );
+      })}
+      {icsHref && googleHref ? (
+        <details className="group">
+          <summary className={`${GHOST} cursor-pointer list-none group-open:bg-ink/5 [&::-webkit-details-marker]:hidden`}>
+            <CalendarPlus size={15} aria-hidden="true" />
+            Add to calendar
+          </summary>
+          <div className="flex flex-wrap gap-1 pb-1">
+            <a href={icsHref} download className={GHOST}>
+              Apple / Outlook (.ics)
+            </a>
+            <a href={googleHref} target="_blank" rel="noopener noreferrer" className={GHOST}>
+              Google Calendar
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
-          ))}
-        </div>
+          </div>
+        </details>
       ) : null}
-      <div className="flex flex-wrap items-start gap-x-4">
-        {icsHref && googleHref ? (
-          <details className="group">
-            <summary className={`${QUIET} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
-              <CalendarPlus size={15} aria-hidden="true" />
-              Add to calendar
-            </summary>
-            <div className="flex flex-wrap gap-2 pb-1">
-              <a href={icsHref} download className={`${PILL} border-ink/20 text-ink/85 hover:border-ink/50`}>
-                Apple / Outlook (.ics)
-              </a>
-              <a href={googleHref} target="_blank" rel="noopener noreferrer" className={`${PILL} border-ink/20 text-ink/85 hover:border-ink/50`}>
-                Google Calendar
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>
-            </div>
-          </details>
-        ) : null}
-        <ShareButton title={title} url={pageUrl} className={QUIET} />
-      </div>
+      <ShareButton title={title} url={pageUrl} className={GHOST} />
     </div>
   );
 }
