@@ -6,8 +6,7 @@ import { SITE_EMAIL, SITE_INSTAGRAM_URL, SITE_WHATSAPP_JOIN_URL } from "@/lib/si
 
 // Round ghost buttons: just the icon, a soft wash on hover. The name sits in
 // a small tip under the icon on hover or keyboard focus.
-const ghost =
-  "group relative inline-flex size-11 items-center justify-center rounded-full text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40";
+const ghost = "group btn btn-ghost btn-icon";
 const tip =
   "pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-paper opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100";
 

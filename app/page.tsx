@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import { PrayerSpace } from "@/components/prayer-space";
+import { LogoIntro } from "@/components/logo/logo-intro";
 import { WiggleIcon } from "@/components/logo/wiggle-icon";
 import { WiggleLetters } from "@/components/logo/wiggle-letters";
 import { PastEvents } from "@/components/past-events";
@@ -41,38 +42,27 @@ export default function Home() {
         />
         <h1 className="sr-only">{SITE_NAME} — {SITE_TAGLINE}</h1>
         <div className="flex flex-col items-center gap-6">
-          <WiggleIcon size={200} alt="" priority />
-          <WiggleLetters />
-          <SocialLinks className="mt-2" />
+          <LogoIntro />
+          <WiggleIcon size={200} alt="" priority drop={0} />
+          <WiggleLetters dropFrom={1} />
+          <SocialLinks />
         </div>
         {PRAYER_SPACE ? <PrayerSpace info={PRAYER_SPACE} /> : null}
         <section className="w-full">
-          <div className="mb-5 flex items-baseline justify-between gap-4">
-            <h2 className="text-2xl">Upcoming</h2>
-            <Link
-              href="/calendar"
-              className="-my-3 -mr-3 inline-flex min-h-11 items-center rounded-full px-3 text-sm text-dim transition-colors hover:bg-ink/5 hover:text-ink"
-            >
-              See all events
+          <h2 className="scrap-title mb-8 text-4xl sm:text-5xl">Upcoming</h2>
+          <UpcomingEvents limit={3} className="stagger" />
+          <div className="mt-10 flex justify-center">
+            <Link href="/calendar" className={buttonClasses("ghost", "lg")}>
+              See the full calendar
             </Link>
           </div>
-          <UpcomingEvents limit={3} className="stagger" />
         </section>
-        <Link
-          href="/calendar"
-          className={`${buttonClasses("ghost", "lg")} min-h-11`}
-        >
-          See the full calendar
-        </Link>
         <section aria-labelledby="past-events-heading" className="w-full">
-          <div className="mb-4 flex items-baseline justify-between gap-4">
-            <h2 id="past-events-heading" className="text-xl text-ink/85">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <h2 id="past-events-heading" className="scrap-title text-3xl">
               Past events
             </h2>
-            <Link
-              href="/calendar?view=year"
-              className="-my-3 -mr-3 inline-flex min-h-11 items-center rounded-full px-3 text-sm text-dim transition-colors hover:bg-ink/5 hover:text-ink"
-            >
+            <Link href="/calendar?view=year" className={`${buttonClasses("ghost", "sm")} -mr-3`}>
               Browse the calendar
             </Link>
           </div>

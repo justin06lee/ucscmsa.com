@@ -5,7 +5,7 @@ import { formatLocal } from "@/lib/time";
 /**
  * An event's cover: its first flyer, whole (contained in a 4:5 frame, never
  * cropped; the frame holds the space before it loads), or, for an event with
- * no flyer, a plain one: a soft tone from the site's palette with the title
+ * no flyer, a plain one: the site's white paper with the title
  * and the date set in type. No shapes, symbols or patterns, ever: midna and
  * Justin's rule after a star lattice here read as a Star of David. `compact`
  * (list thumbnails) shows only the month and day. Decorative: whatever it
@@ -27,7 +27,7 @@ export function EventCover({
 }) {
   return (
     <span
-      className={`@container relative block aspect-[4/5] shrink-0 overflow-hidden border border-ink/10 bg-ink/[0.05] ${className}`}
+      className={`@container relative block aspect-[4/5] shrink-0 overflow-hidden ${className}`}
     >
       {image ? (
         <Image
@@ -43,19 +43,19 @@ export function EventCover({
         <span
           aria-hidden="true"
           data-fallback-cover=""
-          className="flex h-full w-full flex-col items-center justify-center bg-paper bg-linear-to-b from-burgundy-soft/40 to-burgundy-soft/15 p-[9%] text-center text-burgundy"
+          className="flex h-full w-full flex-col items-center justify-center bg-[var(--color-scrap)] bg-[url(/textures/paper.webp)] bg-[length:360px] p-[9%] text-center text-ink"
         >
           {compact ? (
             <>
-              <span className="text-[14cqw] font-medium tracking-[0.12em] uppercase">{formatLocal(date, "MMM")}</span>
-              <span className="text-[40cqw] font-medium leading-none tabular-nums">{formatLocal(date, "d")}</span>
+              <span className="text-[15cqw] font-medium tracking-[0.12em] text-ink/70 uppercase">{formatLocal(date, "MMM")}</span>
+              <span className="font-display text-[46cqw] leading-none tabular-nums">{formatLocal(date, "d")}</span>
             </>
           ) : (
             <>
               <span className="font-display line-clamp-5 text-[clamp(1rem,10.5cqw,2.75rem)] leading-[1.12] text-balance break-words">
                 {title}
               </span>
-              <span className="mt-[6cqw] text-[clamp(0.625rem,4.2cqw,0.9375rem)] tabular-nums text-burgundy/80">
+              <span className="mt-[6cqw] text-[clamp(0.625rem,4.2cqw,0.9375rem)] tabular-nums text-ink/70">
                 {formatLocal(date, "EEE, MMM d, yyyy")}
               </span>
             </>

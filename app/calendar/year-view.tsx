@@ -36,7 +36,7 @@ function isSummer(firstYmd: string): boolean {
 }
 
 function intensityClass(count: number): string {
-  if (count === 0) return "bg-ink/[0.06]";
+  if (count === 0) return "bg-ink/[0.07]";
   if (count === 1) return "bg-burgundy/25";
   if (count === 2) return "bg-burgundy/50";
   if (count === 3) return "bg-burgundy/75";
@@ -77,15 +77,11 @@ export function YearView({ ymd, occurrences }: Props) {
                 href={`/calendar?view=month&date=${firstYmd}`}
                 aria-label={`${monthName} ${year}${current ? " (this month)" : ""}, ${total === 0 ? "no events" : `${total} event${total === 1 ? "" : "s"}`}`}
                 aria-current={current ? "date" : undefined}
-                className={`block rounded-xl border p-2.5 transition-colors ${
-                  current
-                    ? "border-burgundy bg-burgundy-soft/25 ring-1 ring-burgundy"
-                    : "border-ink/10 bg-paper hover:border-ink/25"
-                }`}
+                className={`block p-3 ${current ? "scrap" : "hover:bg-ink/[0.03]"}`}
               >
-                <span className={`flex items-baseline justify-between text-sm font-medium ${current ? "text-burgundy" : ""}`}>
+                <span className={`font-display flex items-baseline justify-between text-xl leading-tight ${current ? "text-burgundy" : ""}`}>
                   {monthName}
-                  {total > 0 ? <span className="text-xs tabular-nums text-dim">{total}</span> : null}
+                  {total > 0 ? <span className="font-sans text-xs tabular-nums text-ink/60">{total}</span> : null}
                 </span>
                 <span aria-hidden="true" className="mt-2 grid grid-cols-7 gap-0.5">
                   {Array.from({ length: offset }, (_, i) => (
@@ -94,7 +90,7 @@ export function YearView({ ymd, occurrences }: Props) {
                   {days.map((dayYmd) => (
                     <span
                       key={dayYmd}
-                      className={`aspect-square rounded-[3px] ${intensityClass(countByDay.get(dayYmd) ?? 0)} ${
+                      className={`aspect-square rounded-full ${intensityClass(countByDay.get(dayYmd) ?? 0)} ${
                         dayYmd === todayYmd ? "ring-1 ring-burgundy ring-offset-1 ring-offset-paper" : ""
                       }`}
                     />
@@ -115,29 +111,27 @@ export function YearView({ ymd, occurrences }: Props) {
             <div
               key={firstYmd}
               data-current-month={current ? "" : undefined}
-              className={`rounded-xl border px-4 py-3 lg:px-3 ${
-                current ? "border-burgundy bg-burgundy-soft/20 ring-1 ring-burgundy" : "border-ink/10 bg-paper"
-              }`}
+              className={`px-4 py-3 lg:px-3 ${current ? "scrap" : ""}`}
             >
               <IntentLink
                 href={`/calendar?view=month&date=${firstYmd}`}
                 aria-current={current ? "date" : undefined}
-                className={`flex min-h-11 w-full items-center justify-between gap-2 text-sm font-medium transition-colors hover:text-burgundy ${
+                className={`font-display flex min-h-11 w-full items-center justify-between gap-2 text-2xl transition-colors hover:text-burgundy ${
                   current ? "text-burgundy" : ""
                 }`}
               >
                 <span>
                   {monthName}
                   {firstYmd.endsWith("-01-01") || firstYmd.endsWith("-09-01") ? (
-                    <span className="ml-1.5 font-normal tabular-nums text-dim">{year}</span>
+                    <span className="ml-1.5 font-sans text-sm tabular-nums text-ink/60">{year}</span>
                   ) : null}
-                  {isSummer(firstYmd) ? <span className="ml-1.5 font-normal text-dim">Summer</span> : null}
+                  {isSummer(firstYmd) ? <span className="ml-1.5 font-sans text-sm text-ink/60">Summer</span> : null}
                 </span>
                 {current ? (
-                  <span className="rounded-full bg-burgundy px-2 py-0.5 text-[11px] font-medium text-paper">Now</span>
+                  <span className="scribbled font-sans px-2.5 pb-1 text-xs font-medium [background-position:center_100%] [background-size:100%_6px]">Now</span>
                 ) : null}
               </IntentLink>
-              <div className="grid grid-cols-7 gap-1 text-[10px] text-dim uppercase tracking-wider">
+              <div className="grid grid-cols-7 gap-1 text-[10px] font-medium text-ink/55 uppercase tracking-wider">
                 {WEEKDAY_INITIALS.map((d, i) => (
                   <div key={i} className="flex h-5 items-center justify-center">
                     {d}
@@ -161,7 +155,7 @@ export function YearView({ ymd, occurrences }: Props) {
                         count === 0 ? "no events" : `${count} event${s}`
                       }`}
                       data-dense-target=""
-                      className={`size-7 rounded-md transition-transform hover:scale-110 lg:size-6 xl:size-7 ${intensityClass(count)} ${
+                      className={`size-7 rounded-full transition-transform hover:scale-110 lg:size-6 xl:size-7 ${intensityClass(count)} ${
                         isToday ? "ring-2 ring-burgundy ring-offset-2 ring-offset-paper" : ""
                       }`}
                     />

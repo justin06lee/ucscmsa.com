@@ -69,7 +69,8 @@ test.describe("phones", () => {
 
   test("Upcoming cards stack, each flyer the full width", async ({ page }) => {
     await page.goto("/");
-    const cover = (await upcoming(page).first().locator(".aspect-\\[4\\/5\\]").boundingBox())!;
+    // Layout sizes, not boundingBox: the flyer is pasted on at a slight tilt.
+    const cover = await upcoming(page).first().locator(".aspect-\\[4\\/5\\]").evaluate((el: HTMLElement) => ({ width: el.offsetWidth, height: el.offsetHeight }));
     expect(cover.width).toBeGreaterThan(330);
     expect(Math.abs(cover.height - (cover.width * 5) / 4)).toBeLessThan(1.5);
   });
@@ -85,8 +86,9 @@ test.describe("phones", () => {
   test("the month list is a timeline of days, with list cards", async ({ page }) => {
     await page.goto("/calendar?view=month&date=2026-10-20");
     const list = page.getByRole("region", { name: "October events" });
-    const days = list.locator(":scope > ol.timeline > li.timeline__day");
-    await expect(days.first()).toBeVisible();
+    // Late in the month most days are folded under "Earlier this month".
+    const days = list.locator("li.timeline__day");
+    await expect(days.last()).toBeVisible();
     expect(await days.count()).toBeGreaterThan(1);
     const card = list.locator(".event-list-card").filter({ hasText: "Night Hike to the Lookout" });
     await expect(card).toContainText("8:30");
@@ -115,9 +117,9 @@ test.describe("event page", () => {
     await expect(fallback).toBeVisible();
     await expect(fallback).toHaveAttribute("aria-hidden", "true");
     await expect(fallback).toContainText("Community Potluck");
-    // Type on a tone, never a shape or a pattern (no svg, no image in the background).
+    // Type on plain paper, never a shape or a pattern (no svg, only the paper grain behind it).
     await expect(page.locator("[data-fallback-cover] svg")).toHaveCount(0);
-    expect(await fallback.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain("url(");
+    expect(await fallback.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(/^url\("[^"]*\/textures\/paper\.webp"\)$/);
     const box = (await fallback.boundingBox())!;
     const title = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
     expect(box.x + box.width).toBeLessThan(title.x);

@@ -23,7 +23,7 @@ export default async function AdminEvents({
         <h1 className="text-3xl">Events</h1>
         <Link
           href="/admin/events/new"
-          className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-paper transition-colors hover:bg-burgundy"
+          className="btn btn-primary px-5 text-sm"
         >
           New event
         </Link>

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { IntentLink } from "@/components/intent-link";
-import { Clock, MapPin } from "lucide-react";
 import type { Occurrence } from "@/lib/rrule-lite";
 import { coverThumb } from "@/lib/event-media";
 import { EventCover } from "@/components/event-cover";
@@ -29,20 +28,16 @@ export function EventListCard({
   return (
     <IntentLink
       href={href}
-      className="event-list-card relative flex min-h-11 items-start gap-3.5 rounded-2xl border border-ink/10 bg-paper p-3 shadow-[0_1px_2px_rgb(21_19_18/0.04)] transition-colors hover:border-ink/30"
+      className="event-list-card group relative flex min-h-11 items-start gap-4 py-2"
     >
-      <EventCover image={coverThumb(o.cover, o.title)} title={o.title} date={o.occurrenceStart} compact className="w-20 rounded-xl" />
-      <span className="flex min-w-0 flex-1 flex-col gap-1.5 py-0.5">
-        <span data-card-title="" className="font-medium leading-snug text-ink [overflow-wrap:anywhere]">{o.title}</span>
-        <span className="flex items-start gap-1.5 text-sm tabular-nums text-ink/70">
-          <Clock size={14} aria-hidden="true" className="mt-[3px] shrink-0" />
-          <span className="min-w-0">{when}</span>
-        </span>
+      <span className="event-list-card__cover pasted w-16 shrink-0">
+        <EventCover image={coverThumb(o.cover, o.title)} title={o.title} date={o.occurrenceStart} compact className="w-full" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span data-card-title="" className="font-display text-xl leading-tight text-ink [overflow-wrap:anywhere] group-hover:text-burgundy">{o.title}</span>
+        <span className="mt-0.5 text-sm font-medium tabular-nums text-ink/85">{when}</span>
         {o.location ? (
-          <span className="flex items-start gap-1.5 text-sm text-ink/70">
-            <MapPin size={14} aria-hidden="true" className="mt-[3px] shrink-0" />
-            <span className="min-w-0 [overflow-wrap:anywhere]">{o.location}</span>
-          </span>
+          <span className="text-sm text-ink/70 [overflow-wrap:anywhere]">{o.location}</span>
         ) : null}
       </span>
       <LinkPending />

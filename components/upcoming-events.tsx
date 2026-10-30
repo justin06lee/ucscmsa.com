@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Clock, MapPin } from "lucide-react";
 import { getUpcomingOccurrences } from "@/lib/db/queries";
 import { startTimeText, TIME_NOT_ANNOUNCED } from "@/lib/event-time";
 import { coverThumb } from "@/lib/event-media";
@@ -43,7 +42,7 @@ export async function UpcomingEvents({
   }
 
   const today = toLocalYmd(new Date());
-  const listClass = ["grid gap-x-6 gap-y-10 sm:grid-cols-3", className].filter(Boolean).join(" ");
+  const listClass = ["grid gap-x-9 gap-y-14 sm:grid-cols-3", className].filter(Boolean).join(" ");
 
   return (
     <ul className={listClass}>
@@ -55,31 +54,27 @@ export async function UpcomingEvents({
             className="upcoming-card flex min-w-0 flex-col"
           >
             <Link href={occurrenceHref(o)} className="group relative flex flex-col">
-              <EventCover
-                image={coverThumb(o.cover, o.title)}
-                title={o.title}
-                date={o.occurrenceStart}
-                className="w-full rounded-2xl transition-[border-color,box-shadow] group-hover:border-ink/30 group-hover:shadow-md"
-              />
-              <h3 className="mt-3 text-lg font-medium leading-snug text-ink [overflow-wrap:anywhere] group-hover:text-burgundy">
+              <span className="pasted">
+                <EventCover
+                  image={coverThumb(o.cover, o.title)}
+                  title={o.title}
+                  date={o.occurrenceStart}
+                  className="w-full"
+                />
+              </span>
+              <h3 className="font-display mt-5 text-[1.625rem] leading-[1.15] text-ink [overflow-wrap:anywhere] group-hover:text-burgundy">
                 {o.title}
               </h3>
-              <span className="mt-1.5 flex items-start gap-1.5 text-sm tabular-nums text-ink/70">
-                <Clock size={14} aria-hidden="true" className="mt-[3px] shrink-0" />
-                <span>
-                  <DayText iso={o.occurrenceStart.toISOString()} today={today} /> ·{" "}
-                  {startTimeText(o.occurrenceStart, o.timing) ?? TIME_NOT_ANNOUNCED}
-                </span>
+              <span className="mt-2 font-medium tabular-nums text-ink">
+                <DayText iso={o.occurrenceStart.toISOString()} today={today} /> ·{" "}
+                {startTimeText(o.occurrenceStart, o.timing) ?? TIME_NOT_ANNOUNCED}
               </span>
               {o.location ? (
-                <span className="mt-1 flex items-start gap-1.5 text-sm text-ink/70">
-                  <MapPin size={14} aria-hidden="true" className="mt-[3px] shrink-0" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{o.location}</span>
-                </span>
+                <span className="mt-0.5 text-ink/70 [overflow-wrap:anywhere]">{o.location}</span>
               ) : null}
               <LinkPending />
             </Link>
-            {rsvp ? <RsvpLink link={rsvp} className="mt-3 self-start" /> : null}
+            {rsvp ? <RsvpLink link={rsvp} className="mt-2 self-start" /> : null}
           </li>
         );
       })}

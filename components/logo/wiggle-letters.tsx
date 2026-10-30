@@ -23,7 +23,8 @@ function phaseForIndex(i: number): number {
   return (i * 1103515245 + 12345) & 3;
 }
 
-export function WiggleLetters() {
+/** `dropFrom`: the first letter's place in the landing's intro (see LogoIntro). */
+export function WiggleLetters({ dropFrom }: { dropFrom?: number }) {
   const tick = useBoilTick();
   return (
     <span
@@ -44,6 +45,7 @@ export function WiggleLetters() {
             alt=""
             aria-hidden="true"
             draggable={false}
+            data-drop={dropFrom === undefined ? undefined : dropFrom + i}
             style={{
               // Eight square glyphs plus 60px of fixed spacing (seven 4px
               // gaps, two 16px margins) must fit inside the landing page's

@@ -57,7 +57,7 @@ export default async function LoginPage({
     >
       <WiggleIcon size={96} alt="" />
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="font-display text-4xl leading-none">Sign in</h1>
+        <h1 className="scrap-title text-5xl">Sign in</h1>
         <p className="text-sm text-dim">
           Admin access requires a{" "}
           <span className="text-ink">@ucsc.edu</span> Google account.
@@ -76,7 +76,7 @@ export default async function LoginPage({
           pendingText="Opening Google…"
           variant="outline"
           size="lg"
-          className="w-full !border-ink !px-7 !py-3 hover:!bg-ink hover:!text-paper"
+          className="w-full"
         >
           <GoogleMark />
           Continue with Google
@@ -84,7 +84,7 @@ export default async function LoginPage({
       </form>
       <Link
         href="/"
-        className="inline-flex min-h-11 items-center text-sm text-dim transition-colors hover:text-ink"
+        className="btn btn-ghost px-3 text-sm"
       >
         Back to home
       </Link>

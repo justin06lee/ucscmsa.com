@@ -19,7 +19,7 @@ export function fitFlyers(n: number, cap: number): { shown: number; more: number
 }
 
 // The tile is the size container, so the letter and "+k" inside scale with it.
-const tile = "@container relative block aspect-[4/5] overflow-hidden rounded-[4px] border border-ink/10";
+const tile = "@container relative block aspect-[4/5] overflow-hidden rounded-[1px]";
 
 /** A day's event as a tiny flyer (an initial on a tone when it has none). */
 function MiniFlyer({ o, dim }: { o: Occurrence; dim: boolean }) {
@@ -28,7 +28,7 @@ function MiniFlyer({ o, dim }: { o: Occurrence; dim: boolean }) {
     <span
       title={o.title}
       data-mini-flyer=""
-      className={`${tile} bg-paper shadow-[0_1px_2px_rgb(21_19_18/0.08)] transition-transform group-hover:-translate-y-px ${dim ? "opacity-45" : ""}`}
+      className={`${tile} month-flyer bg-[var(--color-scrap)] shadow-[0_1px_2px_rgb(21_19_18/0.22)] transition-transform group-hover:-translate-y-0.5 ${dim ? "opacity-40" : ""}`}
     >
       {img ? (
         <Image
@@ -41,7 +41,7 @@ function MiniFlyer({ o, dim }: { o: Occurrence; dim: boolean }) {
           className="h-full w-full object-cover"
         />
       ) : (
-        <span className="flex h-full w-full items-center justify-center bg-linear-to-b from-burgundy-soft/70 to-burgundy-soft/30 font-display text-[55cqw] leading-none text-burgundy">
+        <span className="flex h-full w-full items-center justify-center bg-[url(/textures/paper.webp)] bg-[length:360px] font-display text-[62cqw] leading-none text-ink">
           {o.title.trim().charAt(0).toUpperCase()}
         </span>
       )}
@@ -51,8 +51,8 @@ function MiniFlyer({ o, dim }: { o: Occurrence; dim: boolean }) {
 
 function MoreTile({ more }: { more: number }) {
   return (
-    <span className={`${tile} bg-ink/[0.05]`}>
-      <span className="flex h-full w-full items-center justify-center text-[34cqw] font-medium tabular-nums text-ink/70">
+    <span className={`${tile} bg-[var(--color-scrap)] shadow-[0_1px_2px_rgb(21_19_18/0.22)]`}>
+      <span className="flex h-full w-full items-center justify-center text-[36cqw] font-medium tabular-nums text-ink">
         +{more}
       </span>
     </span>
@@ -88,19 +88,18 @@ export function MonthView({ ymd, occurrences }: Props) {
 
   return (
     <FadeIn>
-      <div className="grid grid-cols-7 text-xs uppercase tracking-wide text-dim mb-2">
+      <div className="grid grid-cols-7 text-xs font-medium uppercase tracking-wide text-ink/60">
         {WEEKDAYS.map((d) => (
           <div key={d} className="px-1 py-2 text-center font-medium sm:px-3 sm:text-left">
             {d}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 border border-ink/10 rounded-lg overflow-hidden bg-paper">
+      <div className="grid grid-cols-7 border-t-2 border-ink">
         {grid.map(({ ymd: cellYmd, inMonth }, i) => {
           const dayEvents = byDay.get(cellYmd) ?? [];
           const isToday = cellYmd === todayYmd;
           const dayNum = Number(cellYmd.split("-")[2]);
-          const col = i % 7;
           const row = Math.floor(i / 7);
           const n = dayEvents.length;
           // The flyers are pictures, so the link names the events in words.
@@ -116,21 +115,14 @@ export function MonthView({ ymd, occurrences }: Props) {
               className={`
                 group relative min-h-14 px-1 py-1.5 flex flex-col items-center gap-1 transition-colors
                 sm:min-h-32 sm:items-stretch sm:px-3 sm:py-2
-                ${inMonth ? "text-ink hover:bg-ink/[0.04]" : "text-dim bg-ink/[0.015]"}
-                ${col < 6 ? "border-r border-ink/10" : ""}
-                ${row < totalRows - 1 ? "border-b border-ink/10" : ""}
+                ${inMonth ? "text-ink hover:bg-ink/[0.04]" : "text-ink/35"}
+                ${row < totalRows - 1 ? "border-b border-ink/15" : ""}
               `.replace(/\s+/g, " ").trim()}
             >
               <div className="flex items-center">
-                {isToday ? (
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-burgundy text-paper text-sm font-medium">
-                    {dayNum}
-                  </span>
-                ) : (
-                  <span className={`text-sm ${inMonth ? "font-medium" : ""}`}>
-                    {dayNum}
-                  </span>
-                )}
+                <span className={`font-display text-xl leading-7 tabular-nums sm:text-2xl ${isToday ? "circled sm:ml-1.5" : ""}`}>
+                  {dayNum}
+                </span>
               </div>
               {/* Each day's events as tiny flyers (Justin's ask): one on phones,
                   where cells are ~50px wide and the month's events are listed
@@ -143,8 +135,8 @@ export function MonthView({ ymd, occurrences }: Props) {
                     </span>
                     {n > 1 ? <span className="text-[10px] font-medium leading-none text-dim">+{n - 1}</span> : null}
                   </span>
-                  <FlyerRow events={dayEvents} cap={2} dim={!inMonth} className="hidden grid-cols-2 gap-1.5 sm:grid lg:hidden" />
-                  <FlyerRow events={dayEvents} cap={3} dim={!inMonth} className="hidden grid-cols-3 gap-1.5 lg:grid" />
+                  <FlyerRow events={dayEvents} cap={2} dim={!inMonth} className="hidden grid-cols-2 gap-2 sm:grid lg:hidden" />
+                  <FlyerRow events={dayEvents} cap={3} dim={!inMonth} className="hidden grid-cols-3 gap-2 lg:grid" />
                 </>
               )}
             </IntentLink>

@@ -35,7 +35,7 @@ export default async function NotFound() {
         </div>
         <Link
           href="/"
-          className={`${buttonClasses("ghost", "lg")} min-h-11`}
+          className={buttonClasses("ghost", "lg")}
         >
           Back home
         </Link>

@@ -22,7 +22,7 @@ export function FlyerGallery({ title, flyers, className = "" }: { title: string;
       <button
         type="button"
         onClick={() => setOpen(0)}
-        className="group mx-auto block cursor-zoom-in overflow-hidden rounded-2xl border border-ink/10 bg-ink/[0.04] shadow-sm"
+        className="pasted group mx-auto cursor-zoom-in"
         // Full column width, but no taller than most of the screen.
         style={{
           aspectRatio: `${hero.width} / ${hero.height}`,
@@ -39,18 +39,18 @@ export function FlyerGallery({ title, flyers, className = "" }: { title: string;
           unoptimized
           loading="eager"
           fetchPriority="high"
-          className="h-full w-full object-contain transition-opacity group-hover:opacity-95"
+          className="h-full w-full object-contain"
         />
       </button>
       {flyers.length > 1 ? (
-        <ul className="mt-3 flex flex-wrap justify-center gap-2" aria-label={`All ${flyers.length} flyers`}>
+        <ul className="mt-5 flex flex-wrap justify-center gap-2.5" aria-label={`All ${flyers.length} flyers`}>
           {flyers.map((f, i) => (
             <li key={f.card.src}>
               <button
                 type="button"
                 onClick={() => setOpen(i)}
                 aria-label={`Open flyer ${i + 1} of ${flyers.length} full screen`}
-                className="block overflow-hidden rounded-lg border border-ink/15 bg-ink/[0.04] transition-colors hover:border-ink/40"
+                className="block overflow-hidden bg-[var(--color-scrap)] shadow-[0_1px_2px_rgb(21_19_18/0.22)] transition-transform hover:-translate-y-0.5"
                 // A touch target even for a wide flyer (contained, not cropped).
                 style={{ width: 56, height: Math.round(Math.min(Math.max(56 * (f.card.height / f.card.width), 44), 75)) }}
               >

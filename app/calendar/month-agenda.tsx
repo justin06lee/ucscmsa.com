@@ -50,9 +50,9 @@ export function MonthAgenda({
               <span className="font-medium">{formatLocal(parseHMInLocal(day, "12:00"), "MMM d")}</span>
               <span className="text-ink/70">{formatLocal(parseHMInLocal(day, "12:00"), "EEEE")}</span>
               {day === todayYmd ? (
-                <span className="rounded-full bg-burgundy px-2 py-0.5 text-xs text-paper">Today</span>
+                <span className="circled mx-2 text-sm font-medium">Today</span>
               ) : day === nextYmd(todayYmd) ? (
-                <span className="rounded-full border border-burgundy/40 px-2 py-0.5 text-xs text-burgundy">Tomorrow</span>
+                <span className="text-sm font-medium text-burgundy">Tomorrow</span>
               ) : null}
             </IntentLink>
           </h3>
@@ -78,7 +78,7 @@ export function MonthAgenda({
       ) : (
         <>
           {earlier.length > 0 ? (
-            <details className="month-agenda__earlier group mb-3 rounded-lg border border-ink/10">
+            <details className="month-agenda__earlier group mb-3">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
                 Earlier this month
                 <span className="text-xs font-normal tabular-nums text-ink/70">

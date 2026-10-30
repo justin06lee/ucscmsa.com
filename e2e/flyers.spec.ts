@@ -98,7 +98,7 @@ test.describe("event links", () => {
     await expect(rsvp).toHaveText(/^RSVP/);
     // In the RSVP box, in the site's primary button style.
     await expect(page.getByRole("region", { name: "RSVP" }).locator("a[data-link-kind=rsvp]")).toBeVisible();
-    await expect(rsvp).toHaveClass(/bg-ink/);
+    await expect(rsvp).toHaveClass(/btn-primary/);
     await expect(rsvp).toHaveAttribute("href", "https://forms.gle/example-panel");
     const volunteer = page.locator("a[data-link-kind=signup]");
     await expect(volunteer).toHaveText(/^Volunteer/);

@@ -210,7 +210,8 @@ test.describe("admin nav on phones", () => {
     for (const path of ["/admin/events/new", "/admin/nominations"]) {
       await page.goto(path);
       const sizes = await page
-        .locator("input:not([type=hidden]), textarea")
+        // Only fields that take typing zoom; a chip's checkbox doesn't.
+        .locator("input:not([type=hidden], [type=checkbox], [type=radio]), textarea")
         .evaluateAll((els) => els.map((el) => parseFloat(getComputedStyle(el).fontSize)));
       expect(sizes.length).toBeGreaterThan(0);
       for (const s of sizes) expect(s).toBeGreaterThanOrEqual(16);

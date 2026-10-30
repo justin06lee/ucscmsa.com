@@ -122,12 +122,12 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
           size="sm"
           onClick={() => go(stepDate(date, view, -1), view)}
           aria-label={`Previous ${view}`}
-          className="-ml-2 !h-11 !w-11 shrink-0 !rounded-full !p-0"
+          className="btn-icon -ml-2 shrink-0"
         >
           <ChevronLeft size={22} aria-hidden="true" />
         </Button>
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 sm:flex-none">
-          <h1 className="text-3xl leading-none sm:text-4xl">
+          <h1 className="scrap-title text-3xl sm:text-[2.5rem]">
             {shortTitle ? (
               <>
                 <span className="sm:hidden">{shortTitle}</span>
@@ -146,7 +146,7 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
           size="sm"
           onClick={() => go(stepDate(date, view, 1), view)}
           aria-label={`Next ${view}`}
-          className="!h-11 !w-11 shrink-0 !rounded-full !p-0"
+          className="btn-icon shrink-0"
         >
           <ChevronRight size={22} aria-hidden="true" />
         </Button>
@@ -156,12 +156,12 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
       <div
         role="tablist"
         aria-label="Calendar view"
-        className="relative grid w-full grid-cols-3 rounded-full bg-ink/[0.06] p-1 text-sm sm:w-auto"
+        className="relative grid w-full grid-cols-3 text-[0.9375rem] sm:w-auto"
       >
         <span
           aria-hidden="true"
           data-view-pill=""
-          className="pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-paper shadow-[0_1px_3px_rgb(21_19_18/0.12),0_0_0_1px_rgb(21_19_18/0.06)] transition-transform duration-300 ease-[cubic-bezier(0.3,0.7,0.2,1)] motion-reduce:transition-none"
+          className="pointer-events-none absolute inset-y-1.5 left-0 w-1/3 rounded-full bg-ink transition-transform duration-300 ease-[cubic-bezier(0.3,0.7,0.2,1)] motion-reduce:transition-none"
           style={{ transform: `translateX(${VIEWS.indexOf(shownView) * 100}%)` }}
         />
         {VIEWS.map((v) => (
@@ -171,8 +171,8 @@ export function CalendarNav({ view, date }: { view: View; date: Date }) {
             role="tab"
             aria-selected={v === shownView}
             onClick={() => go(date, v)}
-            className={`relative min-h-11 rounded-full px-5 capitalize transition-colors duration-200 ${
-              v === shownView ? "font-medium text-ink" : "text-ink/60 hover:text-ink"
+            className={`relative min-h-11 rounded-full px-5 font-medium capitalize transition-colors duration-200 ${
+              v === shownView ? "text-paper" : "text-ink/70 hover:text-ink"
             }`}
           >
             {v}

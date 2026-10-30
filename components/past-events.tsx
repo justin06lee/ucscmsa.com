@@ -25,7 +25,7 @@ export async function PastEvents({ limit = 4 }: { limit?: number }) {
   const today = toLocalYmd(new Date());
   const thisYear = today.slice(0, 4);
   return (
-    <ol className="grid gap-3 sm:grid-cols-2">
+    <ol className="grid gap-x-9 gap-y-3 sm:grid-cols-2">
       {items.map((o) => {
         const sameYear = toLocalYmd(o.occurrenceStart).slice(0, 4) === thisYear;
         const time = startTimeText(o.occurrenceStart, o.timing);

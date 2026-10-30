@@ -72,7 +72,7 @@ describe("Upcoming cards", () => {
     expect(rsvp).toHaveAttribute("href", "https://forms.gle/game");
     expect(rsvp).toHaveAttribute("target", "_blank");
     expect(rsvp).toHaveAttribute("rel", "noopener noreferrer nofollow ugc");
-    expect(rsvp.className).toContain("bg-ink");
+    expect(rsvp.className).toContain("btn-primary");
     expect(link.contains(rsvp)).toBe(false);
 
     // A donate link is no RSVP: no button on the card.

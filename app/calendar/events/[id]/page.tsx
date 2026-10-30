@@ -128,34 +128,36 @@ export default async function EventDetail({ params, searchParams }: Props) {
       <FadeIn>
         <Link
           href="/calendar"
-          className="-ml-1 inline-flex min-h-11 items-center px-1 text-sm text-dim transition-colors hover:text-ink"
+          className="btn btn-ghost -ml-3 px-3 text-sm"
         >
           Back to the calendar
         </Link>
         {/* After Luma: the cover on the left, the details and RSVP on the
             right; stacked on phones, cover first. */}
-        <div className="mt-3 grid gap-7 md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-10 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-12">
+        <div className="mt-6 grid gap-9 md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-10 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-12">
           <div className="md:sticky md:top-6">
             {flyers.length > 0 ? (
               <FlyerGallery title={row.title} flyers={flyers} />
             ) : (
-              <EventCover image={null} title={row.title} date={occurrenceStart} className="mx-auto w-full max-w-[380px] rounded-2xl shadow-sm" />
+              <span className="pasted mx-auto w-full max-w-[380px]">
+                <EventCover image={null} title={row.title} date={occurrenceStart} className="w-full" />
+              </span>
             )}
           </div>
           <div className="min-w-0">
             {/* A long title steps down a size on phones so it doesn't fill the screen. */}
             <h1
-              className={`${row.title.length > 60 ? "text-2xl" : "text-3xl"} leading-tight text-balance break-words sm:text-[2.5rem]`}
+              className={`${row.title.length > 60 ? "text-3xl" : "text-4xl"} leading-[1.08] text-balance break-words sm:text-5xl`}
             >
               {row.title}
             </h1>
-            {hostedBy ? <p className="mt-2 text-sm font-medium text-ink/75">Hosted by {hostedBy}</p> : null}
+            {hostedBy ? <p className="mt-3 font-medium text-ink/75">Hosted by {hostedBy}</p> : null}
             <div className="mt-5 flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <DateTile date={occurrenceStart} />
                 <div className="min-w-0">
-                  <p className="font-medium tabular-nums">{when.date}</p>
-                  <p className="text-sm tabular-nums text-dim">{when.time}</p>
+                  <p className="text-[1.0625rem] font-medium tabular-nums">{when.date}</p>
+                  <p className="tabular-nums text-ink/70">{when.time}</p>
                 </div>
               </div>
               {row.location && mapHref ? (
@@ -169,10 +171,10 @@ export default async function EventDetail({ params, searchParams }: Props) {
                     <MapPin size={18} aria-hidden="true" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-medium [overflow-wrap:anywhere] underline decoration-ink/20 underline-offset-4 transition-colors group-hover:decoration-ink/60">
+                    <span className="block text-[1.0625rem] font-medium [overflow-wrap:anywhere] underline decoration-ink/25 underline-offset-4 transition-colors group-hover:decoration-burgundy">
                       {row.location}
                     </span>
-                    <span className="block text-sm text-dim">
+                    <span className="block text-ink/70">
                       Open the map<span className="sr-only"> (opens in a new tab)</span>
                     </span>
                   </span>
@@ -182,7 +184,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
             {cancelled ? (
               <p
                 role="status"
-                className="mt-6 rounded-xl border border-burgundy/30 bg-burgundy/5 px-4 py-3 text-sm font-medium text-burgundy"
+                className="scrap mt-6 px-4 py-3 font-medium text-burgundy"
               >
                 This event was cancelled.
               </p>
@@ -190,7 +192,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
             {passed ? (
               <p
                 role="status"
-                className="mt-6 rounded-xl border border-ink/15 bg-ink/[0.03] px-4 py-3 text-sm text-ink/80"
+                className="scrap mt-6 px-4 py-3 text-ink/85"
               >
                 <span className="font-medium">This event has passed.</span>
                 {nextUpcoming ? (
@@ -208,7 +210,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
             {!closed ? (
               <section
                 aria-labelledby="rsvp-heading"
-                className="mt-6 rounded-2xl border border-ink/15 bg-paper px-4 py-4 shadow-[0_1px_2px_rgb(21_19_18/0.04)] sm:px-5"
+                className="scrap mt-7 px-5 py-5"
               >
                 <h2 id="rsvp-heading" className="leading-none">
                   {/* A span: globals.css sets every h2 in Amiri, above utilities. */}
@@ -216,8 +218,8 @@ export default async function EventDetail({ params, searchParams }: Props) {
                 </h2>
                 {primary ? (
                   <>
-                    <p className="mt-2 text-sm text-ink/80">The organizers take RSVPs on their own form.</p>
-                    <RsvpLink link={primary} className="mt-3 w-full sm:w-auto" />
+                    <p className="mt-2 text-ink/85">The organizers take RSVPs on their own form.</p>
+                    <RsvpLink link={primary} className="mt-2 w-full sm:w-auto" />
                   </>
                 ) : session?.user?.id ? (
                   <div className="mt-3">
@@ -229,13 +231,13 @@ export default async function EventDetail({ params, searchParams }: Props) {
                   </div>
                 ) : (
                   <>
-                    <p className="mt-2 text-sm text-ink/80">Let the organizers know you&rsquo;re coming.</p>
+                    <p className="mt-2 text-ink/85">Let the organizers know you&rsquo;re coming.</p>
                     <Link
                       // The sign-in page itself, back to this event afterwards. A
                       // <Link> to /api/auth/signin was prefetched on every view and
                       // its redirect left a request hanging; it also returned home.
                       href={`/login?callbackUrl=${encodeURIComponent(eventUrl(id))}`}
-                      className={`${buttonClasses("primary", "lg")} mt-3 min-h-11 w-full sm:w-auto`}
+                      className={`${buttonClasses("primary", "lg")} mt-2 w-full sm:w-auto`}
                     >
                       Sign in with UCSC to RSVP
                     </Link>
@@ -253,7 +255,7 @@ export default async function EventDetail({ params, searchParams }: Props) {
               />
             </div>
             {body || isJummah(row.title) ? (
-              <section aria-labelledby="about-heading" className="mt-8 border-t border-ink/10 pt-5">
+              <section aria-labelledby="about-heading" className="mt-9">
                 <h2 id="about-heading" className="leading-none">
                   {/* A span: globals.css sets every h2 in Amiri, above utilities. */}
                   <span className={LABEL}>About this event</span>
@@ -278,17 +280,17 @@ export default async function EventDetail({ params, searchParams }: Props) {
   );
 }
 
-const LABEL = "font-sans text-sm font-medium tracking-wide text-dim uppercase";
-const TILE = "flex size-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 bg-paper text-ink/75";
+const LABEL = "text-[1.75rem] leading-tight";
+const TILE = "flex size-11 shrink-0 items-center justify-center bg-[var(--color-scrap)] bg-[url(/textures/paper.webp)] bg-[length:360px] text-ink/80 shadow-[0_1px_2px_rgb(21_19_18/0.2)] -rotate-2";
 
 /** Luma's little calendar page: the month over the day. */
 function DateTile({ date }: { date: Date }) {
   return (
     <span aria-hidden="true" className={`${TILE} flex-col overflow-hidden`}>
-      <span className="w-full bg-ink/[0.06] text-center text-[9px] leading-[14px] font-semibold tracking-wide uppercase">
+      <span className="w-full text-center text-[9px] leading-[15px] font-semibold tracking-wide text-burgundy uppercase">
         {formatLocal(date, "MMM")}
       </span>
-      <span className="flex-1 text-base leading-[24px] font-medium text-ink">{formatLocal(date, "d")}</span>
+      <span className="font-display flex-1 text-xl leading-[22px] text-ink">{formatLocal(date, "d")}</span>
     </span>
   );
 }

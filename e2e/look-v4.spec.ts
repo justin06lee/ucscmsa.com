@@ -1,14 +1,51 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 // The October 28 look round (Justin's list): a see-through top bar with the
 // Calendar link, the social buttons under the landing's logo, the sliding
 // view switch, the school-year year view and a day that fits a laptop screen.
+// Since the October 30 redesign, the logo's falling intro too.
 
 const TZ = "America/Los_Angeles";
 const thisMonth = () => new Date().toLocaleDateString("en-US", { timeZone: TZ, month: "long" });
 
 test.describe("landing", () => {
   test.use({ viewport: { width: 390, height: 844 } });
+
+  // The intro's script writes one stylesheet: read it as it's added, since it
+  // removes itself once the logo has landed.
+  const introOrders = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __intro: string[] }).__intro.map((css) =>
+      [...css.matchAll(/data-drop="(\d)"/g)].map((m) => Number(m[1])),
+    ));
+  const watchIntro = (page: Page) =>
+    page.addInitScript(() => {
+      const seen: string[] = [];
+      (window as unknown as { __intro: string[] }).__intro = seen;
+      new MutationObserver((records) => {
+        for (const r of records) for (const n of r.addedNodes) {
+          if (n instanceof HTMLStyleElement && n.textContent?.includes("dropIn")) seen.push(n.textContent);
+        }
+      }).observe(document, { childList: true, subtree: true });
+    });
+
+  test("the moon and letters fall in one by one, in a new order each visit", async ({ page }) => {
+    await watchIntro(page);
+    await page.goto("/");
+    await expect(page.locator("[data-drop]")).toHaveCount(9);
+    const [first] = await introOrders(page);
+    expect([...first].sort()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    await page.reload();
+    const [second] = await introOrders(page);
+    expect(second).not.toEqual(first);
+  });
+
+  test("the intro stays still for people who ask for less motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await watchIntro(page);
+    await page.goto("/");
+    await expect(page.locator("[data-drop]")).toHaveCount(9);
+    expect(await introOrders(page)).toEqual([]);
+  });
 
   test("the top bar has no background and links to the calendar", async ({ page }) => {
     await page.goto("/");

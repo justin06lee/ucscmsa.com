@@ -74,7 +74,7 @@ export function FormLink({ label, url }: { label: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink/30 px-4 text-sm font-medium transition-colors hover:bg-ink/5"
+      className="btn btn-outline px-4 text-sm"
     >
       {label || "Open the form"}
       <span className="sr-only"> (opens in a new tab)</span>

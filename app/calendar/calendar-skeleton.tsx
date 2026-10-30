@@ -7,7 +7,7 @@ export function CalendarSkeleton() {
         {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={i}
-            className="h-12 animate-pulse rounded-md bg-ink/5"
+            className="h-12 animate-pulse bg-ink/5"
             style={{ animationDelay: `${i * 40}ms` }}
           />
         ))}

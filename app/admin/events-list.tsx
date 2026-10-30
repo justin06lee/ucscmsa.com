@@ -103,7 +103,7 @@ export function EventsList({
           />
         </label>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div role="tablist" aria-label="When" className="inline-flex rounded-full border border-ink/15 p-0.5">
+          <div role="tablist" aria-label="When" className="inline-flex">
             {(["upcoming", "past"] as const).map((t) => (
               <button
                 key={t}
@@ -114,7 +114,7 @@ export function EventsList({
                   setTab(t);
                   remember({ tab: t });
                 }}
-                className={`min-h-11 rounded-full px-4 text-sm transition-colors ${tab === t ? "bg-ink text-paper" : "text-ink/75 hover:text-ink"}`}
+                className={`btn px-4 text-sm ${tab === t ? "btn-primary" : "btn-ghost"}`}
               >
                 {t === "upcoming" ? "Upcoming" : "Past"} <span className="tabular-nums opacity-70">{counts[t]}</span>
               </button>
@@ -130,7 +130,7 @@ export function EventsList({
                   setFilter(f);
                   remember({ filter: f });
                 }}
-                className={`min-h-11 rounded-full border px-3.5 text-sm transition-colors ${filter === f ? "border-ink bg-ink/[0.07] text-ink" : "border-ink/15 text-ink/75 hover:border-ink/35"}`}
+                className={`btn px-3.5 text-sm ${filter === f ? "btn-primary" : "btn-ghost"}`}
               >
                 {FILTERS[f]}
               </button>
@@ -179,7 +179,7 @@ function EventRow({
   onDelete: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const action = "inline-flex min-h-11 items-center rounded-full px-3 text-sm transition-colors";
+  const action = "btn px-3 text-sm";
   return (
     <li className="admin-event rounded-2xl border border-ink/10 bg-paper p-3 shadow-[0_1px_2px_rgb(21_19_18/0.04)]" data-event-id={r.id}>
       <div className="flex gap-3">
@@ -207,12 +207,12 @@ function EventRow({
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1 sm:pl-[3.75rem]">
-        <IntentLink href={`/admin/events/${r.id}/edit`} aria-label={`Edit ${r.title}`} className={`${action} relative bg-ink text-paper hover:bg-burgundy`}>
+        <IntentLink href={`/admin/events/${r.id}/edit`} aria-label={`Edit ${r.title}`} className={`${action} btn-primary`}>
           Edit
           <LinkPending />
         </IntentLink>
         {r.draft ? null : (
-          <IntentLink href={`/calendar/events/${r.id}`} aria-label={`View ${r.title} on the site`} className={`${action} relative text-ink/75 hover:bg-ink/5 hover:text-ink`}>
+          <IntentLink href={`/calendar/events/${r.id}`} aria-label={`View ${r.title} on the site`} className={`${action} btn-ghost`}>
             View
             <LinkPending />
           </IntentLink>
@@ -220,10 +220,10 @@ function EventRow({
         {confirming ? (
           <span className="inline-flex flex-wrap items-center gap-1" role="group" aria-label={`Delete ${r.title}?`}>
             <span className="px-1 text-sm text-burgundy">Delete for good?</span>
-            <button type="button" onClick={onDelete} className={`${action} bg-burgundy text-paper hover:bg-burgundy/85`}>
+            <button type="button" onClick={onDelete} className={`${action} btn-danger`}>
               Delete
             </button>
-            <button type="button" onClick={() => setConfirming(false)} className={`${action} text-ink/75 hover:bg-ink/5`}>
+            <button type="button" onClick={() => setConfirming(false)} className={`${action} btn-ghost`}>
               Keep
             </button>
           </span>

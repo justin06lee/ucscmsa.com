@@ -6,11 +6,14 @@ export function WiggleIcon({
   size = 120,
   alt = "MSA at UCSC logo",
   priority = false,
+  drop,
 }: {
   size?: number;
   alt?: string;
   /** The landing hero: fetch it first, it is the page's LCP image. */
   priority?: boolean;
+  /** Its place in the landing's intro (see LogoIntro). */
+  drop?: number;
 }) {
   const tick = useBoilTick();
   // When tick is 0 (reduced motion), show variant 1 statically.
@@ -27,6 +30,7 @@ export function WiggleIcon({
       alt={alt}
       aria-hidden={alt === "" ? true : undefined}
       draggable={false}
+      data-drop={drop}
       style={{ width: size, height: size }}
     />
   );

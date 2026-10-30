@@ -7,8 +7,7 @@ import { ShareButton } from "./share-button";
 // links in descriptions: new tab, no referrer, no endorsement.
 const REL = "noopener noreferrer nofollow ugc";
 // Everything but the RSVP is a ghost button: no border, a soft wash on hover.
-const GHOST =
-  "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink/80 transition-colors hover:bg-ink/5 hover:text-ink";
+const GHOST = "btn btn-ghost px-3 text-sm";
 // Without a border, an icon is what says a link is a button.
 const KIND_ICONS: Record<LinkKind, LucideIcon> = {
   rsvp: ClipboardList,
@@ -35,7 +34,7 @@ export function RsvpLink({ link, className = "" }: { link: EventLink; className?
       target="_blank"
       rel={REL}
       data-link-kind={link.kind}
-      className={`${buttonClasses("primary", "lg")} min-h-11 ${className}`}
+      className={`${buttonClasses("primary", "lg")} ${className}`}
     >
       {primaryLabel(link)}
       <span className="sr-only"> (opens in a new tab)</span>
@@ -83,7 +82,7 @@ export function EventActions({
       })}
       {icsHref && googleHref ? (
         <details className="group">
-          <summary className={`${GHOST} cursor-pointer list-none group-open:bg-ink/5 [&::-webkit-details-marker]:hidden`}>
+          <summary className={`${GHOST} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
             <CalendarPlus size={15} aria-hidden="true" />
             Add to calendar
           </summary>
