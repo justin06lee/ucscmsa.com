@@ -48,6 +48,16 @@ body {
   clip-path: polygon(0.5% 1.5%, 18% 0.4%, 41% 1.4%, 66% 0.2%, 99.4% 1%, 100% 34%, 99.3% 68%, 99.8% 98.6%, 72% 99.7%, 44% 98.9%, 19% 100%, 0.4% 99%, 0.9% 62%, 0 30%);
 }
 
+/* Everywhere but the home page: a plain sheet of the same white paper, resting on the page. */
+.paper-card {
+  border-radius: 2px;
+  background: var(--color-scrap);
+  box-shadow: 0 1px 2px rgb(21 19 18 / 0.1), 0 8px 18px -14px rgb(21 19 18 / 0.32);
+}
+
+a.paper-card { transition: box-shadow 200ms ease; }
+a.paper-card:hover { box-shadow: 0 1px 2px rgb(21 19 18 / 0.14), 0 12px 22px -14px rgb(21 19 18 / 0.45); }
+
 /* A heading on a torn strip: the page's title or a section's. */
 .scrap-title {
   display: inline-block;

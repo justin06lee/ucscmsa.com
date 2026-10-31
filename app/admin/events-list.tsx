@@ -99,7 +99,7 @@ export function EventsList({
               remember({ q: e.target.value });
             }}
             placeholder="Search by title or place"
-            className="min-h-11 w-full rounded-full border border-ink/20 bg-paper px-4 text-base outline-none transition-colors focus:border-ink/50"
+            className="min-h-11 w-full rounded-[2px] border border-ink/20 bg-scrap px-4 text-base outline-none transition-colors focus:border-ink/50"
           />
         </label>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -181,9 +181,9 @@ function EventRow({
   const [confirming, setConfirming] = useState(false);
   const action = "btn px-3 text-sm";
   return (
-    <li className="admin-event rounded-2xl border border-ink/10 bg-paper p-3 shadow-[0_1px_2px_rgb(21_19_18/0.04)]" data-event-id={r.id}>
+    <li className="admin-event paper-card p-3" data-event-id={r.id}>
       <div className="flex gap-3">
-        <EventCover image={r.thumb} title={r.title} date={new Date(r.at)} compact className="w-12 self-start rounded-lg" />
+        <EventCover image={r.thumb} title={r.title} date={new Date(r.at)} compact className="w-12 self-start" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
           <span className="text-sm text-ink/70 [overflow-wrap:anywhere]">
@@ -200,7 +200,7 @@ function EventRow({
                 <span className="rounded-full bg-ink/[0.06] px-2 py-0.5 text-xs text-ink/75">Repeats · {r.pattern}</span>
               ) : null}
               {r.imported ? (
-                <span className="rounded-full border border-ink/20 px-2 py-0.5 text-xs text-ink/75">{r.imported}</span>
+                <span className="rounded-[2px] bg-ink/[0.06] px-2 py-0.5 text-xs text-ink/75">{r.imported}</span>
               ) : null}
             </span>
           ) : null}

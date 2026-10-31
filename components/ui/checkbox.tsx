@@ -25,12 +25,12 @@ export function Checkbox({
   return (
     <label
       htmlFor={inputId}
-      className={`inline-flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-md px-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-burgundy ${className}`}
+      className={`inline-flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-[2px] px-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-burgundy ${className}`}
     >
       <span
         aria-hidden
         data-checked={current ? "true" : "false"}
-        className="relative inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border border-ink/30 bg-paper transition-colors data-[checked=true]:border-ink data-[checked=true]:bg-ink"
+        className="relative inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border border-ink/30 bg-scrap transition-colors data-[checked=true]:border-ink data-[checked=true]:bg-ink"
       >
         {current ? <Check size={12} strokeWidth={3} className="text-paper" /> : null}
       </span>

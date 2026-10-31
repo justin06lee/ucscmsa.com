@@ -163,7 +163,7 @@ export default function VisualEditorClient({
     selectionChanged();
   }
   const toolClass =
-    "flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-sm hover:bg-ink/5 disabled:opacity-40";
+    "flex min-h-11 min-w-11 items-center justify-center rounded-[2px] px-2 text-sm hover:bg-ink/5 disabled:opacity-40";
   return (
     <div onFocus={selectionChanged}>
       <p className="mb-2 text-sm text-dim">
@@ -177,7 +177,7 @@ export default function VisualEditorClient({
         >
           <select
             aria-label="Block style"
-            className="min-h-11 max-w-32 rounded-md bg-transparent px-2 text-base"
+            className="min-h-11 max-w-32 rounded-[2px] bg-transparent px-2 text-base"
             value={selectedType}
             disabled={disabled}
             onChange={(e) => {

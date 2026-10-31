@@ -34,7 +34,7 @@ export default async function PlaybookPage({ searchParams }: { searchParams: Pro
               <li key={c.id}>
                 <Link
                   href={`/admin/playbook/${c.slug}`}
-                  className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-ink/10 px-4 py-3 transition-colors hover:border-ink/25"
+                  className="flex min-h-11 items-center justify-between gap-3 paper-card px-4 py-3"
                 >
                   <span className="min-w-0">
                     <span className="block font-medium">{c.name}</span>

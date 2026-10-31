@@ -43,7 +43,7 @@ export function TimelineList({
   return (
     <>
       {anyBehind ? (
-        <p role="status" className="mb-3 rounded-xl border border-burgundy/30 px-3 py-3 text-sm text-burgundy">
+        <p role="status" className="mb-3 rounded-[2px] border border-burgundy/30 px-3 py-3 text-sm text-burgundy">
           Some deadlines have passed; do these today.
         </p>
       ) : null}
@@ -55,7 +55,7 @@ export function TimelineList({
             <li
               key={item.id}
               data-testid="timeline-item"
-              className={`flex gap-2 rounded-xl border px-3 py-3 ${item.done ? "border-ink/5 bg-ink/[0.02]" : "border-ink/10"}`}
+              className={`flex gap-2 paper-card px-3 py-3 ${item.done ? "border-ink/5 bg-ink/[0.02]" : "border-ink/10"}`}
             >
               {check ? <div className="-ml-1 shrink-0">{check(item)}</div> : null}
               <div className="min-w-0 flex-1 py-2">

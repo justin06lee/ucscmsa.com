@@ -59,8 +59,8 @@ export function PlanChat() {
               <p
                 className={
                   t.role === "user"
-                    ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-ink/5 px-4 py-2"
-                    : "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md border border-ink/10 px-4 py-2"
+                    ? "max-w-[85%] whitespace-pre-wrap rounded-[2px] bg-ink/5 px-4 py-2"
+                    : "max-w-[85%] whitespace-pre-wrap paper-card px-4 py-2"
                 }
               >
                 {t.text}
@@ -69,7 +69,7 @@ export function PlanChat() {
           ))}
           {busy ? (
             <li className="flex">
-              <p role="status" className="rounded-2xl rounded-bl-md border border-ink/10 px-4 py-2 text-dim">
+              <p role="status" className="paper-card px-4 py-2 text-dim">
                 {making ? "Opening your timeline" : "Making your timeline"}
               </p>
             </li>

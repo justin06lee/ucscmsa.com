@@ -45,6 +45,7 @@ export default defineConfig({
           GOOGLE_SA_JSON: "",
           GOOGLE_CALENDAR_ID: "",
           CRON_SECRET: "e2e-cron-secret",
+          EVENT_IMPORT_TOKEN: "e2e-import-token-not-a-real-secret-0123456789",
         },
       },
   use: {

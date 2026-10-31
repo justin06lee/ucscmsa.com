@@ -18,7 +18,7 @@ export function PlanningFields({
   recurring: boolean;
 }) {
   return (
-    <fieldset className="grid gap-2 rounded-md border border-ink/20 p-4">
+    <fieldset className="grid gap-2 paper-card p-4">
       <legend className="px-1 text-sm text-dim">Planning</legend>
       {/* Tells the server this form carries draft and tags. */}
       <input type="hidden" name="planning" value="1" />

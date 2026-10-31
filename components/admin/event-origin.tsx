@@ -32,7 +32,7 @@ export function EventBadges({
     <span className="inline-flex flex-wrap gap-1.5 align-middle">
       {draft ? <DraftBadge /> : null}
       {imported ? (
-        <span className="rounded-full border border-ink/20 px-2 py-0.5 text-xs text-ink/75">{imported}</span>
+        <span className="rounded-[2px] bg-ink/[0.06] px-2 py-0.5 text-xs text-ink/75">{imported}</span>
       ) : null}
       {cancelledAt ? (
         <span className="rounded-full bg-burgundy px-2 py-0.5 text-xs font-medium text-paper">Cancelled</span>

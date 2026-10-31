@@ -84,7 +84,7 @@ export function FlyerEditor({ eventId, initial }: { eventId: string; initial: Ev
   }
 
   return (
-    <section aria-labelledby="flyers-heading" className="mt-8 grid max-w-xl gap-3 rounded-md border border-ink/20 p-4">
+    <section aria-labelledby="flyers-heading" className="mt-8 grid max-w-xl gap-3 paper-card p-4">
       <h2 id="flyers-heading" className="text-xl">Flyers</h2>
       <p className="text-xs text-dim/80">
         Changes here are saved straight away. The first flyer is the one on

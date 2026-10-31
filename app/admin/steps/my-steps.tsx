@@ -46,7 +46,7 @@ export function MySteps({ steps, today, emailsOn }: { steps: MyStep[]; today: st
       <li
         key={key(s)}
         data-testid="my-step"
-        className={`flex gap-2 rounded-xl border px-3 py-3 ${
+        className={`flex gap-2 paper-card px-3 py-3 ${
           s.item.done ? "border-ink/5 bg-ink/[0.02]" : lead ? "border-ink/30" : "border-ink/10"
         }`}
       >
@@ -93,7 +93,7 @@ export function MySteps({ steps, today, emailsOn }: { steps: MyStep[]; today: st
         </p>
       ) : null}
       {steps.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-ink/20 px-4 py-6 text-dim">
+        <p className="border border-dashed border-ink/20 px-4 py-6 text-dim">
           No steps yet. When someone gives you a step on their timeline, it shows up here.
         </p>
       ) : next ? (
@@ -104,7 +104,7 @@ export function MySteps({ steps, today, emailsOn }: { steps: MyStep[]; today: st
           <ol>{card(next, true)}</ol>
         </section>
       ) : (
-        <p className="rounded-xl border border-ink/10 px-4 py-6">All your steps are done.</p>
+        <p className="paper-card px-4 py-6">All your steps are done.</p>
       )}
 
       {later.length ? (

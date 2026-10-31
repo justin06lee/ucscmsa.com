@@ -30,7 +30,7 @@ export default function AdminError({
       <div className="flex justify-center gap-3">
         <Link
           href="/"
-          className="px-4 py-2 rounded-full border border-ink hover:bg-ink hover:text-paper"
+          className="btn btn-outline px-4"
         >
           Back to site
         </Link>

@@ -48,7 +48,7 @@ function Inlines({ content }: { content: RichInline[] }) {
         href={n.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-11 max-w-full items-center rounded-md bg-burgundy/7 px-2 py-1 font-medium text-burgundy decoration-burgundy/30 underline-offset-4 hover:bg-burgundy/12 hover:underline [overflow-wrap:anywhere]"
+        className="inline-flex min-h-11 max-w-full items-center rounded-[2px] bg-burgundy/7 px-2 py-1 font-medium text-burgundy decoration-burgundy/30 underline-offset-4 hover:bg-burgundy/12 hover:underline [overflow-wrap:anywhere]"
       >
         <span>
           {n.content.map((run, j) => (

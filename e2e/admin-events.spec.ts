@@ -196,11 +196,14 @@ test.describe("on a phone", () => {
   test("rows fit the screen and every action is touch-sized", async ({ page }) => {
     await page.goto("/admin");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
-    for (const el of await page.locator(".admin-event").first().locator("a, button").all()) {
-      expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    }
+    // Visible rows only: the other tab's list sits in the page, hidden.
+    const row = page.locator(".admin-event").locator("visible=true").first();
+    await expect(row).toBeVisible();
+    const heights = await row.locator("a, button").evaluateAll((els) => els.map((el) => [el.outerHTML.slice(0, 120), el.getBoundingClientRect().height] as const));
+    expect(heights.length).toBeGreaterThan(0);
+    for (const [what, h] of heights) expect(h, what).toBeGreaterThanOrEqual(44);
     // The More menu opens inside the screen, even on the last row.
-    const last = page.locator(".admin-event").last();
+    const last = page.locator(".admin-event").locator("visible=true").last();
     await last.scrollIntoViewIfNeeded();
     await last.getByRole("button", { name: /^More actions for/ }).tap();
     const box = (await last.getByRole("menu").boundingBox())!;

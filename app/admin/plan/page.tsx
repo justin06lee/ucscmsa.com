@@ -25,7 +25,7 @@ export default async function TimelinePlannerPage() {
                 <li key={t.id}>
                   <Link
                     href={`/admin/plan/${t.id}`}
-                    className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-ink/10 px-4 py-3 transition-colors hover:border-ink/25"
+                    className="flex min-h-11 items-center justify-between gap-3 paper-card px-4 py-3"
                   >
                     <span className="min-w-0">
                       <span className="block font-medium">{t.title}</span>
@@ -34,7 +34,7 @@ export default async function TimelinePlannerPage() {
                       </span>
                     </span>
                     {t.isPublic ? (
-                      <span className="shrink-0 rounded-full border border-ink/20 px-2 py-0.5 text-xs text-dim">Public</span>
+                      <span className="shrink-0 rounded-[2px] bg-ink/[0.06] px-2 py-0.5 text-xs text-ink/75">Public</span>
                     ) : null}
                   </Link>
                 </li>

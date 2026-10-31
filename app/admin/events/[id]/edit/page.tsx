@@ -29,7 +29,7 @@ export default async function EditEventPage({ params }: Props) {
     <div>
       <h1 className="mb-6 text-3xl">Edit event</h1>
       {(importLabel(row.source) || row.cancelledAt) && (
-        <section aria-label="Event origin" className="mb-6 grid max-w-xl gap-1.5 rounded-md border border-ink/15 px-4 py-3 text-sm">
+        <section aria-label="Event origin" className="mb-6 grid max-w-xl gap-1.5 paper-card px-4 py-3 text-sm">
           <EventBadges source={row.source} cancelledAt={row.cancelledAt} />
           {row.sourceRef ? (
             <p className="text-dim">

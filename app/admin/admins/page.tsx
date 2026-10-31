@@ -26,7 +26,7 @@ export default async function AdminsList() {
       {/* Below md: one card per admin; five columns need ~700px. */}
       <ul className="flex flex-col gap-3 md:hidden">
         {rows.map((r) => (
-          <li key={r.id} className="rounded-xl border border-ink/10 px-4 py-3">
+          <li key={r.id} className="paper-card px-4 py-3">
             <div className="font-medium break-all">{r.email}</div>
             <div className="text-sm text-dim">
               {r.name ?? "—"} · since {formatLocal(r.promotedAt, "MMM d, yyyy")} ·{" "}

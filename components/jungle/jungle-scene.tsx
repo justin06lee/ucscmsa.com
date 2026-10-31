@@ -29,16 +29,19 @@ const SIZES: Record<string, [number, number]> = {
 function Cut({ name, spot, lazy = false }: { name: string; spot: string; lazy?: boolean }) {
   const [width, height] = SIZES[name];
   return (
-    <img
-      src={`/jungle/${name}.webp`}
-      width={width}
-      height={height}
-      alt=""
-      draggable={false}
-      decoding="async"
-      loading={lazy ? "lazy" : undefined}
-      className={`jungle-cut jungle-cut--${spot}`}
-    />
+    <picture>
+      <source media="(max-width: 767px)" srcSet={`/jungle/${name}-sm.webp`} />
+      <img
+        src={`/jungle/${name}.webp`}
+        width={width}
+        height={height}
+        alt=""
+        draggable={false}
+        decoding="async"
+        loading={lazy ? "lazy" : undefined}
+        className={`jungle-cut jungle-cut--${spot}`}
+      />
+    </picture>
   );
 }
 

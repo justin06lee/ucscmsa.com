@@ -112,7 +112,7 @@ export function Select({
         aria-label={ariaLabel}
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={onTriggerKey}
-        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-ink/20 bg-paper px-3 py-2 text-left transition-colors hover:border-ink/40 focus:border-ink focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-[2px] border border-ink/20 bg-scrap px-3 py-2 text-left transition-colors hover:border-ink/40 focus:border-ink focus:outline-none disabled:pointer-events-none disabled:opacity-50"
       >
         <span className={selected ? "" : "text-dim"}>
           {selected?.label ?? placeholder}
@@ -133,7 +133,7 @@ export function Select({
           ref={(el) => {
             el?.focus();
           }}
-          className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-auto rounded-md border border-ink/15 bg-paper shadow-md focus:outline-none"
+          className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-auto rounded-[2px] border border-ink/15 bg-scrap shadow-md focus:outline-none"
         >
           {options.map((opt, i) => (
             <li

@@ -79,7 +79,7 @@ export default async function NominationsPage() {
               return (
                 <li
                   key={n.id}
-                  className="border border-ink/10 rounded p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  className="paper-card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
                   <div className="min-w-0 break-words">
                     <div className="font-medium">

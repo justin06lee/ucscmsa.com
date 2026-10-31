@@ -391,6 +391,7 @@ const only = process.argv[2];
 mkdirSync("public/jungle", { recursive: true });
 const browser = await chromium.launch({ args: ["--use-mock-keychain", "--password-store=basic"] });
 let total = 0;
+let smallTotal = 0;
 for (const [name, a] of Object.entries(ASSETS)) {
   if (only && !name.includes(only)) continue;
   const page = await browser.newPage({ viewport: { width: a.w, height: a.h } });
@@ -401,7 +402,10 @@ for (const [name, a] of Object.entries(ASSETS)) {
   const webp = name === "sheet-edge" ? { lossless: true, effort: 6 } : { quality: 66, alphaQuality: 80, effort: 6 };
   const out = await sharp(png).webp(webp).toFile(`public/jungle/${name}.webp`);
   total += out.size;
+  // Phones get a lighter copy: they show these far smaller than a laptop does.
+  const small = await sharp(png).resize({ width: Math.round(a.w * 0.55) }).webp(webp).toFile(`public/jungle/${name}-sm.webp`);
+  smallTotal += small.size;
   console.log(`${name} ${a.w}x${a.h} ${Math.round(out.size / 1024)}KB`);
 }
 await browser.close();
-console.log(`total ${Math.round(total / 1024)}KB`);
+console.log(`total ${Math.round(total / 1024)}KB, phone copies ${Math.round(smallTotal / 1024)}KB`);

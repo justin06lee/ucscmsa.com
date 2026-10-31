@@ -88,7 +88,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
           id={menuId}
           role="menu"
           aria-label={label}
-          className={`absolute right-0 z-20 min-w-44 max-w-[calc(100vw-2rem)] rounded-xl border border-ink/15 bg-paper p-1 shadow-lg ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
+          className={`absolute right-0 z-20 min-w-44 max-w-[calc(100vw-2rem)] paper-card p-1 shadow-lg ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
         >
           {items.map((it): ReactNode => (
             <button
@@ -100,7 +100,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
                 close(false);
                 it.onSelect();
               }}
-              className={`flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm transition-colors focus:outline-none focus-visible:bg-ink/10 ${it.danger ? "text-burgundy hover:bg-burgundy/5" : "text-ink/85 hover:bg-ink/5"}`}
+              className={`flex min-h-11 w-full items-center rounded-[2px] px-3 text-left text-sm transition-colors focus:outline-none focus-visible:bg-ink/10 ${it.danger ? "text-burgundy hover:bg-burgundy/5" : "text-ink/85 hover:bg-ink/5"}`}
             >
               {it.label}
             </button>

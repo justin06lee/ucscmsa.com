@@ -112,7 +112,7 @@ function LinksField({ initial }: { initial: EventLink[] }) {
   const nextKey = useRef(initial.length);
 
   return (
-    <fieldset className="grid gap-3 rounded-md border border-ink/20 p-4">
+    <fieldset className="grid gap-3 paper-card p-4">
       <legend className="px-1 text-sm text-dim">Links</legend>
       <p className="text-xs text-dim/80">
         Buttons on the event page. The first RSVP link, or else the first
@@ -241,7 +241,7 @@ export function EventForm({ initial = {}, onSubmit, submitLabel }: Props) {
           &ldquo;Time not announced&rdquo; instead of guessing.
         </p>
       </div>
-      <div className="grid gap-3 rounded-md border border-ink/20 p-4">
+      <div className="grid gap-3 paper-card p-4">
         <span className="text-sm text-dim">Recurrence</span>
         <p className="text-xs text-dim/80">
           Recurring events keep the same wall-clock UTC time, so an event may

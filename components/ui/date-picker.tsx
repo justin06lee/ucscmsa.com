@@ -210,7 +210,7 @@ export function DatePicker({
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => (open ? setOpen(false) : openPanel())}
-        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-ink/20 bg-paper px-3 py-2 text-left transition-colors hover:border-ink/40 focus:border-ink focus:outline-none"
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-[2px] border border-ink/20 bg-scrap px-3 py-2 text-left transition-colors hover:border-ink/40 focus:border-ink focus:outline-none"
       >
         <span className={selected ? "" : "text-dim"}>
           {selected ? format(selected, "EEE, MMM d, yyyy") : placeholder}
@@ -221,7 +221,7 @@ export function DatePicker({
         <div
           role="dialog"
           aria-label="Choose date"
-          className="absolute left-0 top-full z-30 mt-1 w-[300px] rounded-md border border-ink/15 bg-paper p-3 shadow-md"
+          className="absolute left-0 top-full z-30 mt-1 w-[300px] rounded-[2px] border border-ink/15 bg-scrap p-3 shadow-md"
         >
           <div className="mb-2 flex items-center justify-between">
             <button
@@ -278,7 +278,7 @@ export function DatePicker({
                   tabIndex={isFocused ? 0 : -1}
                   onClick={() => commit(d)}
                   onFocus={() => setFocusedDate(d)}
-                  className={`aspect-square rounded-md text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ink/40 ${
+                  className={`aspect-square rounded-[2px] text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ink/40 ${
                     inMonth ? "text-ink" : "text-ink/30"
                   } hover:bg-ink/5 data-[selected=true]:bg-ink data-[selected=true]:text-paper data-[selected=true]:hover:bg-ink data-[today=true]:ring-1 data-[today=true]:ring-ink/40 data-[selected=true]:data-[today=true]:ring-0`}
                 >
@@ -291,7 +291,7 @@ export function DatePicker({
             <button
               type="button"
               onClick={() => commit(new Date())}
-              className="rounded-md px-2 py-1 text-xs text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
+              className="rounded-[2px] px-2 py-1 text-xs text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
             >
               Today
             </button>
@@ -299,7 +299,7 @@ export function DatePicker({
               <button
                 type="button"
                 onClick={clear}
-                className="rounded-md px-2 py-1 text-xs text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
+                className="rounded-[2px] px-2 py-1 text-xs text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
               >
                 Clear
               </button>

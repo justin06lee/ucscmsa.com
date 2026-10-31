@@ -180,7 +180,7 @@ export function TimePicker({
         required={required}
         onChange={() => {}}
       />
-      <div className="flex min-h-11 items-stretch rounded-md border border-ink/20 bg-paper transition-colors hover:border-ink/40 focus-within:border-ink">
+      <div className="flex min-h-11 items-stretch rounded-[2px] border border-ink/20 bg-scrap transition-colors hover:border-ink/40 focus-within:border-ink">
         <input
           ref={inputRef}
           id={id}
@@ -228,7 +228,7 @@ export function TimePicker({
       {open && (
         <div
           role="dialog"
-          className="absolute left-0 top-full z-30 mt-1 flex w-[260px] gap-2 rounded-md border border-ink/15 bg-paper p-2 shadow-md"
+          className="absolute left-0 top-full z-30 mt-1 flex w-[260px] gap-2 rounded-[2px] border border-ink/15 bg-scrap p-2 shadow-md"
         >
           <Column
             ref={hourColRef}
@@ -358,7 +358,7 @@ function Column<T extends string | number>({
         role="listbox"
         aria-label={label}
         onKeyDown={onKeyDown}
-        className="flex max-h-48 flex-col overflow-y-auto rounded-md border border-ink/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex max-h-48 flex-col overflow-y-auto rounded-[2px] border border-ink/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map((it, i) => {
           const active = it.value === value;

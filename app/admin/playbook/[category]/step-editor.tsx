@@ -176,7 +176,7 @@ function AddStep({ categoryId }: { categoryId: string }) {
   }
   return (
     <form
-      className="mt-6 rounded-xl border border-ink/20 px-4 py-3"
+      className="mt-6 paper-card px-4 py-3"
       onSubmit={(e) => {
         e.preventDefault();
         run(

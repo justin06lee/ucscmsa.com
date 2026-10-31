@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { signIn } from "./fixtures";
 
 // The home page's paper jungle: decoration only, never in the way of anything,
 // and still for people who ask for less motion.
@@ -64,6 +65,41 @@ test("a wide flyer's paper hugs it: no blank band above or below", async ({ page
     return [(el as HTMLElement).offsetHeight, img.offsetHeight];
   });
   expect(Math.abs(paper - flyer)).toBeLessThanOrEqual(1);
+});
+
+for (const width of [320, 375, 390]) {
+  test(`at ${width}px wide, every hero letter is whole and on screen`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    const letters = page.getByRole("img", { name: "MSA at UCSC" }).locator("img");
+    await expect(letters).toHaveCount(8);
+    await page.waitForTimeout(1600); // The letters have landed.
+    for (const box of await letters.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()))) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(width);
+      expect(box.height).toBeGreaterThanOrEqual(24);
+    }
+  });
+}
+
+test("only the home page has the jungle and the falling letters", async ({ page, context, baseURL }) => {
+  const clean = async (paths: string[]) => {
+    for (const path of paths) {
+      await page.goto(path);
+      await expect(page.locator("img[src*='/jungle/'], .jungle-stage, [data-drop]"), path).toHaveCount(0);
+    }
+  };
+  // Signed in, /login goes back to the home page.
+  await clean(["/calendar", "/calendar?view=year", "/calendar/events/ev-potluck", "/login", "/nope"]);
+  await signIn(context, baseURL!, "admin");
+  await clean(["/admin", "/admin/playbook", "/admin/events/new"]);
+});
+
+test("phones load the lighter plant images", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const src = await page.locator(".jungle-cut--far").evaluate((el: HTMLImageElement) => el.currentSrc);
+  expect(src).toContain("-sm.webp");
 });
 
 test("with less motion asked for, the jungle stays still", async ({ page }) => {
