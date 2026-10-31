@@ -40,6 +40,7 @@ test.describe("Upcoming cards", () => {
     // The cover opens the event too: the card is one link.
     const first = cards.first();
     const href = await first.locator("a:not([data-link-kind])").getAttribute("href");
+    await first.scrollIntoViewIfNeeded();
     const box = (await first.locator(".aspect-\\[4\\/5\\]").boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForURL((url) => url.pathname + url.search === href);

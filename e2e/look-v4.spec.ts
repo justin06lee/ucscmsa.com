@@ -49,7 +49,7 @@ test.describe("landing", () => {
 
   test("the top bar has no background and links to the calendar", async ({ page }) => {
     await page.goto("/");
-    const header = page.locator("body > header");
+    const header = page.getByRole("banner");
     await expect(header.getByRole("link", { name: "Calendar" })).toHaveAttribute("href", "/calendar");
     const look = await header.evaluate((el) => {
       const cs = getComputedStyle(el);
