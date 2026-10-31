@@ -10,11 +10,11 @@ const POTLUCK = "/calendar/events/ev-potluck"; // no flyer
 const upcoming = (page: Page) =>
   page.locator("section", { has: page.getByRole("heading", { name: "Upcoming", exact: true }) }).locator(".upcoming-card");
 
-/** A cover shows its flyer whole (contained, not cropped) or the fallback. */
+/** A cover shows its flyer whole (never cropped) or the fallback. */
 async function expectCover(card: Locator) {
   const img = card.locator("img").first();
   if (await img.count()) {
-    expect(await img.evaluate((el) => getComputedStyle(el).objectFit)).toBe("contain");
+    expect(await img.evaluate((el) => getComputedStyle(el).objectFit)).not.toBe("cover");
   } else {
     await expect(card.locator("[data-fallback-cover]")).toHaveCount(1);
   }
@@ -41,7 +41,7 @@ test.describe("Upcoming cards", () => {
     const first = cards.first();
     const href = await first.locator("a:not([data-link-kind])").getAttribute("href");
     await first.scrollIntoViewIfNeeded();
-    const box = (await first.locator(".aspect-\\[4\\/5\\]").boundingBox())!;
+    const box = (await first.locator(".pasted").boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForURL((url) => url.pathname + url.search === href);
   });
@@ -71,9 +71,13 @@ test.describe("phones", () => {
   test("Upcoming cards stack, each flyer the full width", async ({ page }) => {
     await page.goto("/");
     // Layout sizes, not boundingBox: the flyer is pasted on at a slight tilt.
-    const cover = await upcoming(page).first().locator(".aspect-\\[4\\/5\\]").evaluate((el: HTMLElement) => ({ width: el.offsetWidth, height: el.offsetHeight }));
+    const cover = await upcoming(page).first().locator(".pasted img").evaluate((el: HTMLImageElement) => ({
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+      shape: el.naturalWidth / el.naturalHeight,
+    }));
     expect(cover.width).toBeGreaterThan(330);
-    expect(Math.abs(cover.height - (cover.width * 5) / 4)).toBeLessThan(1.5);
+    expect(Math.abs(cover.width / cover.height - cover.shape)).toBeLessThan(0.02);
   });
 
   test("the event page stacks: the cover, then the title and RSVP", async ({ page }) => {

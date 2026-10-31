@@ -51,7 +51,7 @@ export default function Home() {
           <JungleFront />
           <div className="jungle-paper" />
           <JungleMargins />
-          <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-14 px-6 pt-12 md:pt-14">
+          <div className="relative z-30 mx-auto flex w-full max-w-5xl flex-col items-center gap-14 px-6 pt-12 md:pt-14">
             {PRAYER_SPACE ? <PrayerSpace info={PRAYER_SPACE} /> : null}
             <section className="w-full">
               <h2 className="scrap-title mb-8 text-4xl sm:text-5xl">Upcoming</h2>

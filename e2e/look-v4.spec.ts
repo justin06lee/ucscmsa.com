@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 // The October 28 look round (Justin's list): a see-through top bar with the
 // Calendar link, the social buttons under the landing's logo, the sliding
 // view switch, the school-year year view and a day that fits a laptop screen.
-// Since the October 30 redesign, the logo's falling intro too.
+// Since the October 30 redesign, the logo's lowered-on-ropes intro too.
 
 const TZ = "America/Los_Angeles";
 const thisMonth = () => new Date().toLocaleDateString("en-US", { timeZone: TZ, month: "long" });
@@ -28,15 +28,15 @@ test.describe("landing", () => {
       }).observe(document, { childList: true, subtree: true });
     });
 
-  test("the moon and letters fall in one by one, in a new order each visit", async ({ page }) => {
+  test("the moon and letters come down together in a fast ripple, then settle", async ({ page }) => {
     await watchIntro(page);
     await page.goto("/");
     await expect(page.locator("[data-drop]")).toHaveCount(9);
-    const [first] = await introOrders(page);
-    expect([...first].sort()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-    await page.reload();
-    const [second] = await introOrders(page);
-    expect(second).not.toEqual(first);
+    const css = await page.evaluate(() => (window as unknown as { __intro: string[] }).__intro[0]);
+    expect((await introOrders(page))[0]).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const delays = [...css.matchAll(/ (\d+)ms both/g)].map((m) => Number(m[1]));
+    expect(delays).toHaveLength(9);
+    expect(Math.max(...delays) - Math.min(...delays)).toBeLessThan(260);
   });
 
   test("the intro stays still for people who ask for less motion", async ({ page }) => {

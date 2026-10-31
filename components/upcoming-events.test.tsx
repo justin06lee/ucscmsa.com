@@ -64,7 +64,7 @@ describe("Upcoming cards", () => {
     expect(link).toHaveTextContent("Wed, Oct 21 · 6:00 PM");
     const img = link.querySelector("img")!;
     expect(img.getAttribute("src")).toBe("https://blob.example/game-card.webp");
-    expect(img.className).toContain("object-contain");
+    expect(img.className).not.toContain("object-cover");
     expect(img.getAttribute("loading")).toBe("lazy");
 
     // Its RSVP form: the site's primary button, a new tab, outside the card link.

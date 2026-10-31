@@ -3,9 +3,10 @@ import type { FlyerImage } from "@/lib/event-media";
 import { formatLocal } from "@/lib/time";
 
 /**
- * An event's cover: its first flyer, whole (contained in a 4:5 frame, never
- * cropped; the frame holds the space before it loads), or, for an event with
- * no flyer, a plain one: the site's white paper with the title
+ * An event's cover: its first flyer, whole and at its own shape (never cropped,
+ * and never in a band of blank paper; its width and height hold the space
+ * before it loads), or, for an event with no flyer, a plain 4:5 one: the site's
+ * white paper with the title
  * and the date set in type. No shapes, symbols or patterns, ever: midna and
  * Justin's rule after a star lattice here read as a Star of David. `compact`
  * (list thumbnails) shows only the month and day. Decorative: whatever it
@@ -27,7 +28,7 @@ export function EventCover({
 }) {
   return (
     <span
-      className={`@container relative block aspect-[4/5] shrink-0 overflow-hidden ${className}`}
+      className={`@container relative block shrink-0 overflow-hidden ${image ? "" : "aspect-[4/5]"} ${className}`}
     >
       {image ? (
         <Image
@@ -37,7 +38,7 @@ export function EventCover({
           alt=""
           unoptimized
           loading="lazy"
-          className="h-full w-full object-contain"
+          className="block h-auto w-full"
         />
       ) : (
         <span

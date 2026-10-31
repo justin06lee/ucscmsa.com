@@ -44,6 +44,28 @@ test("far layers lag behind the scroll and near ones race ahead", async ({ page 
   expect(await y(page, ".jungle-front .jungle-layer")).toBeLessThan(0);
 });
 
+test("on a phone, the title stays in front of the leaves as the page scrolls", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const order = await page.evaluate(() => {
+    const z = (sel: string) => Number(getComputedStyle(document.querySelector(sel)!).zIndex);
+    return { leaves: z(".jungle-front > .jungle-layer"), title: z(".jungle-clearing"), edge: z(".jungle-cut--edge") };
+  });
+  expect(order.leaves).toBeLessThan(order.title);
+  expect(order.title).toBeLessThan(order.edge);
+});
+
+test("a wide flyer's paper hugs it: no blank band above or below", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const card = page.locator(".upcoming-card").filter({ hasText: "Laser Tag" }).locator(".pasted");
+  const [paper, flyer] = await card.evaluate((el) => {
+    const img = el.querySelector("img")!;
+    return [(el as HTMLElement).offsetHeight, img.offsetHeight];
+  });
+  expect(Math.abs(paper - flyer)).toBeLessThanOrEqual(1);
+});
+
 test("with less motion asked for, the jungle stays still", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });

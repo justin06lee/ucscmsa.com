@@ -53,8 +53,9 @@ export async function UpcomingEvents({
             key={`${o.eventId}-${o.occurrenceStart.toISOString()}`}
             className="upcoming-card flex min-w-0 flex-col"
           >
-            <Link href={occurrenceHref(o)} className="group relative flex flex-col">
-              <span className="pasted">
+            <Link href={occurrenceHref(o)} className="group relative flex flex-1 flex-col">
+              {/* Side by side, flyers of different shapes stand on the same line. */}
+              <span className="pasted sm:mt-auto">
                 <EventCover
                   image={coverThumb(o.cover, o.title)}
                   title={o.title}
