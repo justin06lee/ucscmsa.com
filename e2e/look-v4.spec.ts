@@ -36,7 +36,7 @@ test.describe("landing", () => {
     expect((await introOrders(page))[0]).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     const delays = [...css.matchAll(/ (\d+)ms both/g)].map((m) => Number(m[1]));
     expect(delays).toHaveLength(9);
-    expect(Math.max(...delays) - Math.min(...delays)).toBeLessThan(260);
+    expect(Math.max(...delays) - Math.min(...delays)).toBeLessThan(120);
   });
 
   test("the intro stays still for people who ask for less motion", async ({ page }) => {

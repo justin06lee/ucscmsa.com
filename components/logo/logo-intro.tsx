@@ -12,7 +12,7 @@ const SCRIPT = `(function(){
 if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
 var i,css="";
 for(i=0;i<9;i++){
-css+='[data-drop="'+i+'"]{transform-origin:50% 0;animation:dropIn 1150ms linear '+Math.round(40+i*22+Math.random()*12)+'ms both;--drop-sag:'+Math.round(11+Math.random()*6)+'px;--drop-swing:'+((Math.random()<.5?-1:1)*(1.2+Math.random()*1.6)).toFixed(1)+'deg}'}
+css+='[data-drop="'+i+'"]{transform-origin:50% 0;animation:dropIn 1150ms linear '+Math.round(40+i*9+Math.random()*8)+'ms both;--drop-sag:'+Math.round(11+Math.random()*6)+'px;--drop-swing:'+((Math.random()<.5?-1:1)*(1.2+Math.random()*1.6)).toFixed(1)+'deg}'}
 var s=document.createElement("style");s.textContent=css;document.head.appendChild(s);
 setTimeout(function(){s.remove()},1800)
 })()`;
