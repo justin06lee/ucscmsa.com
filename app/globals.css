@@ -7,6 +7,7 @@
   --color-burgundy-soft: #b96c75;
   --color-scrap: #fbf9f3; /* the white paper of the logo's cut-outs */
   --color-canopy: #e4e8cc; /* the pale light behind the home page's paper jungle */
+  --color-jungle-floor: #39563f; /* the dark ground it ends in */
   --color-dim: #6f655a; /* 4.97:1 on paper; #7a6f63 was 4.28:1, under WCAG AA */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-amiri), "Iowan Old Style", Georgia, serif;
@@ -22,6 +23,11 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/* Outside any layer, to beat the rule above: see .jungle-stage. */
+html:has(.jungle) { background-color: var(--color-canopy); }
+html:has(.jungle[data-sky="mid"]) { background-color: var(--color-paper); }
+html:has(.jungle[data-sky="end"]) { background-color: var(--color-jungle-floor); }
 
 h1,
 h2,
@@ -125,10 +131,33 @@ li:nth-child(3n + 3) > * > .pasted { --tilt: -0.4deg; }
   inset: 0 0 auto;
   z-index: 0;
   height: calc(var(--hero-h) + 170px);
-  overflow: clip;
-  background: var(--color-canopy) url("/textures/paper.webp") center / 480px;
+  background: var(--color-canopy) url("/textures/paper.webp") left top / 480px;
   background-blend-mode: multiply;
   pointer-events: none;
+  clip-path: inset(-100vh 0 0 0); /* open at the top: see .jungle-stage::before */
+}
+
+/* A phone can pull the page down past its top, or up past its bottom. Above the
+   stage the sky and the trunks simply carry on; beyond that, and below the page's
+   end, the browser paints html's color, so that follows where you are (the html
+   rule after this layer). */
+.jungle-stage::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 100%;
+  height: 100vh;
+  background: var(--color-canopy) url("/textures/paper.webp") left bottom / 480px;
+  background-blend-mode: multiply;
+}
+
+/* The vine's stem, carrying on up out of its image. */
+.jungle-vine-stem {
+  position: absolute;
+  top: calc(-30px - 100vh);
+  left: calc(3% + clamp(90px, 11vw, 170px) * 0.62);
+  width: max(2px, calc(clamp(90px, 11vw, 170px) / 56));
+  height: 100vh;
+  background: #527048;
 }
 
 .jungle-layer {
@@ -147,11 +176,11 @@ li:nth-child(3n + 3) > * > .pasted { --tilt: -0.4deg; }
 /* Behind the logo: bottoms of the stage, anchored to its bottom edge. */
 .jungle-cut--far { bottom: 30px; left: 50%; width: max(110vw, 1300px); margin-left: calc(max(110vw, 1300px) / -2); }
 .jungle-cut--mid { bottom: 30px; left: 50%; width: max(112vw, 1100px); margin-left: calc(max(112vw, 1100px) / -2); }
-.jungle-cut--redwood-1 { bottom: 0; left: 17%; width: auto; height: 118%; }
-.jungle-cut--redwood-2 { bottom: 0; right: 13%; width: auto; height: 124%; }
-.jungle-cut--redwood-5 { bottom: 0; left: 2%; width: auto; height: 112%; }
-.jungle-cut--redwood-3 { bottom: -60px; left: clamp(-260px, -15vw, -140px); width: auto; height: 136%; }
-.jungle-cut--redwood-4 { bottom: -60px; right: clamp(-290px, -17vw, -160px); width: auto; height: 140%; }
+.jungle-cut--redwood-1 { bottom: 0; left: 17%; width: auto; height: 165%; }
+.jungle-cut--redwood-2 { bottom: 0; right: 13%; width: auto; height: 174%; }
+.jungle-cut--redwood-5 { bottom: 0; left: 2%; width: auto; height: 157%; }
+.jungle-cut--redwood-3 { bottom: -60px; left: clamp(-260px, -15vw, -140px); width: auto; height: 190%; }
+.jungle-cut--redwood-4 { bottom: -60px; right: clamp(-290px, -17vw, -160px); width: auto; height: 196%; }
 .jungle-cut--shrub-left { bottom: 50px; left: -4%; width: clamp(240px, 32vw, 520px); }
 .jungle-cut--fern-right { bottom: 60px; right: -6%; width: clamp(240px, 34vw, 560px); }
 /* On a phone, two slim trunks at the edges; the fat near ones would wall off the clearing. */
@@ -159,8 +188,8 @@ li:nth-child(3n + 3) > * > .pasted { --tilt: -0.4deg; }
   .jungle-cut--redwood-3,
   .jungle-cut--redwood-4,
   .jungle-cut--redwood-5 { display: none; }
-  .jungle-cut--redwood-1 { left: -22%; height: 110%; }
-  .jungle-cut--redwood-2 { right: -24%; height: 116%; }
+  .jungle-cut--redwood-1 { left: -22%; height: 154%; }
+  .jungle-cut--redwood-2 { right: -24%; height: 162%; }
 }
 .jungle-cut--vine { top: -30px; left: 3%; width: clamp(90px, 11vw, 170px); }
 

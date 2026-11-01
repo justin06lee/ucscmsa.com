@@ -9,8 +9,8 @@ import { JungleParallax } from "@/components/jungle/jungle-parallax";
 const SIZES: Record<string, [number, number]> = {
   "treeline-far": [2400, 620],
   "treeline-mid": [2400, 560],
-  "redwood-a": [760, 1500],
-  "redwood-b": [460, 1500],
+  "redwood-a": [760, 2100],
+  "redwood-b": [460, 2100],
   "fern-a": [820, 540],
   "fern-b": [700, 460],
   "fern-c": [700, 460],
@@ -74,6 +74,7 @@ export function JungleStage() {
       <Layer depth={0.14} px={-20}>
         <Cut name="shrub-a" spot="shrub-left" />
         <Cut name="fern-b" spot="fern-right" />
+        <span className="jungle-vine-stem" />
         <Cut name="vine-a" spot="vine" />
       </Layer>
     </div>

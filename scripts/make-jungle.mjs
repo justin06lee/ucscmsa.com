@@ -174,7 +174,7 @@ function redwood(W, H, r, { girth = 0.27, boughs = 9 } = {}) {
   const out = [path([...edge(-1), ...edge(1).reverse()])];
   // Boughs: a thin arching stem with slim leaves hanging off it, higher up only.
   for (let i = 0; i < boughs; i++) {
-    const y = between(r, H * 0.01, H * 0.5);
+    const y = between(r, H * 0.05, H * 0.64);
     const s = i % 2 ? 1 : -1;
     const l = (W / 2 - half * 0.5 - 34) * between(r, 0.7, 1);
     const pts = stem(cx + s * half * 0.5, y, s === 1 ? between(r, -8, 8) : 180 + between(r, -8, 8), l, s * between(r, 18, 34), 14);
@@ -186,7 +186,7 @@ function redwood(W, H, r, { girth = 0.27, boughs = 9 } = {}) {
     }
   }
   const slits = [];
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 25; i++) {
     const x = cx + between(r, -half * 0.7, half * 0.7);
     const y0 = between(r, H * 0.12, H * 0.97);
     const h = between(r, H * 0.03, H * 0.11);
@@ -307,8 +307,8 @@ const pieces = (...list) => list; // [{ d, fill, slits?, flat? }], back to front
 const ASSETS = {
   "treeline-far": { w: 2400, h: 620, seed: 11, draw: (w, h, r) => pieces({ d: treeline(w, h, r, { base: 0.34, rise: 0.58, step: 40 }), fill: TONE.far, soft: true }) },
   "treeline-mid": { w: 2400, h: 560, seed: 23, draw: (w, h, r) => pieces({ d: treeline(w, h, r, { base: 0.42, rise: 0.56, clearing: 0.5, clearDepth: 0.72, step: 58 }), fill: TONE.back }) },
-  "redwood-a": { w: 760, h: 1500, seed: 31, draw: (w, h, r) => { const t = redwood(w, h, r, { girth: 0.19, boughs: 10 }); return pieces({ d: t.body, fill: TONE.sage, slits: t.slits }); } },
-  "redwood-b": { w: 460, h: 1500, seed: 37, draw: (w, h, r) => { const t = redwood(w, h, r, { girth: 0.15, boughs: 9 }); return pieces({ d: t.body, fill: TONE.back, slits: t.slits }); } },
+  "redwood-a": { w: 760, h: 2100, seed: 31, draw: (w, h, r) => { const t = redwood(w, h, r, { girth: 0.19, boughs: 13 }); return pieces({ d: t.body, fill: TONE.sage, slits: t.slits }); } },
+  "redwood-b": { w: 460, h: 2100, seed: 37, draw: (w, h, r) => { const t = redwood(w, h, r, { girth: 0.15, boughs: 12 }); return pieces({ d: t.body, fill: TONE.back, slits: t.slits }); } },
   "fern-a": { w: 820, h: 540, seed: 41, draw: (w, h, r) => pieces({ d: fernClump(w, h, r, { fronds: 9 }), fill: TONE.fern }, { d: fernClump(w, h, r, { fronds: 7, reach: 0.62 }), fill: TONE.moss }) },
   "fern-b": { w: 700, h: 460, seed: 47, draw: (w, h, r) => pieces({ d: fernClump(w, h, r, { fronds: 8 }), fill: TONE.moss }, { d: fernClump(w, h, r, { fronds: 6, reach: 0.6 }), fill: TONE.mid }) },
   "fern-c": { w: 700, h: 460, seed: 53, draw: (w, h, r) => pieces({ d: fernClump(w, h, r, { fronds: 8 }), fill: TONE.deep }, { d: fernClump(w, h, r, { fronds: 6, reach: 0.62 }), fill: TONE.fern }) },

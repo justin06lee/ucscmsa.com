@@ -8,12 +8,16 @@ import { useEffect } from "react";
  * looks far, below 0 races ahead and looks near); data-px is how far it leans
  * from the pointer. Layers with data-self measure from their own place on the
  * page, so a plant far down sits where it was put as it reaches mid-screen.
- * Transforms only, one write per frame, and nothing at all under reduced motion.
+ * Transforms only, one write per frame, and no movement under reduced motion.
+ *
+ * It also tells the page what a phone's pull past the top or bottom should show
+ * (data-sky on .jungle, read by the html rule in app/globals.css).
  */
 export function JungleParallax() {
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const layers = [...document.querySelectorAll<HTMLElement>("[data-depth]")].map((el) => ({
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const jungle = document.querySelector<HTMLElement>(".jungle");
+    const layers = still ? [] : [...document.querySelectorAll<HTMLElement>("[data-depth]")].map((el) => ({
       el,
       depth: Number(el.dataset.depth),
       px: Number(el.dataset.px ?? 0),
@@ -26,8 +30,12 @@ export function JungleParallax() {
       frame = 0;
       lean += (aim - lean) * 0.08;
       const vh = window.innerHeight;
+      // Past the top, a phone reports a negative scroll: the layers hold still as it bounces.
+      const top = Math.max(0, window.scrollY);
+      const end = document.documentElement.scrollHeight - vh;
+      if (jungle) jungle.dataset.sky = top < vh * 0.7 ? "top" : top > end - vh * 0.4 ? "end" : "mid";
       for (const { el, depth, px, anchor } of layers) {
-        let y = window.scrollY * depth;
+        let y = top * depth;
         if (anchor) {
           const box = anchor.getBoundingClientRect();
           y = (vh / 2 - (box.top + box.height / 2)) * depth;
@@ -44,7 +52,7 @@ export function JungleParallax() {
       wake();
     };
     const pointerFine = matchMedia("(hover: hover) and (pointer: fine)").matches;
-    if (pointerFine) window.addEventListener("pointermove", onPointer, { passive: true });
+    if (pointerFine && !still) window.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("scroll", wake, { passive: true });
     window.addEventListener("resize", wake, { passive: true });
     wake();

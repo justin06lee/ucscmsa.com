@@ -95,6 +95,28 @@ test("only the home page has the jungle and the falling letters", async ({ page,
   await clean(["/admin", "/admin/playbook", "/admin/events/new"]);
 });
 
+test.describe("pulling a phone past the page's ends", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const canvas = (page: Page) => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+
+  test("the jungle carries on above the top, and the page's color follows where you are", async ({ page }) => {
+    await page.goto("/");
+    const reach = await page.evaluate(() => {
+      const stage = document.querySelector(".jungle-stage")!.getBoundingClientRect().top;
+      const up = (sel: string) => stage - document.querySelector(sel)!.getBoundingClientRect().top;
+      return { trunk: up(".jungle-cut--redwood-1"), stem: up(".jungle-vine-stem"), sky: up(".jungle-stage") };
+    });
+    expect(reach.trunk).toBeGreaterThan(300);
+    expect(reach.stem).toBeGreaterThan(600);
+    await expect.poll(() => canvas(page)).toBe("rgb(228, 232, 204)");
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => canvas(page)).toBe("rgb(57, 86, 63)");
+    // Off the home page, it's paper again.
+    await page.goto("/calendar");
+    await expect.poll(() => canvas(page)).toBe("rgb(245, 239, 226)");
+  });
+});
+
 test("phones load the lighter plant images", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
