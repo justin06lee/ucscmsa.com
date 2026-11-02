@@ -15,7 +15,6 @@ export const SITE_DESCRIPTION =
 export const SITE_INSTAGRAM_URL = "https://www.instagram.com/ucsc.msa/";
 export const SITE_WHATSAPP_JOIN_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSfgjvHZ_X6VxfVsDkZKec8cDNJpADyAdD9JvtTYaOwWt-oLWA/viewform";
-export const SITE_EMAIL = "salam@ucscmsa.com";
 
 // The MSA's own profiles (Instagram, Linktree, the UCSC student-org directory
 // page...), used as Organization sameAs in search results. Only add links the

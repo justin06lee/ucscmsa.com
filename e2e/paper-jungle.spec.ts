@@ -56,10 +56,11 @@ test("on a phone, the title stays in front of the leaves as the page scrolls", a
   expect(order.title).toBeLessThan(order.edge);
 });
 
-test("a wide flyer's paper hugs it: no blank band above or below", async ({ page }) => {
+test("a flyer's paper hugs it: no blank band above or below", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  const card = page.locator(".upcoming-card").filter({ hasText: "Laser Tag" }).locator(".pasted");
+  // Any flyer on the page: seeded events pass with the calendar.
+  const card = page.locator(".pasted:has(img)").first();
   const [paper, flyer] = await card.evaluate((el) => {
     const img = el.querySelector("img")!;
     return [(el as HTMLElement).offsetHeight, img.offsetHeight];

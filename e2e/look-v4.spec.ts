@@ -60,8 +60,7 @@ test.describe("landing", () => {
     expect(look.position).not.toBe("sticky");
   });
 
-  test("Instagram and WhatsApp open in a new tab; the email button copies the address", async ({ page, context }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  test("the socials are Instagram and WhatsApp, opening in a new tab", async ({ page }) => {
     await page.goto("/");
     const social = page.getByRole("list", { name: "Find us" });
     const ig = social.getByRole("link", { name: /^Instagram/ });
@@ -72,21 +71,14 @@ test.describe("landing", () => {
     await expect(wa).toHaveAttribute("href", /^https:\/\/docs\.google\.com\/forms\//);
     await expect(wa).toHaveAttribute("target", "_blank");
 
-    const copy = social.getByRole("button", { name: /salam@ucscmsa\.com/ });
+    await expect(social.getByRole("listitem")).toHaveCount(2);
     // Icon-only ghost buttons: round 44px targets, no border, no text showing.
-    for (const b of [ig, wa, copy]) {
+    for (const b of [ig, wa]) {
       const box = (await b.boundingBox())!;
       expect([box.width, box.height]).toEqual([44, 44]);
       expect(await b.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
     }
-    // The address only shows in the tip, which is clear until hover or focus.
-    await expect(copy.getByText("salam@ucscmsa.com", { exact: true })).toHaveCSS("opacity", "0");
-    const before = (await copy.boundingBox())!.width;
-    await copy.click();
-    await expect(page.getByRole("status").filter({ hasText: "Copied salam@ucscmsa.com" })).toBeAttached();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("salam@ucscmsa.com");
-    // The check and "Copied" don't change the button's size.
-    expect((await copy.boundingBox())!.width).toBe(before);
+    await expect(page.getByText("salam@ucscmsa.com")).toHaveCount(0);
   });
 });
 
