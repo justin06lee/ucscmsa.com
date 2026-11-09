@@ -9,6 +9,7 @@ import {
   SITE_TZ,
 } from "@/lib/time";
 import { formatInTimeZone } from "date-fns-tz";
+import { parseCalendarDate } from "@/lib/calendar-date";
 import { getOccurrencesInRange } from "@/lib/db/queries";
 import { getPrayerTimes } from "@/lib/aladhan";
 import { db } from "@/lib/db/client";
@@ -25,11 +26,6 @@ function parseView(v?: string): "day" | "month" | "year" {
   return v === "day" || v === "year" ? v : "month";
 }
 
-function parseDate(d?: string): Date {
-  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) return new Date(`${d}T12:00:00.000Z`);
-  return new Date();
-}
-
 export async function generateMetadata({
   searchParams,
 }: {
@@ -39,7 +35,7 @@ export async function generateMetadata({
   // Canonical is /calendar for every view and date (see calendarMetadata).
   return calendarMetadata(
     parseView(sp.view),
-    parseDate(sp.date),
+    parseCalendarDate(sp.date),
     sp.view !== undefined || sp.date !== undefined,
   );
 }
@@ -51,7 +47,7 @@ export default async function CalendarPage({
 }) {
   const sp = await searchParams;
   const view = parseView(sp.view);
-  const date = parseDate(sp.date);
+  const date = parseCalendarDate(sp.date);
   const ymd = formatInTimeZone(date, SITE_TZ, "yyyy-MM-dd");
 
   // The title bar is in the first bytes sent (it's the page's largest text,
